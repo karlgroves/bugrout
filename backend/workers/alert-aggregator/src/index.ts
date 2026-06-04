@@ -6,11 +6,17 @@
  * Stores in KV for fast edge retrieval by the mobile app.
  */
 
+/**
+ * Cloudflare Worker bindings available to this aggregator.
+ */
 interface Env {
   ALERTS_KV: KVNamespace;
   ALLOWED_ORIGINS?: string; // Comma-separated allowed origins
 }
 
+/**
+ * Normalized threat zone derived from an upstream alert source.
+ */
 interface ThreatZone {
   id: string;
   type: "wildfire" | "flood" | "weather";
@@ -21,6 +27,35 @@ interface ThreatZone {
   source: string;
   fetchedAt: number;
   expiresAt: number | null;
+}
+
+/**
+ * Subset of the NWS active-alerts GeoJSON response that this worker consumes.
+ */
+interface NWSAlertsResponse {
+  features: {
+    properties: {
+      id: string;
+      severity?: string;
+      headline?: string;
+      description?: string;
+      expires?: string;
+    };
+    geometry: unknown;
+  }[];
+}
+
+/**
+ * Subset of the NIFC/USFS fire-perimeter GeoJSON response that this worker consumes.
+ */
+interface USFSPerimetersResponse {
+  features: {
+    properties: {
+      poly_IncidentName: string;
+      irwin_PercentContained?: number;
+    };
+    geometry: unknown;
+  }[];
 }
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -131,6 +166,9 @@ export default {
   },
 };
 
+/**
+ * Build CORS headers, allowing only origins present in the configured allowlist.
+ */
 function buildCorsHeaders(
   origin: string,
   allowedOrigins?: string,
@@ -149,6 +187,9 @@ function buildCorsHeaders(
   };
 }
 
+/**
+ * Fetch active NWS weather alerts and normalize them into ThreatZones.
+ */
 async function fetchNWSAlerts(): Promise<ThreatZone[]> {
   const resp = await fetch(
     "https://api.weather.gov/alerts/active?status=actual&message_type=alert",
@@ -160,18 +201,7 @@ async function fetchNWSAlerts(): Promise<ThreatZone[]> {
 
   if (!resp.ok) return [];
 
-  const data = (await resp.json()) as {
-    features: Array<{
-      properties: {
-        id: string;
-        severity: string;
-        headline: string;
-        description: string;
-        expires: string;
-      };
-      geometry: unknown;
-    }>;
-  };
+  const data = await resp.json<NWSAlertsResponse>();
 
   return data.features
     .filter((f) => f.geometry !== null)
@@ -190,6 +220,9 @@ async function fetchNWSAlerts(): Promise<ThreatZone[]> {
     }));
 }
 
+/**
+ * Fetch active USFS/NIFC fire perimeters and normalize them into ThreatZones.
+ */
 async function fetchUSFSFirePerimeters(): Promise<ThreatZone[]> {
   const url =
     "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/NIFC_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,irwin_PercentContained&f=geojson";
@@ -197,15 +230,7 @@ async function fetchUSFSFirePerimeters(): Promise<ThreatZone[]> {
   const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!resp.ok) return [];
 
-  const data = (await resp.json()) as {
-    features: Array<{
-      properties: {
-        poly_IncidentName: string;
-        irwin_PercentContained: number;
-      };
-      geometry: unknown;
-    }>;
-  };
+  const data = await resp.json<USFSPerimetersResponse>();
 
   return data.features.map((f) => ({
     id: `fire-${f.properties.poly_IncidentName}`,

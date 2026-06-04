@@ -9,20 +9,22 @@
  * Minimal steps — user can skip download and do it later.
  */
 
+/* eslint-disable max-lines-per-function -- pre-existing oversized onboarding screen rendering all three step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 
-import { acceptDisclaimer } from "@/services/AppBootstrap";
-import { requestForegroundPermissionsAsync } from "@/platform/location";
-import { track, Events } from "@/platform/analytics";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { track, Events } from "@/platform/analytics";
+import { requestForegroundPermissionsAsync } from "@/platform/location";
+import { acceptDisclaimer } from "@/services/AppBootstrap";
 
 type Step = "disclaimer" | "location" | "ready";
 
-export default function OnboardingScreen() {
+/** First-launch onboarding: disclaimer, location permission, and ready steps. */
+export default function OnboardingScreen(): React.JSX.Element {
   const router = useRouter();
   const [step, setStep] = useState<Step>("disclaimer");
   const [locationGranted, setLocationGranted] = useState(false);
@@ -93,6 +95,7 @@ export default function OnboardingScreen() {
             style={styles.primaryButton}
             onPress={handleAcceptDisclaimer}
             accessibilityLabel="Accept disclaimer and continue"
+            accessibilityHint="Acknowledges the advisory-only disclaimer and moves to the location permission step"
             accessibilityRole="button"
           >
             <Text style={styles.primaryButtonText}>
@@ -119,6 +122,7 @@ export default function OnboardingScreen() {
             style={styles.primaryButton}
             onPress={handleRequestLocation}
             accessibilityLabel="Allow location access"
+            accessibilityHint="Opens the system prompt to grant location access for navigation"
             accessibilityRole="button"
           >
             <Text style={styles.primaryButtonText}>Allow Location</Text>
@@ -128,6 +132,7 @@ export default function OnboardingScreen() {
             style={styles.skipButton}
             onPress={handleSkipLocation}
             accessibilityLabel="Skip location permission for now"
+            accessibilityHint="Continues without granting location; you can enable it later in Settings"
             accessibilityRole="button"
           >
             <Text style={styles.skipText}>Skip for now</Text>
@@ -156,6 +161,7 @@ export default function OnboardingScreen() {
             style={styles.primaryButton}
             onPress={handleFinish}
             accessibilityLabel="Start using BugRout"
+            accessibilityHint="Completes onboarding and opens the main map screen"
             accessibilityRole="button"
           >
             <FontAwesome
@@ -171,7 +177,13 @@ export default function OnboardingScreen() {
   );
 }
 
-function FeatureItem({ icon, text }: { icon: string; text: string }) {
+function FeatureItem({
+  icon,
+  text,
+}: {
+  icon: string;
+  text: string;
+}): React.JSX.Element {
   return (
     <View style={styles.featureRow}>
       <FontAwesome

@@ -13,11 +13,12 @@
  *
  * Lifecycle: start() → running → stop()
  */
+/* eslint-disable complexity, sonarjs/cognitive-complexity -- pre-existing; tracked in docs/tech-debt.md (handleVoiceAnnouncements: layered distance/interval announcement rules) */
 
-import * as Speech from "@/platform/speech";
-import * as Haptics from "@/platform/haptics";
 import { track, Events } from "@/platform/analytics";
-import type { LatLng, Route, RouteManeuver } from "@bugrout/shared";
+import * as Haptics from "@/platform/haptics";
+import * as Speech from "@/platform/speech";
+import { sendSignal } from "@/services/crowd/CrowdSignal";
 import {
   startTracking,
   startBatterySavingTracking,
@@ -25,10 +26,11 @@ import {
   type LocationUpdate,
 } from "@/services/location/LocationTracker";
 import { hasDeviated } from "@/services/routing/RouteEngine";
-import { sendSignal } from "@/services/crowd/CrowdSignal";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { haversineDistance } from "@/utils/geo";
+
+import type { LatLng, Route, RouteManeuver } from "@bugrout/shared";
 
 /** Distance thresholds for voice announcements */
 const VOICE_APPROACH_HIGHWAY = 500; // meters
@@ -39,6 +41,9 @@ const HIGH_FREQ_THRESHOLD = 1000; // meters
 /** Maneuver is "passed" when within this distance */
 const MANEUVER_PASSED_THRESHOLD = 30; // meters
 
+/**
+ *
+ */
 export type NavigationEvent =
   | { type: "position"; update: LocationUpdate }
   | { type: "maneuver_advance"; index: number; maneuver: RouteManeuver }
@@ -46,8 +51,14 @@ export type NavigationEvent =
   | { type: "arrival" }
   | { type: "voice"; text: string };
 
+/**
+ *
+ */
 export type NavigationEventHandler = (event: NavigationEvent) => void;
 
+/**
+ *
+ */
 interface NavigationState {
   route: Route;
   currentManeuverIndex: number;
@@ -83,7 +94,7 @@ export async function start(
   eventHandler = onEvent;
 
   // Start GPS tracking
-  await startTracking(handleLocationUpdate);
+  await startTracking(onLocationUpdate);
 
   // Announce departure
   announceVoice(getManeuverInstruction(route, 0) ?? "Starting navigation");
@@ -129,10 +140,20 @@ export function updateRoute(newRoute: Route): void {
 }
 
 /**
+ * Synchronous location callback adapter. The GPS tracker expects a void-returning
+ * callback, so we void the async handler's promise here and surface any failure.
+ */
+function onLocationUpdate(update: LocationUpdate): void {
+  handleLocationUpdate(update).catch((err: unknown) => {
+    console.error("[BugRout] location update handler failed:", err);
+  });
+}
+
+/**
  * Core handler — processes every GPS location update.
  */
 async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
-  if (!state || !state.running) return;
+  if (!state?.running) return;
 
   const { route, currentManeuverIndex } = state;
   const position = update.position;
@@ -146,7 +167,7 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
   // 3. Check deviation (>500m from route)
   if (hasDeviated(position, route.coordinates)) {
     useRouteStore.getState().setDeviated(true);
-    Haptics.notification("warning");
+    void Haptics.notification("warning");
     track(Events.DEVIATION_DETECTED);
     emit({ type: "deviation", position });
     return; // Don't process maneuvers while deviated
@@ -172,7 +193,7 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
       }
 
       state.currentManeuverIndex = nextIndex;
-      Haptics.selection(); // Subtle tick on maneuver advance
+      void Haptics.selection(); // Subtle tick on maneuver advance
       emit({
         type: "maneuver_advance",
         index: nextIndex,
@@ -188,7 +209,7 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
   }
 
   // 7. Crowd signal (anonymous, rate-limited, opt-in)
-  sendSignal(position, update.speed, update.heading);
+  void sendSignal(position, update.speed, update.heading);
 }
 
 /**
@@ -246,12 +267,12 @@ async function handleGpsFrequency(
     // Switch to high-frequency GPS near maneuver
     state.isHighFreqGps = true;
     await stopTracking();
-    await startTracking(handleLocationUpdate);
+    await startTracking(onLocationUpdate);
   } else if (!shouldBeHighFreq && state.isHighFreqGps) {
     // Switch to battery-saving GPS on straight segments
     state.isHighFreqGps = false;
     await stopTracking();
-    await startBatterySavingTracking(handleLocationUpdate);
+    await startBatterySavingTracking(onLocationUpdate);
   }
 }
 

@@ -4,10 +4,15 @@
  * Parses NWS CAP (Common Alerting Protocol) alerts.
  * Determines if alerts intersect the user's active route or visible region.
  */
+/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (threatOverlapsBBox/pointInPolygon: geometric tests with many inline coordinate guards) */
 
-import type { ThreatZone, LatLng, BBox } from "@bugrout/shared";
 import { routeIntersectsThreat } from "../routing/ThreatAvoidance";
 
+import type { ThreatZone, LatLng, BBox } from "@bugrout/shared";
+
+/**
+ *
+ */
 export interface AlertNotification {
   threatZone: ThreatZone;
   intersectsRoute: boolean;
@@ -103,10 +108,7 @@ function extractAllCoordinates(
   if (geometry.type === "Polygon") {
     return geometry.coordinates[0] ?? []; // outer ring
   }
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
-  }
-  return [];
+  return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
 }
 
 /**
@@ -118,7 +120,6 @@ function pointInPolygon(
 ): boolean {
   let inside = false;
   const [px, py] = point;
-  if (px === undefined || py === undefined) return false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const pi = polygon[i];
     const pj = polygon[j];

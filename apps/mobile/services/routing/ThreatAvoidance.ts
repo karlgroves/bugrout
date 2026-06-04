@@ -23,15 +23,13 @@ export function threatsToAvoidancePolygons(
       if (t.geometry.type === "Polygon") {
         return t.geometry;
       }
-      // For MultiPolygon, return each polygon separately
-      // Simplification: use just the first polygon
-      if (t.geometry.type === "MultiPolygon") {
-        return {
-          type: "Polygon" as const,
-          coordinates: t.geometry.coordinates[0],
-        };
-      }
-      return null;
+      // For MultiPolygon, simplify by using just the first polygon.
+      const firstPolygon = t.geometry.coordinates[0];
+      if (!firstPolygon) return null;
+      return {
+        type: "Polygon" as const,
+        coordinates: firstPolygon,
+      };
     })
     .filter((p): p is GeoJSONPolygon => p !== null);
 }
@@ -56,13 +54,15 @@ export function routeIntersectsThreat(
   );
 }
 
+/**
+ * Ray-casting point-in-polygon test for a [lng, lat] point against a ring.
+ */
 function pointInPolygon(
   point: [number, number],
   polygon: number[][],
 ): boolean {
   let inside = false;
   const [px, py] = point;
-  if (px === undefined || py === undefined) return false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const pi = polygon[i];
     const pj = polygon[j];

@@ -1,9 +1,13 @@
+/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (retry loop branches on attempt count, abort, and retry predicate) */
 /**
  * Retry utility for network requests and fallible operations.
  *
  * Exponential backoff with jitter. Respects abort signals.
  */
 
+/**
+ * Configuration for {@link withRetry} backoff behavior.
+ */
 export interface RetryOptions {
   /** Maximum number of attempts (including the first). Default: 3 */
   maxAttempts?: number;
@@ -92,6 +96,9 @@ export async function fetchWithRetry(
   );
 }
 
+/**
+ * Resolves after the given delay, rejecting early if the signal aborts.
+ */
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, ms);

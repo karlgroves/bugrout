@@ -1,5 +1,8 @@
 import type { LatLng, GeoJSONPolygon } from "./geo";
 
+/**
+ * Caller-supplied options influencing route calculation.
+ */
 export interface RouteOptions {
   /** Polygons to avoid (threat zones) */
   avoidPolygons?: GeoJSONPolygon[];
@@ -9,6 +12,9 @@ export interface RouteOptions {
   costingModel?: "auto" | "truck";
 }
 
+/**
+ * A single turn-by-turn navigation instruction along a route.
+ */
 export interface RouteManeuver {
   /** Maneuver type (turn-left, turn-right, continue, etc.) */
   type: string;
@@ -26,12 +32,18 @@ export interface RouteManeuver {
   bearingAfter: number;
 }
 
+/**
+ * A contiguous segment of a route between two waypoints.
+ */
 export interface RouteLeg {
   distance: number; // meters
   duration: number; // seconds
   maneuvers: RouteManeuver[];
 }
 
+/**
+ * A computed evacuation route with geometry, timing, and legs.
+ */
 export interface Route {
   id: string;
   /** Encoded polyline geometry */
@@ -47,6 +59,9 @@ export interface Route {
   summary: string;
 }
 
+/**
+ * Lifecycle state of an active or pending route.
+ */
 export type RouteStatus =
   | "idle"
   | "calculating"

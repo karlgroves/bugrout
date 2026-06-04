@@ -5,22 +5,25 @@
  * Handles TTL-based refresh, connectivity-aware fetching, and SQLite persistence.
  * When offline, serves cached data from SQLite.
  */
+/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (refreshThreats: per-source TTL/connectivity branching) */
 
-import type { ThreatZone, ThreatSource, BBox } from "@bugrout/shared";
-import { useThreatStore } from "@/stores/useThreatStore";
-import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import {
   upsertThreatZones,
   getCachedThreats,
   clearExpiredThreats,
   clearThreatsBySource,
 } from "@/db/queries/threats";
+import { useConnectivityStore } from "@/stores/useConnectivityStore";
+import { useThreatStore } from "@/stores/useThreatStore";
+
+import { loadFloodZones } from "./FEMAService";
 import { fetchNWSAlerts, CACHE_TTL_MS as NWS_TTL } from "./NWSService";
 import {
   fetchFirePerimeters,
   CACHE_TTL_MS as USFS_TTL,
 } from "./USFSService";
-import { loadFloodZones } from "./FEMAService";
+
+import type { ThreatZone, ThreatSource, BBox } from "@bugrout/shared";
 
 const SOURCE_TTL: Record<ThreatSource, number> = {
   nws: NWS_TTL,
@@ -51,10 +54,10 @@ export async function refreshThreats(
 
   // Check which sources need refreshing
   const now = Date.now();
-  const sourcesToRefresh: Array<{
+  const sourcesToRefresh: {
     source: ThreatSource;
     fetcher: () => Promise<ThreatZone[]>;
-  }> = [];
+  }[] = [];
 
   const nwsLastFetch = store.lastFetched.nws ?? 0;
   if (now - nwsLastFetch > SOURCE_TTL.nws) {

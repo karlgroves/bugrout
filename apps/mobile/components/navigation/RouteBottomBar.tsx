@@ -2,12 +2,16 @@
  * Route Bottom Bar — ETA, remaining distance, and action buttons.
  */
 
-import { StyleSheet, View, Text, Pressable } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { formatDistance, formatDuration } from "@/utils/geo";
-import { useSettingsStore } from "@/stores/useSettingsStore";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { StyleSheet, View, Text, Pressable } from "react-native";
 
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+import { formatDistance, formatDuration } from "@/utils/geo";
+
+/**
+ * Props for {@link RouteBottomBar}.
+ */
 interface RouteBottomBarProps {
   remainingDistance: number; // meters
   remainingDuration: number; // seconds
@@ -17,6 +21,10 @@ interface RouteBottomBarProps {
   showReroute?: boolean;
 }
 
+/**
+ * Bottom bar during navigation showing ETA and remaining distance/time, plus
+ * actions to reroute, alert emergency contacts, or stop navigation.
+ */
 export function RouteBottomBar({
   remainingDistance,
   remainingDuration,
@@ -24,7 +32,7 @@ export function RouteBottomBar({
   onEmergencyContact,
   onReroute,
   showReroute = false,
-}: RouteBottomBarProps) {
+}: RouteBottomBarProps): React.JSX.Element {
   const { units } = useSettingsStore();
 
   // Calculate ETA
@@ -45,23 +53,23 @@ export function RouteBottomBar({
       </View>
 
       <View style={styles.actions}>
-        {showReroute && onReroute && (
-          <Pressable
+        {showReroute && onReroute ? <Pressable
             testID="reroute-btn"
             style={[styles.actionButton, styles.rerouteButton]}
             onPress={onReroute}
             accessibilityLabel="Recalculate route"
+            accessibilityHint="Calculates a new route to your destination from your current position"
             accessibilityRole="button"
           >
             <FontAwesome name="refresh" size={18} color={colors.warning} />
-          </Pressable>
-        )}
+          </Pressable> : null}
 
         <Pressable
           testID="emergency-contact-btn"
           style={styles.actionButton}
           onPress={onEmergencyContact}
           accessibilityLabel="Send location to emergency contacts"
+          accessibilityHint="Opens a text message sharing your current location with your saved emergency contacts"
           accessibilityRole="button"
         >
           <FontAwesome name="phone" size={18} color={colors.danger} />
@@ -72,6 +80,7 @@ export function RouteBottomBar({
           style={[styles.actionButton, styles.stopButton]}
           onPress={onStop}
           accessibilityLabel="Stop navigation"
+          accessibilityHint="Ends turn-by-turn guidance and returns to the map"
           accessibilityRole="button"
         >
           <Text style={styles.stopText}>Stop</Text>

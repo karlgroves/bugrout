@@ -5,6 +5,10 @@
 
 import { Platform } from "react-native";
 
+/**
+ * Generates an RFC 4122 version 4 UUID using Math.random, used when a native
+ * crypto source is unavailable.
+ */
 function fallbackUUID(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
     /[xy]/g,
@@ -16,6 +20,10 @@ function fallbackUUID(): string {
   );
 }
 
+/**
+ * Returns a random UUID, preferring expo-crypto and falling back to a
+ * Math.random implementation in Expo Go / on web.
+ */
 export function randomUUID(): string {
   if (Platform.OS === "web") {
     return fallbackUUID();

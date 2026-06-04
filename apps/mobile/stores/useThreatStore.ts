@@ -1,6 +1,10 @@
 import { create } from "zustand";
+
 import type { ThreatZone, ThreatSource } from "@bugrout/shared";
 
+/**
+ *
+ */
 interface ThreatState {
   threatZones: ThreatZone[];
   /** When each source was last fetched */
@@ -15,25 +19,28 @@ interface ThreatState {
   clearThreats: () => void;
 }
 
-export const useThreatStore = create<ThreatState>((set) => ({
+export /**
+ *
+ */
+const useThreatStore = create<ThreatState>((set) => ({
   threatZones: [],
   lastFetched: {},
   avoidanceEnabled: true,
 
-  setThreats: (threats) => set({ threatZones: threats }),
+  setThreats: (threats) => { set({ threatZones: threats }); },
   addThreats: (threats) =>
-    set((state) => ({
+    { set((state) => ({
       threatZones: [
         ...state.threatZones.filter(
           (existing) => !threats.some((t) => t.id === existing.id),
         ),
         ...threats,
       ],
-    })),
+    })); },
   setLastFetched: (source, timestamp) =>
-    set((state) => ({
+    { set((state) => ({
       lastFetched: { ...state.lastFetched, [source]: timestamp },
-    })),
-  setAvoidanceEnabled: (enabled) => set({ avoidanceEnabled: enabled }),
-  clearThreats: () => set({ threatZones: [], lastFetched: {} }),
+    })); },
+  setAvoidanceEnabled: (enabled) => { set({ avoidanceEnabled: enabled }); },
+  clearThreats: () => { set({ threatZones: [], lastFetched: {} }); },
 }));

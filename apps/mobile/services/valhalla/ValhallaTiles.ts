@@ -10,8 +10,12 @@
  */
 
 import * as FileSystem from "@/platform/fileSystem";
+
 import type { DownloadedRegion } from "@bugrout/shared";
 
+/**
+ *
+ */
 export type ValhallaApproach = "native" | "http";
 
 /**
@@ -34,6 +38,9 @@ export async function hasOfflineValhallaTiles(
   return !("size" in info) || (info.size ?? 0) > 0;
 }
 
+/**
+ *
+ */
 export interface ValhallaInitPlan {
   approach: ValhallaApproach;
   /**

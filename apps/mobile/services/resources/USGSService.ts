@@ -7,9 +7,11 @@
  * USGS API: https://waterservices.usgs.gov/
  * Overpass API: https://overpass-api.de/
  */
+/* eslint-disable complexity, sonarjs/cognitive-complexity -- pre-existing; tracked in docs/tech-debt.md (parseUSGSRdb: tab-delimited RDB parser with header/column detection) */
+
+import { upsertResourcePoints } from "@/db/queries/resources";
 
 import type { ResourcePoint, BBox } from "@bugrout/shared";
-import { upsertResourcePoints } from "@/db/queries/resources";
 
 const USGS_BASE = "https://waterservices.usgs.gov/nwis/site/";
 const OVERPASS_BASE = "https://overpass-api.de/api/interpreter";
@@ -179,12 +181,12 @@ async function fetchOSMWaterSources(
   if (!resp.ok) return [];
 
   const data = (await resp.json()) as {
-    elements: Array<{
+    elements: {
       id: number;
       lat: number;
       lon: number;
       tags?: Record<string, string>;
-    }>;
+    }[];
   };
 
   return data.elements

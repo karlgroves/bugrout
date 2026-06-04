@@ -6,21 +6,33 @@
  */
 
 import { StyleSheet, View, Text, ActivityIndicator } from "react-native";
+
 import { colors, spacing, typography } from "@/constants/theme";
 
+/**
+ * Props for {@link LoadingOverlay}.
+ */
 interface LoadingOverlayProps {
   message?: string;
   visible: boolean;
 }
 
+/**
+ * Full-screen modal overlay with a spinner, shown while the app is busy
+ * (for example, calculating a route or loading initial data).
+ */
 export function LoadingOverlay({
   message = "Loading...",
   visible,
-}: LoadingOverlayProps) {
+}: LoadingOverlayProps): React.JSX.Element | null {
   if (!visible) return null;
 
   return (
-    <View style={styles.container} accessibilityLabel={message}>
+    <View
+      style={styles.container}
+      accessibilityLabel={message}
+      accessibilityHint="Please wait while the app finishes this task"
+    >
       <View style={styles.card}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.message}>{message}</Text>

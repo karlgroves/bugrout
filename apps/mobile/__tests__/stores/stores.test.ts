@@ -2,11 +2,12 @@
  * Tests for Zustand stores — verify state management logic.
  */
 
+import { useConnectivityStore } from "@/stores/useConnectivityStore";
+import { useRouteStore } from "@/stores/useRouteStore";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { useRouteStore } from "@/stores/useRouteStore";
-import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useThreatStore } from "@/stores/useThreatStore";
+
 import type { Scenario, ThreatZone, Route } from "@bugrout/shared";
 
 // Reset stores between tests

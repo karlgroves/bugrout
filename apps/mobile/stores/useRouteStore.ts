@@ -1,6 +1,10 @@
 import { create } from "zustand";
+
 import type { Route, RouteStatus, LatLng } from "@bugrout/shared";
 
+/**
+ *
+ */
 interface RouteState {
   activeRoute: Route | null;
   status: RouteStatus;
@@ -19,7 +23,10 @@ interface RouteState {
   clearRoute: () => void;
 }
 
-export const useRouteStore = create<RouteState>((set) => ({
+export /**
+ *
+ */
+const useRouteStore = create<RouteState>((set) => ({
   activeRoute: null,
   status: "idle",
   currentManeuverIndex: 0,
@@ -27,17 +34,17 @@ export const useRouteStore = create<RouteState>((set) => ({
   destination: null,
 
   setRoute: (route) =>
-    set({ activeRoute: route, status: "active", currentManeuverIndex: 0 }),
-  setStatus: (status) => set({ status }),
-  setCurrentManeuverIndex: (index) => set({ currentManeuverIndex: index }),
-  setDeviated: (deviated) => set({ hasDeviated: deviated }),
-  setDestination: (dest) => set({ destination: dest }),
+    { set({ activeRoute: route, status: "active", currentManeuverIndex: 0 }); },
+  setStatus: (status) => { set({ status }); },
+  setCurrentManeuverIndex: (index) => { set({ currentManeuverIndex: index }); },
+  setDeviated: (deviated) => { set({ hasDeviated: deviated }); },
+  setDestination: (dest) => { set({ destination: dest }); },
   clearRoute: () =>
-    set({
+    { set({
       activeRoute: null,
       status: "idle",
       currentManeuverIndex: 0,
       hasDeviated: false,
       destination: null,
-    }),
+    }); },
 }));

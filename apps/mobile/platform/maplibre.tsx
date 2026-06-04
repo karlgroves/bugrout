@@ -9,8 +9,9 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 
-let MapLibreGL: typeof import("@maplibre/maplibre-react-native") | null =
-  null;
+import type * as MapLibreModule from "@maplibre/maplibre-react-native";
+
+let MapLibreGL: typeof MapLibreModule | null = null;
 
 if (Platform.OS !== "web") {
   try {
@@ -21,10 +22,17 @@ if (Platform.OS !== "web") {
   }
 }
 
-export const isMapLibreAvailable = MapLibreGL !== null;
+export /**
+ *
+ */
+const isMapLibreAvailable = MapLibreGL !== null;
 
 // --- Real or mock setAccessToken ---
 
+/**
+ * Sets the MapLibre access token when the native module is available;
+ * a no-op on web / Expo Go where the mock implementation is used.
+ */
 export function setAccessToken(token: string | null): void {
   if (MapLibreGL) {
     MapLibreGL.setAccessToken(token);
@@ -45,7 +53,10 @@ function MockHidden(_props: Record<string, unknown>) {
 
 // --- MapView ---
 
-export const MapView = MapLibreGL?.MapView ?? (({
+export /**
+ *
+ */
+const MapView = MapLibreGL?.MapView ?? (({
   children,
   style,
   onPress,
@@ -91,36 +102,64 @@ export const MapView = MapLibreGL?.MapView ?? (({
 ));
 
 // --- Camera ---
-export const Camera = MapLibreGL?.Camera ?? MockHidden;
+export /**
+ *
+ */
+const Camera = MapLibreGL?.Camera ?? MockHidden;
 
 // --- UserLocation ---
-export const UserLocation = MapLibreGL?.UserLocation ?? MockHidden;
+export /**
+ *
+ */
+const UserLocation = MapLibreGL?.UserLocation ?? MockHidden;
 
 // --- ShapeSource (data-only, children pass through) ---
-export const ShapeSource = MapLibreGL?.ShapeSource ?? MockDataSource;
+export /**
+ *
+ */
+const ShapeSource = MapLibreGL?.ShapeSource ?? MockDataSource;
 
 // --- Layers (all invisible in mock) ---
-export const LineLayer = MapLibreGL?.LineLayer ?? MockHidden;
-export const FillLayer = MapLibreGL?.FillLayer ?? MockHidden;
-export const CircleLayer = MapLibreGL?.CircleLayer ?? MockHidden;
-export const SymbolLayer = MapLibreGL?.SymbolLayer ?? MockHidden;
+export /**
+ *
+ */
+const LineLayer = MapLibreGL?.LineLayer ?? MockHidden;
+export /**
+ *
+ */
+const FillLayer = MapLibreGL?.FillLayer ?? MockHidden;
+export /**
+ *
+ */
+const CircleLayer = MapLibreGL?.CircleLayer ?? MockHidden;
+export /**
+ *
+ */
+const SymbolLayer = MapLibreGL?.SymbolLayer ?? MockHidden;
 
 // --- Constants ---
-export const UserTrackingMode = MapLibreGL?.UserTrackingMode ?? {
+export /**
+ *
+ */
+const UserTrackingMode = MapLibreGL?.UserTrackingMode ?? {
   Follow: "normal",
   FollowWithHeading: "compass",
   FollowWithCourse: "course",
 };
 
 // --- OnPressEvent type ---
-export type OnPressEvent = {
-  features: Array<{
+/**
+ *
+ */
+export interface OnPressEvent {
+  features: {
     type: string;
     geometry: { type: string; coordinates: number[] };
     properties: Record<string, unknown>;
-  }>;
-  coordinates: { latitude: number; longitude: number };
-};
+  }[];
+  // Optional: taps on empty map areas may arrive without coordinates.
+  coordinates?: { latitude: number; longitude: number };
+}
 
 // --- Styles ---
 const mockStyles = StyleSheet.create({

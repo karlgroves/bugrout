@@ -5,6 +5,11 @@
 
 import { Platform } from "react-native";
 
+const EXPO_LOCATION = "expo-location";
+
+/**
+ *
+ */
 export interface LocationCoords {
   latitude: number;
   longitude: number;
@@ -12,11 +17,17 @@ export interface LocationCoords {
   accuracy: number | null;
 }
 
+/**
+ *
+ */
 export interface LocationResult {
   coords: LocationCoords;
   timestamp: number;
 }
 
+/**
+ *
+ */
 export interface LocationSubscription {
   remove(): void;
 }
@@ -32,29 +43,41 @@ const MOCK_POSITION: LocationResult = {
   timestamp: Date.now(),
 };
 
-let _usingMock = false;
+let usingMock = false;
 
+/**
+ * Reports whether the mock location provider is currently in use (web /
+ * Expo Go) rather than real device GPS.
+ */
 export function isUsingMockLocation(): boolean {
-  return _usingMock;
+  return usingMock;
 }
 
+/**
+ * Requests foreground location permission, granting a mock permission when
+ * expo-location is unavailable.
+ */
 export async function requestForegroundPermissionsAsync(): Promise<{
   status: string;
 }> {
   if (Platform.OS === "web") {
-    _usingMock = true;
+    usingMock = true;
     return { status: "granted" };
   }
   try {
-    const mod = "expo-location";
+    const mod = EXPO_LOCATION;
     const Location = require(mod);
-    return Location.requestForegroundPermissionsAsync();
+    return await Location.requestForegroundPermissionsAsync();
   } catch {
-    _usingMock = true;
+    usingMock = true;
     return { status: "granted" };
   }
 }
 
+/**
+ * Requests background location permission, granting a mock permission when
+ * expo-location is unavailable.
+ */
 export async function requestBackgroundPermissionsAsync(): Promise<{
   status: string;
 }> {
@@ -62,14 +85,18 @@ export async function requestBackgroundPermissionsAsync(): Promise<{
     return { status: "granted" };
   }
   try {
-    const mod = "expo-location";
+    const mod = EXPO_LOCATION;
     const Location = require(mod);
-    return Location.requestBackgroundPermissionsAsync();
+    return await Location.requestBackgroundPermissionsAsync();
   } catch {
     return { status: "granted" };
   }
 }
 
+/**
+ * Subscribes to position updates, emitting a slowly drifting mock track when
+ * expo-location is unavailable.
+ */
 export async function watchPositionAsync(
   options: Record<string, unknown>,
   callback: (location: LocationResult) => void,
@@ -96,9 +123,9 @@ export async function watchPositionAsync(
     };
   }
   try {
-    const mod = "expo-location";
+    const mod = EXPO_LOCATION;
     const Location = require(mod);
-    return Location.watchPositionAsync(options, callback);
+    return await Location.watchPositionAsync(options, callback);
   } catch {
     // Mock: emit a position every second with slight drift
     let lat = MOCK_POSITION.coords.latitude;
@@ -123,24 +150,32 @@ export async function watchPositionAsync(
   }
 }
 
+/**
+ * Subscribes to compass heading updates, emitting a static mock heading when
+ * expo-location is unavailable.
+ */
 export async function watchHeadingAsync(
   callback: (heading: { trueHeading: number; magHeading: number }) => void,
 ): Promise<LocationSubscription> {
   if (Platform.OS === "web") {
     callback({ trueHeading: 0, magHeading: 0 });
-    return { remove() {} };
+    return { remove() { /* no-op mock */ } };
   }
   try {
-    const mod = "expo-location";
+    const mod = EXPO_LOCATION;
     const Location = require(mod);
-    return Location.watchHeadingAsync(callback);
+    return await Location.watchHeadingAsync(callback);
   } catch {
     // Mock: static heading
     callback({ trueHeading: 0, magHeading: 0 });
-    return { remove() {} };
+    return { remove() { /* no-op mock */ } };
   }
 }
 
+/**
+ * Returns the current position once, falling back to a fixed mock position
+ * when expo-location is unavailable.
+ */
 export async function getCurrentPositionAsync(
   options?: Record<string, unknown>,
 ): Promise<LocationResult> {
@@ -148,29 +183,36 @@ export async function getCurrentPositionAsync(
     return MOCK_POSITION;
   }
   try {
-    const mod = "expo-location";
+    const mod = EXPO_LOCATION;
     const Location = require(mod);
-    return Location.getCurrentPositionAsync(options);
+    return await Location.getCurrentPositionAsync(options);
   } catch {
     return MOCK_POSITION;
   }
 }
 
+/**
+ * Reports whether device location services are enabled, assuming enabled when
+ * expo-location is unavailable.
+ */
 export async function hasServicesEnabledAsync(): Promise<boolean> {
   if (Platform.OS === "web") {
     return true;
   }
   try {
-    const mod = "expo-location";
+    const mod = EXPO_LOCATION;
     const Location = require(mod);
-    return Location.hasServicesEnabledAsync();
+    return await Location.hasServicesEnabledAsync();
   } catch {
     return true;
   }
 }
 
 // Re-export accuracy constants
-export const Accuracy = {
+export /**
+ *
+ */
+const Accuracy = {
   Lowest: 1,
   Low: 2,
   Balanced: 3,

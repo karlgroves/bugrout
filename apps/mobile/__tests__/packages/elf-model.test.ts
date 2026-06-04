@@ -2,6 +2,7 @@
  * ELF model tests — test the weight computation logic directly.
  * We inline the function to avoid module resolution issues with jest-expo preset.
  */
+/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (computeELF: inlined copy of weight-table scoring with many factor branches) */
 
 interface RoadSegmentFeatures {
   edgeId: string;

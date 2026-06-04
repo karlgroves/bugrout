@@ -8,8 +8,9 @@
  * Open211: https://openreferral.org/
  */
 
-import type { ResourcePoint, BBox } from "@bugrout/shared";
 import { upsertResourcePoints } from "@/db/queries/resources";
+
+import type { ResourcePoint, BBox } from "@bugrout/shared";
 
 const CACHE_TTL_MS = 3600000; // 1 hour (shelters change during events)
 
@@ -64,7 +65,7 @@ async function fetchRedCrossShelters(
 
     if (!resp.ok) return [];
 
-    const data = (await resp.json()) as Array<{
+    const data = (await resp.json()) as {
       SHELTER_NAME?: string;
       ADDRESS?: string;
       CITY?: string;
@@ -72,7 +73,7 @@ async function fetchRedCrossShelters(
       LATITUDE?: number;
       LONGITUDE?: number;
       SHELTER_STATUS?: string;
-    }>;
+    }[];
 
     return data.flatMap((s) => {
       const lat = s.LATITUDE;
@@ -118,7 +119,7 @@ async function fetchRedCrossShelters(
  * Note: Many 211 providers require API keys or have region-specific endpoints.
  * This is a best-effort integration.
  */
-async function fetchOpen211Shelters(
+function fetchOpen211Shelters(
   _bbox: BBox,
   _regionId: string,
 ): Promise<ResourcePoint[]> {
@@ -130,7 +131,7 @@ async function fetchOpen211Shelters(
   // Open211 endpoints and query the appropriate one.
 
   // Placeholder: return empty until we identify specific regional endpoints
-  return [];
+  return Promise.resolve([]);
 }
 
 export { CACHE_TTL_MS };

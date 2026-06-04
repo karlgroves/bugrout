@@ -6,20 +6,32 @@
  * stop, a non-intrusive banner surfaces."
  */
 
-import { StyleSheet, View, Text } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { StyleSheet, View, Text } from "react-native";
+
 import { colors, spacing, typography } from "@/constants/theme";
 
+/**
+ * Props for {@link BatteryWarning}.
+ */
 interface BatteryWarningProps {
   percent: number;
   isCritical: boolean;
 }
 
-export function BatteryWarning({ percent, isCritical }: BatteryWarningProps) {
+/**
+ * Banner shown during navigation when the device battery is low, warning the
+ * user before power loss could interrupt their route guidance.
+ */
+export function BatteryWarning({
+  percent,
+  isCritical,
+}: BatteryWarningProps): React.JSX.Element {
   return (
     <View
       style={[styles.container, isCritical && styles.critical]}
       accessibilityLabel={`Battery ${percent}% — ${isCritical ? "critically low" : "low"}`}
+      accessibilityHint="Consider conserving power or connecting a charger to keep navigation running"
       accessibilityRole="alert"
     >
       <FontAwesome

@@ -5,21 +5,31 @@
 
 import { Platform, Alert } from "react-native";
 
+/**
+ *
+ */
 export interface SMSResult {
   result: "sent" | "cancelled" | "unknown";
 }
 
+/**
+ * Reports whether the device can send SMS messages; always false on web.
+ */
 export async function isAvailableAsync(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   try {
     const mod = "expo-sms";
     const SMS = require(mod);
-    return SMS.isAvailableAsync();
+    return await SMS.isAvailableAsync();
   } catch {
     return false;
   }
 }
 
+/**
+ * Sends an SMS to the given recipients, showing a preview alert on web and
+ * gracefully degrading to an alert when SMS is unavailable.
+ */
 export async function sendSMSAsync(
   addresses: string[],
   message: string,

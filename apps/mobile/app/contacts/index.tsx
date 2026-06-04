@@ -5,6 +5,7 @@
  * one-tap SMS with location during evacuation.
  */
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
@@ -15,19 +16,21 @@ import {
   FlatList,
   Alert,
 } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { v4 as uuidv4 } from "uuid";
+
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   getEmergencyContacts,
   upsertEmergencyContact,
   deleteEmergencyContact,
   type EmergencyContactRow,
 } from "@/db/queries/preferences";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
 const MAX_CONTACTS = 5;
 
-export default function EmergencyContactsScreen() {
+/* eslint-disable max-lines-per-function -- pre-existing oversized contacts screen with inline list and add form; tracked in docs/tech-debt.md (decompose emergency contacts screen) */
+/** Manages up to 5 emergency contacts for one-tap SMS during evacuation. */
+export default function EmergencyContactsScreen(): React.JSX.Element {
   const [contacts, setContacts] = useState<EmergencyContactRow[]>([]);
   const [editingName, setEditingName] = useState("");
   const [editingPhone, setEditingPhone] = useState("");
@@ -39,7 +42,7 @@ export default function EmergencyContactsScreen() {
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const handleAdd = useCallback(async () => {
@@ -62,15 +65,17 @@ export default function EmergencyContactsScreen() {
   }, [editingName, editingPhone, contacts.length, refresh]);
 
   const handleDelete = useCallback(
-    async (contact: EmergencyContactRow) => {
+    (contact: EmergencyContactRow) => {
       Alert.alert("Remove Contact", `Remove ${contact.name}?`, [
         { text: "Cancel", style: "cancel" },
         {
           text: "Remove",
           style: "destructive",
-          onPress: async () => {
-            await deleteEmergencyContact(contact.id);
-            await refresh();
+          onPress: () => {
+            void (async () => {
+              await deleteEmergencyContact(contact.id);
+              await refresh();
+            })();
           },
         },
       ]);
@@ -97,8 +102,9 @@ export default function EmergencyContactsScreen() {
             <Pressable
               testID={`remove-contact-${item.id}`}
               style={styles.removeButton}
-              onPress={() => handleDelete(item)}
+              onPress={() => { handleDelete(item); }}
               accessibilityLabel={`Remove ${item.name}`}
+              accessibilityHint="Removes this person from your emergency contacts"
               accessibilityRole="button"
             >
               <FontAwesome name="times" size={18} color={colors.danger} />
@@ -123,6 +129,7 @@ export default function EmergencyContactsScreen() {
             value={editingName}
             onChangeText={setEditingName}
             accessibilityLabel="Contact name"
+            accessibilityHint="Enter the name of the person to add as an emergency contact"
           />
           <TextInput
             testID="contact-phone-input"
@@ -133,6 +140,7 @@ export default function EmergencyContactsScreen() {
             onChangeText={setEditingPhone}
             keyboardType="phone-pad"
             accessibilityLabel="Contact phone number"
+            accessibilityHint="Enter the mobile number that will receive your emergency SMS"
           />
           <View style={styles.addActions}>
             <Pressable
@@ -143,6 +151,7 @@ export default function EmergencyContactsScreen() {
                 setEditingPhone("");
               }}
               accessibilityLabel="Cancel adding contact"
+              accessibilityHint="Discards the entered details and closes the add contact form"
               accessibilityRole="button"
             >
               <Text style={styles.cancelText}>Cancel</Text>
@@ -152,6 +161,7 @@ export default function EmergencyContactsScreen() {
               style={styles.saveButton}
               onPress={handleAdd}
               accessibilityLabel="Save contact"
+              accessibilityHint="Adds this person to your emergency contacts list"
               accessibilityRole="button"
             >
               <Text style={styles.saveText}>Save</Text>
@@ -163,8 +173,9 @@ export default function EmergencyContactsScreen() {
           <Pressable
             testID="add-contact-btn"
             style={styles.addButton}
-            onPress={() => setShowAdd(true)}
+            onPress={() => { setShowAdd(true); }}
             accessibilityLabel="Add emergency contact"
+            accessibilityHint="Opens a form to enter a new emergency contact"
             accessibilityRole="button"
           >
             <FontAwesome name="plus" size={16} color={colors.accent} />

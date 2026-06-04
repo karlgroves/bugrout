@@ -3,7 +3,10 @@
  * These are displayed in-app and linked from App Store listings.
  */
 
-export const PRIVACY_POLICY = `
+export /**
+ *
+ */
+const PRIVACY_POLICY = `
 BugRout Privacy Policy
 Last Updated: April 2026
 
@@ -74,7 +77,10 @@ We will update this policy as needed. Changes will be reflected in the "Last Upd
 For privacy questions: privacy@bugrout.app
 `;
 
-export const TERMS_OF_SERVICE = `
+export /**
+ *
+ */
+const TERMS_OF_SERVICE = `
 BugRout Terms of Service
 Last Updated: April 2026
 
@@ -139,5 +145,8 @@ These terms are governed by the laws of the United States. Any disputes shall be
 For questions about these terms: legal@bugrout.app
 `;
 
-export const DISCLAIMER_SHORT =
+export /**
+ *
+ */
+const DISCLAIMER_SHORT =
   "BugRout provides advisory routing only. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.";

@@ -5,7 +5,10 @@
  * This is the single source of truth for offline data persistence.
  */
 
-export const CREATE_TABLES_SQL = `
+export /**
+ *
+ */
+const CREATE_TABLES_SQL = `
   CREATE TABLE IF NOT EXISTS downloaded_regions (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,

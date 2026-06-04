@@ -1,8 +1,10 @@
 import { StyleSheet, ScrollView, Text } from "react-native";
+
 import { TERMS_OF_SERVICE } from "@/constants/legal";
 import { colors, spacing, typography } from "@/constants/theme";
 
-export default function TermsOfServiceScreen() {
+/** Renders the bundled terms of service text, available offline. */
+export default function TermsOfServiceScreen(): React.JSX.Element {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.text}>{TERMS_OF_SERVICE.trim()}</Text>

@@ -5,8 +5,15 @@
 
 import { Platform } from "react-native";
 
+/**
+ *
+ */
 export type ImpactStyle = "light" | "medium" | "heavy";
 
+/**
+ * Triggers an impact haptic of the given strength; a no-op on web or when
+ * expo-haptics is unavailable.
+ */
 export async function impact(style: ImpactStyle = "medium"): Promise<void> {
   if (Platform.OS === "web") return;
   try {
@@ -23,6 +30,10 @@ export async function impact(style: ImpactStyle = "medium"): Promise<void> {
   }
 }
 
+/**
+ * Triggers a notification haptic of the given type; a no-op on web or when
+ * expo-haptics is unavailable.
+ */
 export async function notification(
   type: "success" | "warning" | "error" = "success",
 ): Promise<void> {
@@ -41,6 +52,10 @@ export async function notification(
   }
 }
 
+/**
+ * Triggers a selection-change haptic; a no-op on web or when expo-haptics is
+ * unavailable.
+ */
 export async function selection(): Promise<void> {
   if (Platform.OS === "web") return;
   try {

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- pre-existing root layout enumerating every Stack.Screen inline; tracked in docs/tech-debt.md (decompose root layout) */
 import "react-native-get-random-values";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -10,11 +11,12 @@ import { bootstrap, type BootstrapResult } from "@/services/AppBootstrap";
 
 export { ErrorBoundary } from "expo-router";
 
+// eslint-disable-next-line @typescript-eslint/naming-convention -- name is a required Expo Router convention export
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 const bugroutDarkTheme = {
   ...DarkTheme,
@@ -28,7 +30,8 @@ const bugroutDarkTheme = {
   },
 };
 
-export default function RootLayout() {
+/** Root navigation layout: loads fonts, runs bootstrap, and registers all screens. */
+export default function RootLayout(): React.JSX.Element | null {
   const [loaded, error] = useFonts({});
   const [bootstrapped, setBootstrapped] = useState(false);
   const [bootResult, setBootResult] = useState<BootstrapResult | null>(null);
@@ -45,13 +48,13 @@ export default function RootLayout() {
       .then((result) => {
         setBootResult(result);
         setBootstrapped(true);
-        SplashScreen.hideAsync();
+        void SplashScreen.hideAsync();
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error("Bootstrap failed:", err);
         // Still show the app even if bootstrap partially fails
         setBootstrapped(true);
-        SplashScreen.hideAsync();
+        void SplashScreen.hideAsync();
       });
   }, [loaded]);
 

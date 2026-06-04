@@ -6,11 +6,24 @@ import { colors, touchTarget } from "@/constants/theme";
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>["name"];
   color: string;
-}) {
+}): React.JSX.Element {
   return <FontAwesome size={24} style={{ marginBottom: -3 }} {...props} />;
 }
 
-export default function TabLayout() {
+function MapTabIcon({ color }: { color: string }): React.JSX.Element {
+  return <TabBarIcon name="map" color={color} />;
+}
+
+function ScenariosTabIcon({ color }: { color: string }): React.JSX.Element {
+  return <TabBarIcon name="bookmark" color={color} />;
+}
+
+function SettingsTabIcon({ color }: { color: string }): React.JSX.Element {
+  return <TabBarIcon name="cog" color={color} />;
+}
+
+/** Bottom tab navigator wiring the Map, Scenarios, and Settings screens. */
+export default function TabLayout(): React.JSX.Element {
   return (
     <Tabs
       screenOptions={{
@@ -32,23 +45,21 @@ export default function TabLayout() {
         options={{
           title: "Map",
           headerShown: false,
-          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
+          tabBarIcon: MapTabIcon,
         }}
       />
       <Tabs.Screen
         name="scenarios"
         options={{
           title: "Scenarios",
-          tabBarIcon: ({ color }) => (
-            <TabBarIcon name="bookmark" color={color} />
-          ),
+          tabBarIcon: ScenariosTabIcon,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
+          tabBarIcon: SettingsTabIcon,
         }}
       />
     </Tabs>

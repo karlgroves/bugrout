@@ -1,5 +1,8 @@
 import type { BBox } from "./geo";
 
+/**
+ * A downloadable map region with tile metadata and sizes.
+ */
 export interface Region {
   id: string;
   name: string;
@@ -12,6 +15,9 @@ export interface Region {
   updatedAt: number;
 }
 
+/**
+ * A region whose offline tiles have been downloaded to the device.
+ */
 export interface DownloadedRegion {
   id: string;
   name: string;

@@ -1,5 +1,8 @@
 import { create } from "zustand";
 
+/**
+ *
+ */
 interface SettingsState {
   units: "mi" | "km";
   voiceEnabled: boolean;
@@ -12,14 +15,17 @@ interface SettingsState {
   setCrowdSignalOptIn: (optIn: boolean) => void;
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export /**
+ *
+ */
+const useSettingsStore = create<SettingsState>((set) => ({
   units: "mi",
   voiceEnabled: true,
   batteryOptimization: true,
   crowdSignalOptIn: false,
 
-  setUnits: (units) => set({ units }),
-  setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
-  setBatteryOptimization: (enabled) => set({ batteryOptimization: enabled }),
-  setCrowdSignalOptIn: (optIn) => set({ crowdSignalOptIn: optIn }),
+  setUnits: (units) => { set({ units }); },
+  setVoiceEnabled: (enabled) => { set({ voiceEnabled: enabled }); },
+  setBatteryOptimization: (enabled) => { set({ batteryOptimization: enabled }); },
+  setCrowdSignalOptIn: (optIn) => { set({ crowdSignalOptIn: optIn }); },
 }));

@@ -8,11 +8,17 @@
  * The active approach is selected at init time based on what's available.
  * Both produce identical Route output from the same Valhalla tile data.
  */
+/* eslint-disable max-lines -- pre-existing; tracked in docs/tech-debt.md (dual-approach Valhalla bridge: native + HTTP + mock fallback in one module) */
 
+import { NativeModules } from "react-native";
 import { v4 as uuidv4 } from "uuid";
-import type { LatLng, Route, RouteOptions, RouteManeuver, RouteLeg } from "@bugrout/shared";
-import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
 
+import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
+import type { LatLng, Route, RouteOptions, RouteManeuver, RouteLeg } from "@bugrout/shared";
+
+/**
+ *
+ */
 export interface ValhallaConfig {
   tileDir: string;
   approach?: "native" | "http";
@@ -30,12 +36,18 @@ const DEFAULT_PORT = 8002;
  * Valhalla Turbo Module; "http" routes over fetch (local or remote server). */
 let activeApproach: "native" | "http" = "http";
 
+/**
+ *
+ */
 interface NativeValhalla {
   init: (tileDir: string) => Promise<void>;
   route: (request: string) => Promise<string>;
 }
 let nativeModule: NativeValhalla | null = null;
 
+/**
+ * Resolve the Valhalla base URL from config, env, or the default localhost port.
+ */
 function resolveBaseUrl(cfg: ValhallaConfig): string {
   if (cfg.baseUrl) return cfg.baseUrl.replace(/\/+$/, "");
   const envUrl = process.env.EXPO_PUBLIC_VALHALLA_URL;
@@ -62,7 +74,7 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
     // with no HTTP/subprocess. Falls through to HTTP if the module isn't built
     // into this binary (e.g. Expo Go, web, or a build without the config plugin).
     try {
-      const native = await loadNativeModule();
+      const native = loadNativeModule();
       if (native) {
         await native.init(cfg.tileDir);
         nativeModule = native;
@@ -346,11 +358,14 @@ const VALHALLA_MANEUVER_TYPES: Record<number, string> = {
  * when the module isn't compiled into this binary — Expo Go, web preview, or a
  * build without the config plugin enabled — so callers fall back to HTTP.
  */
-async function loadNativeModule(): Promise<NativeValhalla | null> {
+function loadNativeModule(): NativeValhalla | null {
   try {
-    const { NativeModules } = require("react-native");
-    const mod = NativeModules.ValhallaEngine;
-    if (mod && typeof mod.init === "function" && typeof mod.route === "function") {
+    const mod = (NativeModules as { ValhallaEngine?: unknown }).ValhallaEngine;
+    if (
+      mod &&
+      typeof (mod as Partial<NativeValhalla>).init === "function" &&
+      typeof (mod as Partial<NativeValhalla>).route === "function"
+    ) {
       return mod as NativeValhalla;
     }
     return null;

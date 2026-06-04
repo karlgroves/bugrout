@@ -32,7 +32,7 @@ describe("Full Navigation Flow", () => {
   it("searches for an address", async () => {
     await element(by.id("destination-search-input")).typeText("Los Angeles");
     // Wait for debounced search results
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     // Should show at least one result
     await expect(element(by.text(/Los Angeles/))).toBeVisible();
   });

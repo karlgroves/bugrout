@@ -12,7 +12,10 @@
 import type { Region } from "@bugrout/shared";
 
 /** Map region IDs to USPS state codes for API queries */
-export const REGION_STATE_CODES: Record<string, string> = {
+export /**
+ *
+ */
+const REGION_STATE_CODES: Record<string, string> = {
   al: "AL", ak: "AK", az: "AZ", ar: "AR", ca: "CA", co: "CO", ct: "CT",
   de: "DE", dc: "DC", fl: "FL", ga: "GA", hi: "HI", id: "ID", il: "IL",
   in: "IN", ia: "IA", ks: "KS", ky: "KY", la: "LA", me: "ME", md: "MD",
@@ -23,6 +26,9 @@ export const REGION_STATE_CODES: Record<string, string> = {
   wi: "WI", wy: "WY",
 };
 
+/**
+ *
+ */
 interface RegionSeed {
   id: string;
   name: string;
@@ -87,7 +93,10 @@ const SEEDS: RegionSeed[] = [
   { id: "wy", name: "Wyoming",         bbox: { west: -111.06, south: 40.99, east: -104.05, north: 45.01 }, pmtilesMB: 200, valhallaMB: 100 },
 ];
 
-export const DEFAULT_REGIONS: Region[] = SEEDS.map((s) => ({
+export /**
+ *
+ */
+const DEFAULT_REGIONS: Region[] = SEEDS.map((s) => ({
   id: s.id,
   name: s.name,
   bbox: s.bbox,

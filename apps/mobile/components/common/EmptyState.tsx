@@ -5,10 +5,14 @@
  * when a screen has no content to display.
  */
 
-import { StyleSheet, View, Text, Pressable } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { StyleSheet, View, Text, Pressable } from "react-native";
+
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
+/**
+ * Props for {@link EmptyState}.
+ */
 interface EmptyStateProps {
   icon: React.ComponentProps<typeof FontAwesome>["name"];
   title: string;
@@ -17,28 +21,31 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
+/**
+ * Placeholder shown when a screen has no content, with an icon, title,
+ * message, and an optional call-to-action button.
+ */
 export function EmptyState({
   icon,
   title,
   message,
   actionLabel,
   onAction,
-}: EmptyStateProps) {
+}: EmptyStateProps): React.JSX.Element {
   return (
     <View style={styles.container}>
       <FontAwesome name={icon} size={48} color={colors.textMuted} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
-      {actionLabel && onAction && (
-        <Pressable
+      {actionLabel && onAction ? <Pressable
           style={styles.actionButton}
           onPress={onAction}
           accessibilityLabel={actionLabel}
+          accessibilityHint="Performs the suggested action to add content to this screen"
           accessibilityRole="button"
         >
           <Text style={styles.actionText}>{actionLabel}</Text>
-        </Pressable>
-      )}
+        </Pressable> : null}
     </View>
   );
 }

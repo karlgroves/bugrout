@@ -5,14 +5,18 @@
  * Shows download progress, storage usage, and stale tile warnings.
  */
 
+/* eslint-disable max-lines, max-lines-per-function, complexity -- pre-existing oversized downloads manager with inline list-header and multi-type row rendering; tracked in docs/tech-debt.md (decompose downloads screen) */
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState } from "react";
 import { StyleSheet, View, Text, Pressable, FlatList, Alert } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Region, DownloadedRegion } from "@bugrout/shared";
+
+
 import { getCountyGroups } from "@/constants/counties";
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useTileManager } from "@/hooks/useTileManager";
 import { isRegionStale, isExpoGo } from "@/services/tiles/TileManager";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+
+import type { Region, DownloadedRegion } from "@bugrout/shared";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -21,7 +25,8 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-export default function DownloadsScreen() {
+/** Offline tile download manager with progress, storage info, and stale warnings. */
+export default function DownloadsScreen(): React.JSX.Element {
   const {
     downloadedRegions,
     availableRegions,
@@ -58,7 +63,7 @@ export default function DownloadsScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteRegion(region.id),
+          onPress: () => { void deleteRegion(region.id); },
         },
       ],
     );
@@ -98,8 +103,7 @@ export default function DownloadsScreen() {
           )}
 
           {/* Active download progress */}
-          {activeDownload && (
-            <View style={styles.progressCard}>
+          {activeDownload ? <View style={styles.progressCard}>
               <Text style={styles.progressLabel}>
                 Downloading... {activeDownload.percent.toFixed(0)}%
               </Text>
@@ -115,8 +119,7 @@ export default function DownloadsScreen() {
                 {formatBytes(activeDownload.bytesDownloaded)} /{" "}
                 {formatBytes(activeDownload.totalBytes)}
               </Text>
-            </View>
-          )}
+            </View> : null}
 
           {/* Downloaded regions */}
           {downloadedRegions.length > 0 && (
@@ -145,11 +148,9 @@ export default function DownloadsScreen() {
               <View style={styles.regionInfo}>
                 <View style={styles.regionHeader}>
                   <Text style={styles.regionName}>{region.name}</Text>
-                  {stale && (
-                    <View style={styles.staleBadge}>
+                  {stale ? <View style={styles.staleBadge}>
                       <Text style={styles.staleText}>Update available</Text>
-                    </View>
-                  )}
+                    </View> : null}
                 </View>
                 <Text style={styles.regionMeta}>
                   {formatBytes(region.sizeBytes)} · Downloaded{" "}
@@ -159,8 +160,9 @@ export default function DownloadsScreen() {
               <Pressable
                 testID={`delete-region-${region.id}`}
                 style={styles.deleteButton}
-                onPress={() => handleDelete(region)}
+                onPress={() => { handleDelete(region); }}
                 accessibilityLabel={`Delete ${region.name} offline map`}
+                accessibilityHint="Removes this region's offline maps to free up storage"
                 accessibilityRole="button"
               >
                 <FontAwesome name="trash-o" size={18} color={colors.danger} />
@@ -191,13 +193,14 @@ export default function DownloadsScreen() {
                   <Pressable
                     style={styles.expandButton}
                     onPress={() =>
-                      setExpandedState(isExpanded ? null : region.id)
+                      { setExpandedState(isExpanded ? null : region.id); }
                     }
                     accessibilityLabel={
                       isExpanded
                         ? `Collapse ${region.name} county groups`
                         : `Show ${region.name} county groups`
                     }
+                    accessibilityHint="Toggles the list of smaller county-level download packages for this region"
                   >
                     <FontAwesome
                       name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -212,9 +215,12 @@ export default function DownloadsScreen() {
                     styles.downloadButton,
                     isDownloading && styles.downloadButtonDisabled,
                   ]}
-                  onPress={() => !isDownloading && handleDownload(region)}
+                  onPress={() => {
+                    if (!isDownloading) void handleDownload(region);
+                  }}
                   disabled={isDownloading}
                   accessibilityLabel={`Download ${region.name} full state`}
+                  accessibilityHint="Downloads the full-state offline map package for navigation without a connection"
                   accessibilityRole="button"
                 >
                   <FontAwesome
@@ -229,8 +235,7 @@ export default function DownloadsScreen() {
             </View>
 
             {/* County group sub-rows */}
-            {isExpanded &&
-              countyGroups.map((cg) => (
+            {isExpanded ? countyGroups.map((cg) => (
                 <View key={cg.id} style={styles.countyRow}>
                   <View style={styles.regionInfo}>
                     <Text style={styles.countyName}>{cg.name}</Text>
@@ -241,6 +246,7 @@ export default function DownloadsScreen() {
                   <Pressable
                     style={styles.downloadButton}
                     accessibilityLabel={`Download ${cg.name} county group`}
+                    accessibilityHint="Downloads only this smaller county group instead of the full state package"
                     accessibilityRole="button"
                   >
                     <FontAwesome
@@ -250,7 +256,7 @@ export default function DownloadsScreen() {
                     />
                   </Pressable>
                 </View>
-              ))}
+              )) : null}
           </View>
         );
       }}

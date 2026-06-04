@@ -1,4 +1,5 @@
-import { ExpoConfig, ConfigContext } from "expo/config";
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (Expo config is one large declarative object literal) */
+import { type ExpoConfig, type ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,

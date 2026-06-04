@@ -6,8 +6,8 @@
  * the last persisted values.
  */
 
-import { useSettingsStore } from "@/stores/useSettingsStore";
 import { setPreference } from "@/db/queries/preferences";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 let lastPersisted = {
   units: "",
@@ -15,6 +15,16 @@ let lastPersisted = {
   batteryOptimization: "",
   crowdSignalOptIn: "",
 };
+
+/**
+ * Persist a preference fire-and-forget from the synchronous store subscriber,
+ * surfacing (not swallowing) any write failure.
+ */
+function persistPreference(key: string, value: string): void {
+  setPreference(key, value).catch((err: unknown) => {
+    console.error(`[BugRout] failed to persist preference "${key}":`, err);
+  });
+}
 
 /**
  * Start watching the settings store and persist changes to SQLite.
@@ -32,19 +42,19 @@ export function startSettingsPersistence(): () => void {
 
     // Only persist changed values
     if (current.units !== lastPersisted.units) {
-      setPreference("units", current.units);
+      persistPreference("units", current.units);
       lastPersisted.units = current.units;
     }
     if (current.voiceEnabled !== lastPersisted.voiceEnabled) {
-      setPreference("voice_enabled", current.voiceEnabled);
+      persistPreference("voice_enabled", current.voiceEnabled);
       lastPersisted.voiceEnabled = current.voiceEnabled;
     }
     if (current.batteryOptimization !== lastPersisted.batteryOptimization) {
-      setPreference("battery_optimization", current.batteryOptimization);
+      persistPreference("battery_optimization", current.batteryOptimization);
       lastPersisted.batteryOptimization = current.batteryOptimization;
     }
     if (current.crowdSignalOptIn !== lastPersisted.crowdSignalOptIn) {
-      setPreference("crowd_signal_opt_in", current.crowdSignalOptIn);
+      persistPreference("crowd_signal_opt_in", current.crowdSignalOptIn);
       lastPersisted.crowdSignalOptIn = current.crowdSignalOptIn;
     }
   });

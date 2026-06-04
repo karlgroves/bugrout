@@ -11,23 +11,25 @@
  * - "Go" to start navigation, "Back" to reconfigure
  */
 
+/* eslint-disable max-lines-per-function -- pre-existing oversized route preview screen with inline summary, warnings, and actions; tracked in docs/tech-debt.md (decompose route preview screen) */
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
-import { useRouteStore } from "@/stores/useRouteStore";
-import { useThreatStore } from "@/stores/useThreatStore";
-import { useSettingsStore } from "@/stores/useSettingsStore";
-import { routeIntersectsThreat } from "@/services/routing/ThreatAvoidance";
-import { formatDistance, formatDuration } from "@/utils/geo";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { routeIntersectsThreat } from "@/services/routing/ThreatAvoidance";
+import { useRouteStore } from "@/stores/useRouteStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useThreatStore } from "@/stores/useThreatStore";
+import { formatDistance, formatDuration } from "@/utils/geo";
 
-export default function RoutePreviewScreen() {
+/** Route confirmation screen showing distance, ETA, threats, and Go/Back actions. */
+export default function RoutePreviewScreen(): React.JSX.Element | null {
   const router = useRouter();
   const { activeRoute } = useRouteStore();
   const { threatZones } = useThreatStore();
@@ -155,6 +157,7 @@ export default function RoutePreviewScreen() {
             style={styles.backButton}
             onPress={handleBack}
             accessibilityLabel="Go back and change destination"
+            accessibilityHint="Returns to the destination picker to choose a different destination"
             accessibilityRole="button"
           >
             <Text style={styles.backText}>Back</Text>
@@ -165,6 +168,7 @@ export default function RoutePreviewScreen() {
             style={styles.goButton}
             onPress={handleGo}
             accessibilityLabel="Start navigation on this route"
+            accessibilityHint="Begins turn-by-turn navigation along the previewed route"
             accessibilityRole="button"
           >
             <FontAwesome name="location-arrow" size={18} color={colors.background} />

@@ -3,18 +3,31 @@
  */
 
 import { StyleSheet, View, Text } from "react-native";
-import type { RouteManeuver } from "@bugrout/shared";
-import { ManeuverIcon } from "./ManeuverIcon";
-import { formatDistance } from "@/utils/geo";
-import { useSettingsStore } from "@/stores/useSettingsStore";
-import { colors, spacing, typography } from "@/constants/theme";
 
+import { colors, spacing, typography } from "@/constants/theme";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+import { formatDistance } from "@/utils/geo";
+
+import { ManeuverIcon } from "./ManeuverIcon";
+
+import type { RouteManeuver } from "@bugrout/shared";
+
+/**
+ * Props for {@link ManeuverCard}.
+ */
 interface ManeuverCardProps {
   maneuver: RouteManeuver | null;
   distanceToManeuver: number; // meters
 }
 
-export function ManeuverCard({ maneuver, distanceToManeuver }: ManeuverCardProps) {
+/**
+ * Top-of-screen card during navigation showing the next maneuver's icon,
+ * distance, instruction, and street name.
+ */
+export function ManeuverCard({
+  maneuver,
+  distanceToManeuver,
+}: ManeuverCardProps): React.JSX.Element {
   const { units } = useSettingsStore();
 
   if (!maneuver) {
@@ -39,11 +52,9 @@ export function ManeuverCard({ maneuver, distanceToManeuver }: ManeuverCardProps
         <Text style={styles.instruction} numberOfLines={2}>
           {maneuver.instruction}
         </Text>
-        {maneuver.streetName && (
-          <Text style={styles.street} numberOfLines={1}>
+        {maneuver.streetName ? <Text style={styles.street} numberOfLines={1}>
             {maneuver.streetName}
-          </Text>
-        )}
+          </Text> : null}
       </View>
     </View>
   );

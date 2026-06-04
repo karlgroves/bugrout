@@ -11,9 +11,10 @@
  * 4. Return the best candidate as a waypoint LatLng
  */
 
-import type { LatLng, ResourceType, ResourcePoint } from "@bugrout/shared";
 import { getResourcesNearPoint } from "@/db/queries/resources";
 import { haversineDistance } from "@/utils/geo";
+
+import type { LatLng, ResourceType, ResourcePoint } from "@bugrout/shared";
 
 /** Default max detour: ~10 miles */
 const DEFAULT_MAX_DETOUR_METERS = 16000;
@@ -21,6 +22,9 @@ const DEFAULT_MAX_DETOUR_METERS = 16000;
 /** Convert meters to approximate degrees for SQL bbox query */
 const METERS_TO_DEGREES = 1 / 111320;
 
+/**
+ *
+ */
 export interface WaypointCandidate {
   resource: ResourcePoint;
   /** Distance from the nearest route point to this resource */
@@ -96,7 +100,7 @@ export async function findBestResourceStop(
  */
 export async function getResourceWaypoints(
   routeCoordinates: LatLng[],
-  preferences: Array<{ type: ResourceType; maxDetour: number; enabled: boolean }>,
+  preferences: { type: ResourceType; maxDetour: number; enabled: boolean }[],
 ): Promise<LatLng[]> {
   const waypoints: LatLng[] = [];
 

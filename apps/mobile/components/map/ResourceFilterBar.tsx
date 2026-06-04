@@ -5,18 +5,21 @@
  * for fuel, water, and shelter markers.
  */
 
-import { StyleSheet, View, Pressable, Text } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { ResourceType } from "@bugrout/shared";
-import { useResourceStore } from "@/stores/useResourceStore";
-import { colors, spacing } from "@/constants/theme";
+import { StyleSheet, View, Pressable, Text } from "react-native";
 
-const FILTERS: Array<{
+import { colors, spacing } from "@/constants/theme";
+import { useResourceStore } from "@/stores/useResourceStore";
+
+import type { ResourceType } from "@bugrout/shared";
+
+
+const FILTERS: {
   type: ResourceType;
   icon: React.ComponentProps<typeof FontAwesome>["name"];
   label: string;
   color: string;
-}> = [
+}[] = [
   { type: "fuel", icon: "tint", label: "Fuel", color: colors.resourceFuel },
   { type: "water", icon: "tint", label: "Water", color: colors.resourceWater },
   {
@@ -27,7 +30,11 @@ const FILTERS: Array<{
   },
 ];
 
-export function ResourceFilterBar() {
+/**
+ * Horizontal toolbar overlaid on the map with toggle buttons for showing or
+ * hiding fuel, water, and shelter resource markers.
+ */
+export function ResourceFilterBar(): React.JSX.Element {
   const { visibleTypes, toggleResourceType } = useResourceStore();
 
   return (
@@ -38,8 +45,13 @@ export function ResourceFilterBar() {
           <Pressable
             key={filter.type}
             style={[styles.button, active && styles.buttonActive]}
-            onPress={() => toggleResourceType(filter.type)}
+            onPress={() => { toggleResourceType(filter.type); }}
             accessibilityLabel={`${active ? "Hide" : "Show"} ${filter.label} markers`}
+            accessibilityHint={
+              active
+                ? `Removes ${filter.label} markers from the map`
+                : `Adds ${filter.label} markers to the map`
+            }
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >

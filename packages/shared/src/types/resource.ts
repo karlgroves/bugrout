@@ -1,5 +1,11 @@
+/**
+ * Category of evacuation resource (fuel, water, or shelter).
+ */
 export type ResourceType = "fuel" | "water" | "shelter";
 
+/**
+ * Upstream provider a resource point was sourced from.
+ */
 export type ResourceSource =
   | "nrel"
   | "usgs"
@@ -7,6 +13,9 @@ export type ResourceSource =
   | "redcross"
   | "open211";
 
+/**
+ * A geolocated evacuation resource such as a fuel station or shelter.
+ */
 export interface ResourcePoint {
   id: string;
   type: ResourceType;

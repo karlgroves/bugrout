@@ -4,6 +4,7 @@
  */
 
 import { haversineDistance } from "@/utils/geo";
+
 import type { Route, LatLng } from "@bugrout/shared";
 
 // Re-implement buildMockRoute for testing (it's private in ValhallaModule)

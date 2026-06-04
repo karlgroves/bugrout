@@ -50,7 +50,10 @@ export function track(
 /**
  * Pre-defined event names for consistency.
  */
-export const Events = {
+export /**
+ *
+ */
+const Events = {
   // Navigation
   ROUTE_STARTED: "route_started",
   ROUTE_COMPLETED: "route_completed",

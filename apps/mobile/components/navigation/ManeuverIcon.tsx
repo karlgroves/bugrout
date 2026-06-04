@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (three inline View-drawn arrow variants in one render; extracting them would fragment the geometry) */
 /**
  * Maneuver Icon Component
  *
@@ -7,8 +8,12 @@
  */
 
 import { StyleSheet, View } from "react-native";
+
 import { colors } from "@/constants/theme";
 
+/**
+ * The set of distinct arrow glyphs the maneuver icon can render.
+ */
 type Direction =
   | "straight"
   | "slight-right"
@@ -24,11 +29,17 @@ type Direction =
   | "merge"
   | "fork";
 
+/**
+ * Props for {@link ManeuverIcon}.
+ */
 interface ManeuverIconProps {
   type: string;
   size?: number;
   color?: string;
 }
+
+const SLIGHT_RIGHT = "slight-right";
+const SLIGHT_LEFT = "slight-left";
 
 const TYPE_TO_DIRECTION: Record<string, Direction> = {
   depart: "depart",
@@ -39,25 +50,25 @@ const TYPE_TO_DIRECTION: Record<string, Direction> = {
   "arrive-left": "arrive",
   continue: "straight",
   straight: "straight",
-  "turn-slight-right": "slight-right",
+  "turn-slight-right": SLIGHT_RIGHT,
   "turn-right": "right",
   "turn-sharp-right": "sharp-right",
   "uturn-right": "uturn",
   "uturn-left": "uturn",
   "turn-sharp-left": "sharp-left",
   "turn-left": "left",
-  "turn-slight-left": "slight-left",
+  "turn-slight-left": SLIGHT_LEFT,
   "ramp-straight": "straight",
-  "ramp-right": "slight-right",
-  "ramp-left": "slight-left",
-  "exit-right": "slight-right",
-  "exit-left": "slight-left",
+  "ramp-right": SLIGHT_RIGHT,
+  "ramp-left": SLIGHT_LEFT,
+  "exit-right": SLIGHT_RIGHT,
+  "exit-left": SLIGHT_LEFT,
   "merge-left": "merge",
   "merge-right": "merge",
   "roundabout-enter": "roundabout",
   "roundabout-exit": "right",
-  "fork-right": "slight-right",
-  "fork-left": "slight-left",
+  "fork-right": SLIGHT_RIGHT,
+  "fork-left": SLIGHT_LEFT,
   none: "straight",
 };
 
@@ -78,11 +89,15 @@ const DIRECTION_ROTATION: Record<Direction, number> = {
   fork: 0,
 };
 
+/**
+ * Draws a directional turn arrow (or arrive/roundabout glyph) using plain
+ * Views, avoiding an SVG dependency to keep the offline bundle small.
+ */
 export function ManeuverIcon({
   type,
   size = 32,
   color = colors.accent,
-}: ManeuverIconProps) {
+}: ManeuverIconProps): React.JSX.Element {
   const direction = TYPE_TO_DIRECTION[type] ?? "straight";
   const rotation = DIRECTION_ROTATION[direction];
 

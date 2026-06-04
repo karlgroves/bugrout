@@ -5,16 +5,27 @@
  * Provides a prominent reroute button.
  */
 
-import { StyleSheet, View, Text, Pressable } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { StyleSheet, View, Text, Pressable } from "react-native";
+
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
+/**
+ * Props for {@link DeviationBanner}.
+ */
 interface DeviationBannerProps {
   onReroute: () => void;
   onDismiss: () => void;
 }
 
-export function DeviationBanner({ onReroute, onDismiss }: DeviationBannerProps) {
+/**
+ * Alert banner shown when the user strays from the planned route, offering to
+ * recalculate a new route or dismiss the warning.
+ */
+export function DeviationBanner({
+  onReroute,
+  onDismiss,
+}: DeviationBannerProps): React.JSX.Element {
   return (
     <View style={styles.container} accessibilityRole="alert">
       <View style={styles.content}>
@@ -26,6 +37,7 @@ export function DeviationBanner({ onReroute, onDismiss }: DeviationBannerProps) 
           style={styles.dismissButton}
           onPress={onDismiss}
           accessibilityLabel="Dismiss deviation warning"
+          accessibilityHint="Hides this warning and keeps following the current route"
           accessibilityRole="button"
         >
           <Text style={styles.dismissText}>Dismiss</Text>
@@ -34,6 +46,7 @@ export function DeviationBanner({ onReroute, onDismiss }: DeviationBannerProps) 
           style={styles.rerouteButton}
           onPress={onReroute}
           accessibilityLabel="Recalculate route from current position"
+          accessibilityHint="Calculates a new route to your destination starting from where you are now"
           accessibilityRole="button"
         >
           <FontAwesome name="refresh" size={14} color={colors.background} />

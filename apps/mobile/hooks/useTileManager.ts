@@ -3,12 +3,32 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import type { Region, DownloadedRegion } from "@bugrout/shared";
-import * as TileManager from "@/services/tiles/TileManager";
-import type { DownloadProgress } from "@/services/tiles/TileManager";
-import { DEFAULT_REGIONS } from "@/constants/regions";
 
-export function useTileManager() {
+import { DEFAULT_REGIONS } from "@/constants/regions";
+import * as TileManager from "@/services/tiles/TileManager";
+
+import type { DownloadProgress } from "@/services/tiles/TileManager";
+import type { Region, DownloadedRegion } from "@bugrout/shared";
+
+
+/** Offline tile download state and actions returned by {@link useTileManager}. */
+export interface UseTileManagerResult {
+  downloadedRegions: DownloadedRegion[];
+  availableRegions: Region[];
+  activeDownload: DownloadProgress | null;
+  storageUsed: number;
+  storageAvailable: number;
+  loading: boolean;
+  downloadRegion: (region: Region) => Promise<void>;
+  deleteRegion: (regionId: string) => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+/**
+ * Manage offline tile downloads: list downloaded/available regions, track the
+ * active download, report storage usage, and expose download/delete actions.
+ */
+export function useTileManager(): UseTileManagerResult {
   const [downloadedRegions, setDownloadedRegions] = useState<
     DownloadedRegion[]
   >([]);
@@ -46,8 +66,8 @@ export function useTileManager() {
   }, []);
 
   useEffect(() => {
-    refresh();
-    fetchAvailable();
+    void refresh();
+    void fetchAvailable();
   }, [refresh, fetchAvailable]);
 
   const downloadRegion = useCallback(

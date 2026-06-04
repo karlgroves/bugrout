@@ -6,19 +6,29 @@
  * the most relevant download.
  */
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
-import { useRouter } from "expo-router";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocation } from "@/hooks/useLocation";
+
 import { findRegionForPoint } from "@/constants/regions";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { useLocation } from "@/hooks/useLocation";
 
+/**
+ * Props for {@link DownloadGuide}.
+ */
 interface DownloadGuideProps {
   onDismiss: () => void;
 }
 
-export function DownloadGuide({ onDismiss }: DownloadGuideProps) {
+/**
+ * First-launch overlay prompting the user to download offline maps for the
+ * region detected from their current location.
+ */
+export function DownloadGuide({
+  onDismiss,
+}: DownloadGuideProps): React.JSX.Element {
   const router = useRouter();
   const { position } = useLocation(false);
   const [suggestedRegion, setSuggestedRegion] = useState<string | null>(null);
@@ -45,14 +55,12 @@ export function DownloadGuide({ onDismiss }: DownloadGuideProps) {
           so you can navigate even without cell service.
         </Text>
 
-        {suggestedRegion && (
-          <View style={styles.suggestion}>
+        {suggestedRegion ? <View style={styles.suggestion}>
             <FontAwesome name="map-marker" size={14} color={colors.accent} />
             <Text style={styles.suggestionText}>
               Detected: <Text style={styles.bold}>{suggestedRegion}</Text>
             </Text>
-          </View>
-        )}
+          </View> : null}
 
         <View style={styles.features}>
           <FeatureRow icon="road" text="Turn-by-turn routing" />
@@ -67,6 +75,7 @@ export function DownloadGuide({ onDismiss }: DownloadGuideProps) {
             router.push("/downloads");
           }}
           accessibilityLabel="Go to offline maps download"
+          accessibilityHint="Opens the download manager to save maps for offline use"
           accessibilityRole="button"
         >
           <FontAwesome name="download" size={16} color={colors.background} />
@@ -81,6 +90,7 @@ export function DownloadGuide({ onDismiss }: DownloadGuideProps) {
           style={styles.skipButton}
           onPress={onDismiss}
           accessibilityLabel="Skip for now"
+          accessibilityHint="Dismisses this prompt and continues without downloading maps"
           accessibilityRole="button"
         >
           <Text style={styles.skipText}>Skip for now</Text>
@@ -90,7 +100,16 @@ export function DownloadGuide({ onDismiss }: DownloadGuideProps) {
   );
 }
 
-function FeatureRow({ icon, text }: { icon: string; text: string }) {
+/**
+ * Single icon-and-label row used inside the download guide feature list.
+ */
+function FeatureRow({
+  icon,
+  text,
+}: {
+  icon: string;
+  text: string;
+}): React.JSX.Element {
   return (
     <View style={styles.featureRow}>
       <FontAwesome

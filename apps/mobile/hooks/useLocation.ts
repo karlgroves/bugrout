@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+
 import {
   startTracking,
   stopTracking,
@@ -11,7 +12,22 @@ import {
   type LocationUpdate,
 } from "@/services/location/LocationTracker";
 
-export function useLocation(active: boolean = false) {
+/** Reactive GPS state returned by {@link useLocation}. */
+export interface UseLocationResult {
+  location: LocationUpdate | null;
+  position: LocationUpdate["position"] | null;
+  heading: number;
+  speed: number;
+  accuracy: number;
+  error: string | null;
+  getPosition: () => Promise<LocationUpdate | null>;
+}
+
+/**
+ * Subscribe to GPS updates while `active` is true and expose current
+ * position, heading, speed, accuracy, and a one-shot getPosition helper.
+ */
+export function useLocation(active = false): UseLocationResult {
   const [location, setLocation] = useState<LocationUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const callbackRef = useRef<((update: LocationUpdate) => void) | null>(null);
@@ -31,7 +47,7 @@ export function useLocation(active: boolean = false) {
     });
 
     return () => {
-      stopTracking();
+      void stopTracking();
     };
   }, [active]);
 

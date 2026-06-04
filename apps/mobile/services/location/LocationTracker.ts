@@ -7,8 +7,12 @@
  */
 
 import * as Location from "@/platform/location";
+
 import type { LatLng } from "@bugrout/shared";
 
+/**
+ *
+ */
 export interface LocationUpdate {
   position: LatLng;
   heading: number; // degrees
@@ -17,6 +21,9 @@ export interface LocationUpdate {
   timestamp: number;
 }
 
+/**
+ *
+ */
 export type LocationCallback = (update: LocationUpdate) => void;
 
 let foregroundSubscription: Location.LocationSubscription | null = null;
@@ -66,7 +73,9 @@ export async function startTracking(
 
   // Start heading tracking
   headingSubscription = await Location.watchHeadingAsync((heading) => {
-    currentHeading = heading.trueHeading ?? heading.magHeading ?? 0;
+    // trueHeading is -1 when true north is unavailable; fall back to magnetic.
+    currentHeading =
+      heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
   });
 
   // Start position tracking
@@ -108,7 +117,7 @@ export async function startBatterySavingTracking(
 /**
  * Stop GPS tracking.
  */
-export async function stopTracking(): Promise<void> {
+export function stopTracking(): Promise<void> {
   if (foregroundSubscription) {
     foregroundSubscription.remove();
     foregroundSubscription = null;
@@ -117,6 +126,7 @@ export async function stopTracking(): Promise<void> {
     headingSubscription.remove();
     headingSubscription = null;
   }
+  return Promise.resolve();
 }
 
 /**

@@ -5,17 +5,27 @@
  * Explains why location is needed and provides a button to request it.
  */
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, Linking } from "react-native";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { requestForegroundPermissionsAsync } from "@/platform/location";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { requestForegroundPermissionsAsync } from "@/platform/location";
+
+/**
+ * Props for {@link LocationPermission}.
+ */
 interface LocationPermissionProps {
   onGranted: () => void;
 }
 
-export function LocationPermission({ onGranted }: LocationPermissionProps) {
+/**
+ * Full-screen prompt explaining why location access is needed and letting
+ * the user grant it (or open device settings if previously denied).
+ */
+export function LocationPermission({
+  onGranted,
+}: LocationPermissionProps): React.JSX.Element {
   const [denied, setDenied] = useState(false);
 
   const handleRequest = useCallback(async () => {
@@ -50,6 +60,7 @@ export function LocationPermission({ onGranted }: LocationPermissionProps) {
             style={styles.settingsButton}
             onPress={() => Linking.openSettings()}
             accessibilityLabel="Open device settings to enable location"
+            accessibilityHint="Leaves the app and opens the system settings screen for BugRout"
             accessibilityRole="button"
           >
             <Text style={styles.settingsText}>Open Settings</Text>
@@ -60,6 +71,7 @@ export function LocationPermission({ onGranted }: LocationPermissionProps) {
           style={styles.allowButton}
           onPress={handleRequest}
           accessibilityLabel="Allow location access"
+          accessibilityHint="Shows the system permission prompt to share your location"
           accessibilityRole="button"
         >
           <Text style={styles.allowText}>Allow Location</Text>

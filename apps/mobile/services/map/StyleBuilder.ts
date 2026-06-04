@@ -8,7 +8,11 @@
  * 1. Offline: references a local PMTiles file via pmtiles:// protocol
  * 2. Fallback: minimal dark background with no tile source
  */
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (buildMapStyle: large declarative MapLibre style JSON) */
 
+/**
+ *
+ */
 interface StyleOptions {
   /** Local path to PMTiles file, or null for fallback mode */
   pmtilesPath: string | null;

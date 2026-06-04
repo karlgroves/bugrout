@@ -7,13 +7,20 @@
 
 import { Component, type ReactNode } from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
+
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
+/**
+ *
+ */
 interface Props {
   children: ReactNode;
   fallbackMessage?: string;
 }
 
+/**
+ *
+ */
 interface State {
   hasError: boolean;
   error: Error | null;
@@ -29,11 +36,11 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  handleRetry = () => {
+  handleRetry = (): void => {
     this.setState({ hasError: false, error: null });
   };
 
-  override render() {
+  override render(): ReactNode {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
@@ -42,15 +49,14 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.props.fallbackMessage ??
               "An unexpected error occurred. Your offline data is safe."}
           </Text>
-          {__DEV__ && this.state.error && (
-            <Text style={styles.errorDetail}>
+          {__DEV__ && this.state.error ? <Text style={styles.errorDetail}>
               {this.state.error.message}
-            </Text>
-          )}
+            </Text> : null}
           <Pressable
             style={styles.retryButton}
             onPress={this.handleRetry}
             accessibilityLabel="Try again"
+            accessibilityHint="Dismisses the error and attempts to reload the screen"
             accessibilityRole="button"
           >
             <Text style={styles.retryText}>Try Again</Text>

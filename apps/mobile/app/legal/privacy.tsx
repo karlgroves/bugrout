@@ -1,8 +1,10 @@
 import { StyleSheet, ScrollView, Text } from "react-native";
+
 import { PRIVACY_POLICY } from "@/constants/legal";
 import { colors, spacing, typography } from "@/constants/theme";
 
-export default function PrivacyPolicyScreen() {
+/** Renders the bundled privacy policy text, available offline. */
+export default function PrivacyPolicyScreen(): React.JSX.Element {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.text}>{PRIVACY_POLICY.trim()}</Text>

@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing, typography } from "@/constants/theme";
 
-export default function NotFoundScreen() {
+/** Fallback screen shown for unmatched routes, linking back to home. */
+export default function NotFoundScreen(): React.JSX.Element {
   return (
     <>
       <Stack.Screen options={{ title: "Not Found" }} />

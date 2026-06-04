@@ -7,12 +7,16 @@
  * API docs: https://developer.nrel.gov/docs/transportation/alt-fuel-stations-v1/
  */
 
-import type { ResourcePoint } from "@bugrout/shared";
 import { upsertResourcePoints } from "@/db/queries/resources";
+
+import type { ResourcePoint } from "@bugrout/shared";
 
 const NREL_BASE = "https://developer.nrel.gov/api/alt-fuel-stations/v1.json";
 const CACHE_TTL_MS = 86400000; // 24 hours
 
+/**
+ *
+ */
 interface NRELStation {
   id: number;
   station_name: string;
@@ -29,6 +33,9 @@ interface NRELStation {
   ev_network: string | null;
 }
 
+/**
+ *
+ */
 interface NRELResponse {
   total_results: number;
   station_locator_url: string;

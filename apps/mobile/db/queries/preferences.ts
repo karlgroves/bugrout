@@ -6,6 +6,9 @@ import { getDatabase } from "../database";
 
 // --- Preferences ---
 
+/**
+ * Returns a stored preference value by key, or null if unset.
+ */
 export async function getPreference(key: string): Promise<string | null> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ value: string }>(
@@ -15,6 +18,9 @@ export async function getPreference(key: string): Promise<string | null> {
   return row?.value ?? null;
 }
 
+/**
+ * Inserts or updates a preference key/value pair.
+ */
 export async function setPreference(
   key: string,
   value: string,
@@ -29,6 +35,9 @@ export async function setPreference(
 
 // --- Emergency Contacts ---
 
+/**
+ * Persisted emergency contact record.
+ */
 export interface EmergencyContactRow {
   id: string;
   name: string;
@@ -36,6 +45,9 @@ export interface EmergencyContactRow {
   sortOrder: number;
 }
 
+/**
+ * Returns all emergency contacts ordered by sort position.
+ */
 export async function getEmergencyContacts(): Promise<
   EmergencyContactRow[]
 > {
@@ -55,6 +67,9 @@ export async function getEmergencyContacts(): Promise<
   }));
 }
 
+/**
+ * Inserts or replaces an emergency contact.
+ */
 export async function upsertEmergencyContact(
   contact: EmergencyContactRow,
 ): Promise<void> {
@@ -69,6 +84,9 @@ export async function upsertEmergencyContact(
   );
 }
 
+/**
+ * Removes an emergency contact by id.
+ */
 export async function deleteEmergencyContact(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync("DELETE FROM emergency_contacts WHERE id = ?", id);
@@ -76,6 +94,9 @@ export async function deleteEmergencyContact(id: string): Promise<void> {
 
 // --- Recent Destinations ---
 
+/**
+ * Persisted recently-used destination record.
+ */
 export interface RecentDestinationRow {
   id: string;
   label: string | null;
@@ -84,8 +105,11 @@ export interface RecentDestinationRow {
   usedAt: number;
 }
 
+/**
+ * Returns recent destinations ordered by most recent use.
+ */
 export async function getRecentDestinations(
-  limit: number = 10,
+  limit = 10,
 ): Promise<RecentDestinationRow[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
@@ -105,6 +129,9 @@ export async function getRecentDestinations(
   }));
 }
 
+/**
+ * Inserts or replaces a recent destination.
+ */
 export async function addRecentDestination(
   dest: RecentDestinationRow,
 ): Promise<void> {

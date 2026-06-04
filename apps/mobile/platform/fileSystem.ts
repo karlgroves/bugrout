@@ -5,8 +5,32 @@
 
 import { Platform } from "react-native";
 
-export const documentDirectory = "/mock-documents/";
+const FILE_SYSTEM_MODULE = "expo-file-system/legacy";
 
+export /**
+ *
+ */
+const documentDirectory = "/mock-documents/";
+
+/**
+ * Result of a resumable download's `downloadAsync` call.
+ */
+interface DownloadResult {
+  uri: string;
+  status: number;
+}
+
+/**
+ * A resumable download handle exposing `downloadAsync` to start/resume it.
+ */
+export interface DownloadResumable {
+  downloadAsync(): Promise<DownloadResult | undefined>;
+}
+
+/**
+ * Returns information about a file or directory, reporting "does not exist"
+ * when the file system module is unavailable.
+ */
 export async function getInfoAsync(
   path: string,
 ): Promise<{ exists: boolean; size?: number }> {
@@ -14,14 +38,17 @@ export async function getInfoAsync(
     return { exists: false };
   }
   try {
-    const mod = "expo-file-system/legacy";
+    const mod = FILE_SYSTEM_MODULE;
     const FS = require(mod);
-    return FS.getInfoAsync(path);
+    return await FS.getInfoAsync(path);
   } catch {
     return { exists: false };
   }
 }
 
+/**
+ * Creates a directory; a no-op when the file system module is unavailable.
+ */
 export async function makeDirectoryAsync(
   path: string,
   options?: { intermediates?: boolean },
@@ -30,14 +57,18 @@ export async function makeDirectoryAsync(
     return;
   }
   try {
-    const mod = "expo-file-system/legacy";
+    const mod = FILE_SYSTEM_MODULE;
     const FS = require(mod);
-    return FS.makeDirectoryAsync(path, options);
+    await FS.makeDirectoryAsync(path, options);
   } catch {
     // No-op in Expo Go
   }
 }
 
+/**
+ * Deletes a file or directory; a no-op when the file system module is
+ * unavailable.
+ */
 export async function deleteAsync(
   path: string,
   options?: { idempotent?: boolean },
@@ -46,27 +77,35 @@ export async function deleteAsync(
     return;
   }
   try {
-    const mod = "expo-file-system/legacy";
+    const mod = FILE_SYSTEM_MODULE;
     const FS = require(mod);
-    return FS.deleteAsync(path, options);
+    await FS.deleteAsync(path, options);
   } catch {
     // No-op
   }
 }
 
+/**
+ * Returns the free disk space in bytes, falling back to a mock 10 GB when the
+ * file system module is unavailable.
+ */
 export async function getFreeDiskStorageAsync(): Promise<number> {
   if (Platform.OS === "web") {
     return 10 * 1024 * 1024 * 1024; // Mock: 10 GB
   }
   try {
-    const mod = "expo-file-system/legacy";
+    const mod = FILE_SYSTEM_MODULE;
     const FS = require(mod);
-    return FS.getFreeDiskStorageAsync();
+    return await FS.getFreeDiskStorageAsync();
   } catch {
     return 10 * 1024 * 1024 * 1024; // Mock: 10 GB
   }
 }
 
+/**
+ * Creates a resumable download, returning a mock that completes instantly
+ * when the file system module is unavailable.
+ */
 export function createDownloadResumable(
   url: string,
   destPath: string,
@@ -75,23 +114,23 @@ export function createDownloadResumable(
     totalBytesWritten: number;
     totalBytesExpectedToWrite: number;
   }) => void,
-) {
+): DownloadResumable {
   if (Platform.OS === "web") {
     return {
-      async downloadAsync() {
-        return { uri: destPath, status: 200 };
+      downloadAsync(): Promise<DownloadResult> {
+        return Promise.resolve({ uri: destPath, status: 200 });
       },
     };
   }
   try {
-    const mod = "expo-file-system/legacy";
+    const mod = FILE_SYSTEM_MODULE;
     const FS = require(mod);
     return FS.createDownloadResumable(url, destPath, options, onProgress);
   } catch {
     // Mock download that "completes" instantly
     return {
-      async downloadAsync() {
-        return { uri: destPath, status: 200 };
+      downloadAsync(): Promise<DownloadResult> {
+        return Promise.resolve({ uri: destPath, status: 200 });
       },
     };
   }

@@ -2,9 +2,13 @@
  * SQLite queries for saved evacuation scenarios.
  */
 
-import type { Scenario } from "@bugrout/shared";
 import { getDatabase } from "../database";
 
+import type { Scenario } from "@bugrout/shared";
+
+/**
+ * Inserts or replaces a saved evacuation scenario.
+ */
 export async function upsertScenario(scenario: Scenario): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
@@ -22,6 +26,9 @@ export async function upsertScenario(scenario: Scenario): Promise<void> {
   );
 }
 
+/**
+ * Returns all saved scenarios ordered by most recently created.
+ */
 export async function getScenarios(): Promise<Scenario[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
@@ -29,8 +36,8 @@ export async function getScenarios(): Promise<Scenario[]> {
     name: string;
     destination_lat: number;
     destination_lng: number;
-    avoid_zones: string;
-    resource_stops: string;
+    avoid_zones: string | null;
+    resource_stops: string | null;
     created_at: number;
     updated_at: number;
   }>("SELECT * FROM scenarios ORDER BY created_at DESC");
@@ -48,6 +55,9 @@ export async function getScenarios(): Promise<Scenario[]> {
   }));
 }
 
+/**
+ * Removes a saved scenario by id.
+ */
 export async function deleteScenario(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync("DELETE FROM scenarios WHERE id = ?", id);

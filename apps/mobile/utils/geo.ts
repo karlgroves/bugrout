@@ -79,6 +79,9 @@ export function formatDuration(seconds: number): string {
   return `${minutes} min`;
 }
 
+/**
+ * Converts degrees to radians.
+ */
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }

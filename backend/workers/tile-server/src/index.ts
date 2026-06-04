@@ -12,6 +12,9 @@
  * - Configurable CORS origins
  */
 
+/**
+ * Cloudflare Worker bindings available to the tile-server worker.
+ */
 interface Env {
   TILES_BUCKET: R2Bucket;
   API_KEY?: string; // If set, downloads require Authorization: Bearer <key>
@@ -47,34 +50,47 @@ export default {
     }
 
     // GET /v1/tiles/:regionId/:type — key-protected
-    const tileMatch = url.pathname.match(
-      /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|resources)$/,
-    );
+    const tileMatch = /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|resources)$/.exec(url.pathname);
     if (tileMatch) {
-      // Validate API key if configured
-      if (env.API_KEY) {
-        const authHeader = request.headers.get("Authorization") ?? "";
-        const providedKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-        const isValid = await timingSafeEqual(providedKey, env.API_KEY);
-        if (!isValid) {
-          return Response.json(
-            { error: "Invalid or missing API key" },
-            { status: 401, headers },
-          );
-        }
-      }
-
-      const [, regionId, type] = tileMatch;
-      if (!regionId || !type) {
-        return new Response("Not Found", { status: 404, headers });
-      }
-      return getTilePackage(request, env, regionId, type, headers);
+      return handleTileRequest(request, env, tileMatch, headers);
     }
 
     return new Response("Not Found", { status: 404, headers });
   },
 };
 
+/**
+ * Validate the API key (if configured) and dispatch to the tile-package handler.
+ */
+async function handleTileRequest(
+  request: Request,
+  env: Env,
+  tileMatch: RegExpExecArray,
+  headers: Record<string, string>,
+): Promise<Response> {
+  // Validate API key if configured
+  if (env.API_KEY) {
+    const authHeader = request.headers.get("Authorization") ?? "";
+    const providedKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const isValid = await timingSafeEqual(providedKey, env.API_KEY);
+    if (!isValid) {
+      return Response.json(
+        { error: "Invalid or missing API key" },
+        { status: 401, headers },
+      );
+    }
+  }
+
+  const [, regionId, type] = tileMatch;
+  if (!regionId || !type) {
+    return new Response("Not Found", { status: 404, headers });
+  }
+  return getTilePackage(request, env, { regionId, type }, headers);
+}
+
+/**
+ * Build CORS headers, allowing only origins present in the configured allowlist.
+ */
 function buildCorsHeaders(
   origin: string,
   allowedOrigins?: string,
@@ -133,6 +149,9 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   return result === 0;
 }
 
+/**
+ * Serve the public tile-package manifest from R2 with caching headers.
+ */
 async function getManifest(
   env: Env,
   headers: Record<string, string>,
@@ -152,11 +171,13 @@ async function getManifest(
   });
 }
 
+/**
+ * Resolve a tile package in R2 and stream it, honoring Range and ETag requests.
+ */
 async function getTilePackage(
   request: Request,
   env: Env,
-  regionId: string,
-  type: string,
+  { regionId, type }: { regionId: string; type: string },
   headers: Record<string, string>,
 ): Promise<Response> {
   const fileMap: Record<string, string> = {
@@ -187,12 +208,7 @@ async function getTilePackage(
   }
 
   const rangeHeader = request.headers.get("Range");
-  const contentType =
-    type === "flood"
-      ? "application/geo+json"
-      : type === "resources"
-        ? "application/json"
-        : "application/octet-stream";
+  const contentType = contentTypeForTile(type);
 
   if (rangeHeader) {
     const range = parseRange(rangeHeader);
@@ -238,9 +254,21 @@ async function getTilePackage(
   });
 }
 
+/**
+ * Map a tile package type to the appropriate response Content-Type.
+ */
+function contentTypeForTile(type: string): string {
+  if (type === "flood") return "application/geo+json";
+  if (type === "resources") return "application/json";
+  return "application/octet-stream";
+}
+
+/**
+ * Parse an HTTP Range header into an R2-compatible offset/length pair.
+ */
 function parseRange(header: string): { offset: number; length?: number } {
-  const match = header.match(/bytes=(\d+)-(\d*)/);
-  if (!match || match[1] === undefined) {
+  const match = /bytes=(\d+)-(\d*)/.exec(header);
+  if (match?.[1] === undefined) {
     return { offset: 0 };
   }
   const offset = parseInt(match[1], 10);

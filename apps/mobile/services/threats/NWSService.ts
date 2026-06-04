@@ -8,11 +8,37 @@
  * API docs: https://www.weather.gov/documentation/services-web-api
  */
 
-import type { ThreatZone, BBox } from "@bugrout/shared";
 import { upsertThreatZones } from "@/db/queries/threats";
+
+import type { ThreatZone, BBox } from "@bugrout/shared";
 
 const NWS_BASE = "https://api.weather.gov";
 const CACHE_TTL_MS = 3600000; // 1 hour
+
+/** Shape of the NWS /points response (fields used here may be absent). */
+interface NWSPointResponse {
+  properties?: {
+    relativeLocation?: { properties?: { state?: string } };
+  };
+}
+
+/** Shape of the NWS /alerts/active GeoJSON response. */
+interface NWSAlertResponse {
+  features: {
+    properties: {
+      id: string;
+      event: string;
+      severity?: string;
+      certainty?: string;
+      urgency?: string;
+      headline?: string;
+      description?: string;
+      expires?: string;
+      effective?: string;
+    };
+    geometry: ThreatZone["geometry"] | null;
+  }[];
+}
 
 /**
  * Fetch active NWS alerts for a geographic area.
@@ -63,9 +89,7 @@ async function fetchByArea(
 
     if (!pointResp.ok) return [];
 
-    const pointData = (await pointResp.json()) as {
-      properties: { relativeLocation: { properties: { state: string } } };
-    };
+    const pointData = (await pointResp.json()) as NWSPointResponse;
 
     const state = pointData.properties?.relativeLocation?.properties?.state;
     if (!state) return [];
@@ -84,7 +108,7 @@ async function fetchByArea(
 
     if (!alertResp.ok) return [];
 
-    return parseNWSResponse(await alertResp.json());
+    return parseNWSResponse((await alertResp.json()) as NWSAlertResponse);
   } catch {
     return [];
   }
@@ -93,22 +117,7 @@ async function fetchByArea(
 /**
  * Parse NWS GeoJSON response into ThreatZone array.
  */
-function parseNWSResponse(data: {
-  features: Array<{
-    properties: {
-      id: string;
-      event: string;
-      severity: string;
-      certainty: string;
-      urgency: string;
-      headline: string;
-      description: string;
-      expires: string;
-      effective: string;
-    };
-    geometry: ThreatZone["geometry"] | null;
-  }>;
-}): ThreatZone[] {
+function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
   return data.features.flatMap((f) => {
     const geometry = f.geometry;
     if (geometry === null) return [];
@@ -162,8 +171,8 @@ function classifyNWSEvent(event: string): ThreatZone["type"] {
 /**
  * Map NWS severity to our severity levels.
  */
-function mapSeverity(nwsSeverity: string): ThreatZone["severity"] {
-  switch (nwsSeverity?.toLowerCase()) {
+function mapSeverity(nwsSeverity: string | undefined): ThreatZone["severity"] {
+  switch ((nwsSeverity ?? "").toLowerCase()) {
     case "extreme":
       return "extreme";
     case "severe":
@@ -197,16 +206,16 @@ function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
   );
 }
 
+/**
+ * Flatten a threat geometry into a list of [lng, lat] coordinate pairs.
+ */
 function extractCoordinates(
   geometry: ThreatZone["geometry"],
 ): number[][] {
   if (geometry.type === "Polygon") {
     return geometry.coordinates[0] ?? [];
   }
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
-  }
-  return [];
+  return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
 }
 
 /**

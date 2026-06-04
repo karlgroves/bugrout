@@ -7,7 +7,9 @@
 
 import * as Sentry from "@/platform/sentry";
 
-const SENTRY_DSN = "YOUR_SENTRY_DSN"; // Set in environment or app config
+// Set in environment or app config; placeholder string until provisioned.
+const SENTRY_DSN: string =
+  process.env.EXPO_PUBLIC_SENTRY_DSN ?? "YOUR_SENTRY_DSN";
 
 /**
  * Initialize Sentry crash reporting.

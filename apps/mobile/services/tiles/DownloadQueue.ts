@@ -5,22 +5,32 @@
  * Only one download active at a time to avoid overwhelming the connection.
  */
 
-import type { Region } from "@bugrout/shared";
 import {
   downloadRegion,
   type DownloadProgress,
 } from "./TileManager";
 
-type QueueItem = {
+import type { Region } from "@bugrout/shared";
+
+/** A queued region download with its progress and settlement callbacks. */
+interface QueueItem {
   region: Region;
   onProgress?: ((progress: DownloadProgress) => void) | undefined;
-  resolve: (value: void) => void;
+  resolve: () => void;
   reject: (error: Error) => void;
-};
+}
 
-let queue: QueueItem[] = [];
+const queue: QueueItem[] = [];
 let isProcessing = false;
 let isPaused = false;
+
+/**
+ * Live read of the pause flag. Used after an `await` where the flag may have been
+ * flipped concurrently by pauseDownloads(), defeating stale control-flow narrowing.
+ */
+function isPausedNow(): boolean {
+  return isPaused;
+}
 
 /**
  * Add a region to the download queue.
@@ -31,7 +41,7 @@ export function enqueueDownload(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     queue.push({ region, onProgress, resolve, reject });
-    processQueue();
+    void processQueue();
   });
 }
 
@@ -47,7 +57,7 @@ export function pauseDownloads(): void {
  */
 export function resumeDownloads(): void {
   isPaused = false;
-  processQueue();
+  void processQueue();
 }
 
 /**
@@ -69,6 +79,9 @@ export function getQueueLength(): number {
   return queue.length;
 }
 
+/**
+ * Process the next queued download, one at a time, honoring pause state.
+ */
 async function processQueue(): Promise<void> {
   if (isProcessing || isPaused || queue.length === 0) return;
 
@@ -91,8 +104,8 @@ async function processQueue(): Promise<void> {
   } finally {
     isProcessing = false;
     // Process next item
-    if (queue.length > 0 && !isPaused) {
-      processQueue();
+    if (queue.length > 0 && !isPausedNow()) {
+      void processQueue();
     }
   }
 }

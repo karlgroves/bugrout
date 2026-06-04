@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (single declarative JSX map tree; splitting the render would obscure the layer ordering) */
 /**
  * BugRout Map Component
  *
@@ -8,16 +9,22 @@
 
 import { useRef, useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import * as MapLibreGL from "@/platform/maplibre";
-import type { LatLng } from "@bugrout/shared";
-import { useMapStore } from "@/stores/useMapStore";
-import { buildMapStyle, styleToDataUri } from "@/services/map/StyleBuilder";
-import { getTileSourceUrl } from "@/services/map/LocalTileServer";
+
 import { colors } from "@/constants/theme";
+import * as MapLibreGL from "@/platform/maplibre";
+import { getTileSourceUrl } from "@/services/map/LocalTileServer";
+import { buildMapStyle, styleToDataUri } from "@/services/map/StyleBuilder";
+import { useMapStore } from "@/stores/useMapStore";
+
+import type { LatLng } from "@bugrout/shared";
+
 
 // Initialize MapLibre (required once)
 MapLibreGL.setAccessToken(null);
 
+/**
+ *
+ */
 interface BugroutMapProps {
   /** Current user position */
   userLocation?: LatLng | null | undefined;
@@ -36,14 +43,17 @@ interface BugroutMapProps {
   children?: React.ReactNode;
 }
 
+/**
+ * Primary map view wrapping MapLibre GL with offline PMTiles, rendering the
+ * user's location, the active route polyline, and any child overlays.
+ */
 export function BugroutMap({
   userLocation,
   routeCoordinates,
   followUser = false,
   onMapPress,
-  onRegionChange,
   children,
-}: BugroutMapProps) {
+}: BugroutMapProps): React.JSX.Element {
   const mapRef = useRef(null);
   const cameraRef = useRef(null);
   const { activeRegion } = useMapStore();
@@ -63,7 +73,7 @@ export function BugroutMap({
 
   const handleRegionDidChange = useCallback(() => {
     // Visible bounds are read by MapLibre via the ref when needed
-  }, [onRegionChange]);
+  }, []);
 
   // Detect best tile source and build style URL
   const [tileServerPort, setTileServerPort] = useState<number | undefined>(
@@ -73,11 +83,16 @@ export function BugroutMap({
   useEffect(() => {
     if (!activeRegion?.pmtilesPath) return;
 
-    getTileSourceUrl(activeRegion.pmtilesPath).then((result) => {
-      if (result?.port) {
-        setTileServerPort(result.port);
-      }
-    });
+    void getTileSourceUrl(activeRegion.pmtilesPath)
+      .then((result) => {
+        if (result?.port) {
+          setTileServerPort(result.port);
+        }
+        return result;
+      })
+      .catch(() => {
+        // Tile server unavailable — fall back to bundled style without it
+      });
   }, [activeRegion?.pmtilesPath]);
 
   const style = buildMapStyle({
@@ -121,8 +136,7 @@ export function BugroutMap({
         />
 
         {/* Route polyline */}
-        {routeCoordinates && routeCoordinates.length > 0 && (
-          <MapLibreGL.ShapeSource
+        {routeCoordinates && routeCoordinates.length > 0 ? <MapLibreGL.ShapeSource
             id="route-line"
             shape={{
               type: "Feature",
@@ -154,8 +168,7 @@ export function BugroutMap({
                 lineOpacity: 0.3,
               }}
             />
-          </MapLibreGL.ShapeSource>
-        )}
+          </MapLibreGL.ShapeSource> : null}
 
         {children}
       </MapLibreGL.MapView>

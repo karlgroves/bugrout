@@ -10,6 +10,9 @@
 
 import type { BBox } from "@bugrout/shared";
 
+/**
+ *
+ */
 export interface CountyGroup {
   id: string;
   name: string;
@@ -22,7 +25,10 @@ export interface CountyGroup {
 /**
  * California county groups — organized by evacuation-relevant regions.
  */
-export const CA_COUNTIES: CountyGroup[] = [
+export /**
+ *
+ */
+const CA_COUNTIES: CountyGroup[] = [
   {
     id: "ca-sf-bay",
     name: "SF Bay Area",
@@ -68,7 +74,10 @@ export const CA_COUNTIES: CountyGroup[] = [
 /**
  * Florida county groups.
  */
-export const FL_COUNTIES: CountyGroup[] = [
+export /**
+ *
+ */
+const FL_COUNTIES: CountyGroup[] = [
   {
     id: "fl-miami",
     name: "Miami-Dade / Broward",
@@ -98,7 +107,10 @@ export const FL_COUNTIES: CountyGroup[] = [
 /**
  * Texas county groups.
  */
-export const TX_COUNTIES: CountyGroup[] = [
+export /**
+ *
+ */
+const TX_COUNTIES: CountyGroup[] = [
   {
     id: "tx-houston",
     name: "Houston Metro",
@@ -126,7 +138,10 @@ export const TX_COUNTIES: CountyGroup[] = [
 ];
 
 /** All county groups indexed by state */
-export const COUNTY_GROUPS: Record<string, CountyGroup[]> = {
+export /**
+ *
+ */
+const COUNTY_GROUPS: Record<string, CountyGroup[]> = {
   ca: CA_COUNTIES,
   fl: FL_COUNTIES,
   tx: TX_COUNTIES,

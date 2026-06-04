@@ -6,14 +6,20 @@
  */
 
 import { StyleSheet, View, Text } from "react-native";
-import { colors, spacing } from "@/constants/theme";
-import { DISCLAIMER_SHORT } from "@/constants/legal";
 
-export function AdvisoryBadge() {
+import { DISCLAIMER_SHORT } from "@/constants/legal";
+import { colors, spacing } from "@/constants/theme";
+
+/**
+ * Persistent "Advisory Only" badge shown during navigation to remind the
+ * user that routing guidance is advisory and not a guarantee of safety.
+ */
+export function AdvisoryBadge(): React.JSX.Element {
   return (
     <View
       style={styles.container}
       accessibilityLabel={DISCLAIMER_SHORT}
+      accessibilityHint="Reminds you that route guidance is advisory only; always use your own judgment"
       accessibilityRole="text"
     >
       <Text style={styles.text}>ADVISORY ONLY</Text>

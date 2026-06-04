@@ -11,12 +11,14 @@
  * - Server retains data for max 48 hours
  */
 
-import * as Crypto from "@/platform/crypto";
-import * as Battery from "@/platform/battery";
-import type { LatLng } from "@bugrout/shared";
-import { useSettingsStore } from "@/stores/useSettingsStore";
-import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { getPreference, setPreference } from "@/db/queries/preferences";
+import * as Battery from "@/platform/battery";
+import * as Crypto from "@/platform/crypto";
+import { useConnectivityStore } from "@/stores/useConnectivityStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+
+import type { LatLng } from "@bugrout/shared";
+
 
 const LOW_BATTERY_THRESHOLD = 0.2;
 

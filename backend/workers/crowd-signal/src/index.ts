@@ -11,17 +11,24 @@
  * - CORS restricted to app origins
  */
 
+/**
+ * Cloudflare Worker bindings available to the crowd-signal worker.
+ */
 interface Env {
   SIGNALS_KV: KVNamespace;
   ALLOWED_ORIGINS?: string; // comma-separated, e.g. "https://bugrout.app"
 }
 
+/**
+ * Anonymous telemetry payload posted by app clients. Optional numeric fields
+ * may be absent in malformed or partial requests.
+ */
 interface SignalPayload {
   lat: number;
   lng: number;
-  speed: number;
-  heading: number;
-  ts: number;
+  speed?: number;
+  heading?: number;
+  ts?: number;
   token: string;
 }
 
@@ -42,68 +49,7 @@ export default {
 
     // POST /v1/signal — ingest telemetry
     if (request.method === "POST" && url.pathname === "/v1/signal") {
-      // Rate limit by IP
-      const clientIp = request.headers.get("CF-Connecting-IP") ?? "unknown";
-      const rateLimited = await checkRateLimit(env.SIGNALS_KV, clientIp);
-      if (rateLimited) {
-        return Response.json(
-          { error: "Rate limited" },
-          { status: 429, headers: corsHeaders },
-        );
-      }
-
-      // Validate content length
-      const contentLength = parseInt(
-        request.headers.get("Content-Length") ?? "0",
-        10,
-      );
-      if (contentLength > MAX_BODY_SIZE) {
-        return Response.json(
-          { error: "Payload too large" },
-          { status: 413, headers: corsHeaders },
-        );
-      }
-
-      let payload: SignalPayload;
-      try {
-        payload = (await request.json()) as SignalPayload;
-      } catch {
-        return Response.json(
-          { error: "Invalid JSON" },
-          { status: 400, headers: corsHeaders },
-        );
-      }
-
-      // Validate fields
-      if (
-        typeof payload.lat !== "number" ||
-        typeof payload.lng !== "number" ||
-        typeof payload.token !== "string" ||
-        !payload.token ||
-        payload.lat < -90 || payload.lat > 90 ||
-        payload.lng < -180 || payload.lng > 180
-      ) {
-        return Response.json(
-          { error: "Invalid payload" },
-          { status: 400, headers: corsHeaders },
-        );
-      }
-
-      // Sanitize and store
-      const key = `signal:${sanitizeToken(payload.token)}:${Math.floor(Date.now() / 1000)}`;
-      await env.SIGNALS_KV.put(
-        key,
-        JSON.stringify({
-          lat: roundCoord(payload.lat),
-          lng: roundCoord(payload.lng),
-          speed: Math.max(0, Math.min(200, payload.speed ?? 0)),
-          heading: Math.max(0, Math.min(360, payload.heading ?? 0)),
-          ts: Date.now(),
-        }),
-        { expirationTtl: 172800 },
-      );
-
-      return new Response(null, { status: 204, headers: corsHeaders });
+      return handleSignalIngest(request, env, corsHeaders);
     }
 
     // GET /v1/signal?bbox=west,south,east,north
@@ -128,6 +74,87 @@ export default {
   },
 };
 
+/**
+ * Validate, rate-limit, and persist an incoming telemetry signal.
+ */
+async function handleSignalIngest(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  // Rate limit by IP
+  const clientIp = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const rateLimited = await checkRateLimit(env.SIGNALS_KV, clientIp);
+  if (rateLimited) {
+    return Response.json(
+      { error: "Rate limited" },
+      { status: 429, headers: corsHeaders },
+    );
+  }
+
+  // Validate content length
+  const contentLength = parseInt(
+    request.headers.get("Content-Length") ?? "0",
+    10,
+  );
+  if (contentLength > MAX_BODY_SIZE) {
+    return Response.json(
+      { error: "Payload too large" },
+      { status: 413, headers: corsHeaders },
+    );
+  }
+
+  let payload: SignalPayload;
+  try {
+    payload = await request.json<SignalPayload>();
+  } catch {
+    return Response.json(
+      { error: "Invalid JSON" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (!isValidSignal(payload)) {
+    return Response.json(
+      { error: "Invalid payload" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  // Sanitize and store
+  const key = `signal:${sanitizeToken(payload.token)}:${Math.floor(Date.now() / 1000)}`;
+  await env.SIGNALS_KV.put(
+    key,
+    JSON.stringify({
+      lat: roundCoord(payload.lat),
+      lng: roundCoord(payload.lng),
+      speed: Math.max(0, Math.min(200, payload.speed ?? 0)),
+      heading: Math.max(0, Math.min(360, payload.heading ?? 0)),
+      ts: Date.now(),
+    }),
+    { expirationTtl: 172800 },
+  );
+
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+
+/**
+ * Validate that a telemetry payload has well-formed coordinates and a token.
+ */
+function isValidSignal(payload: SignalPayload): boolean {
+  return (
+    typeof payload.lat === "number" &&
+    typeof payload.lng === "number" &&
+    typeof payload.token === "string" &&
+    !!payload.token &&
+    payload.lat >= -90 && payload.lat <= 90 &&
+    payload.lng >= -180 && payload.lng <= 180
+  );
+}
+
+/**
+ * Increment and check the per-IP rate-limit counter; returns true when over the limit.
+ */
 async function checkRateLimit(
   kv: KVNamespace,
   ip: string,
@@ -145,6 +172,9 @@ async function checkRateLimit(
   return false;
 }
 
+/**
+ * Build CORS headers, allowing only origins present in the configured allowlist.
+ */
 function buildCorsHeaders(
   origin: string,
   allowedOrigins?: string,
@@ -167,10 +197,16 @@ function buildCorsHeaders(
   };
 }
 
+/**
+ * Strip non-alphanumeric characters from a device token and cap its length.
+ */
 function sanitizeToken(token: string): string {
   return token.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 64);
 }
 
+/**
+ * Round a coordinate to ~11m precision to coarsen location data before storage.
+ */
 function roundCoord(coord: number): number {
   return Math.round(coord * 10000) / 10000;
 }

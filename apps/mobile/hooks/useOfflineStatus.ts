@@ -4,17 +4,29 @@
  */
 
 import { useEffect } from "react";
+
 import * as Network from "@/platform/network";
 import { useConnectivityStore } from "@/stores/useConnectivityStore";
 
-export function useOfflineStatus() {
+/**
+ * Track online/offline connectivity, keeping the connectivity store in sync,
+ * and return the current online boolean.
+ */
+export function useOfflineStatus(): boolean {
   const { isOnline, setOnline } = useConnectivityStore();
 
   useEffect(() => {
     // Check initial state
-    Network.getNetworkStateAsync().then((state) => {
-      setOnline(state.isConnected === true && state.isInternetReachable === true);
-    });
+    Network.getNetworkStateAsync()
+      .then((state) => {
+        setOnline(
+          state.isConnected === true && state.isInternetReachable === true,
+        );
+      })
+      .catch(() => {
+        // Network probe failed — assume offline (safe default for an evac app).
+        setOnline(false);
+      });
 
     // Subscribe to changes
     const subscription = Network.addNetworkStateListener((state) => {

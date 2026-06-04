@@ -3,11 +3,16 @@
  * Sends a one-tap SMS with current location, destination, and ETA.
  */
 
-import type { LatLng } from "@bugrout/shared";
-import * as SMS from "@/platform/sms";
 import { track, Events } from "@/platform/analytics";
+import * as SMS from "@/platform/sms";
+
 import { formatDuration } from "./geo";
 
+import type { LatLng } from "@bugrout/shared";
+
+/**
+ *
+ */
 export interface EmergencyContact {
   id: string;
   name: string;

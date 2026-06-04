@@ -5,31 +5,35 @@
  * The screen is purely a view layer — all logic lives in the controller.
  */
 
+/* eslint-disable max-lines-per-function, complexity -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
+import { useRouter } from "expo-router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
-import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
+import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
-import { ManeuverCard } from "@/components/navigation/ManeuverCard";
-import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
 import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
-import { StatusIndicator } from "@/components/common/StatusIndicator";
-import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
+import { ManeuverCard } from "@/components/navigation/ManeuverCard";
+import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
+import { colors, spacing } from "@/constants/theme";
+import { getEmergencyContacts } from "@/db/queries/preferences";
 import { useBattery } from "@/hooks/useBattery";
 import * as NavController from "@/services/navigation/NavigationController";
-import type { NavigationEvent } from "@/services/navigation/NavigationController";
-import { useRouteStore } from "@/stores/useRouteStore";
 import { estimateRemaining, calculateSmartRoute } from "@/services/routing/RouteEngine";
-import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
-import { getEmergencyContacts } from "@/db/queries/preferences";
+import { useRouteStore } from "@/stores/useRouteStore";
 import { haversineDistance } from "@/utils/geo";
-import type { LatLng } from "@bugrout/shared";
-import { colors, spacing } from "@/constants/theme";
+import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 
-export default function NavigationScreen() {
+import type { NavigationEvent } from "@/services/navigation/NavigationController";
+import type { LatLng } from "@bugrout/shared";
+
+
+/** Active turn-by-turn navigation view driven by the NavigationController. */
+export default function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
   const { activeRoute, hasDeviated, clearRoute, setStatus } = useRouteStore();
   const battery = useBattery();
@@ -77,8 +81,13 @@ export default function NavigationScreen() {
             },
           ]);
           break;
+
+        case "voice":
+          // Voice prompts are spoken by NavigationController; no view update needed.
+          break;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStop is declared after this callback and is stable; including it would create a declaration-order cycle, and it is only invoked from a one-shot arrival alert
     [activeRoute],
   );
 
@@ -89,7 +98,7 @@ export default function NavigationScreen() {
       return;
     }
 
-    NavController.start(activeRoute, handleNavEvent);
+    void NavController.start(activeRoute, handleNavEvent);
 
     // Initialize remaining from full route
     setRemaining({
@@ -98,9 +107,10 @@ export default function NavigationScreen() {
     });
 
     return () => {
-      NavController.stop();
+      void NavController.stop();
     };
-  }, []); // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation must start exactly once on mount; re-running on activeRoute/handleNavEvent/router changes would restart GPS and voice. Route updates are handled by the separate activeRoute.id effect below.
+  }, []);
 
   // Update controller if route changes (after reroute)
   useEffect(() => {
@@ -108,10 +118,11 @@ export default function NavigationScreen() {
       NavController.updateRoute(activeRoute);
       setManeuverIndex(0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on activeRoute.id so the controller only re-syncs when the route identity changes (e.g. after a reroute), not on every object reference change
   }, [activeRoute?.id]);
 
   const handleStop = useCallback(() => {
-    NavController.stop();
+    void NavController.stop();
     clearRoute();
     router.back();
   }, [clearRoute, router]);
@@ -187,25 +198,21 @@ export default function NavigationScreen() {
       />
 
       {/* Deviation warning */}
-      {hasDeviated && (
-        <DeviationBanner
+      {hasDeviated ? <DeviationBanner
           onReroute={() => {
             deviationAlertShown.current = false;
-            handleReroute();
+            void handleReroute();
           }}
           onDismiss={() => {
             deviationAlertShown.current = false;
           }}
-        />
-      )}
+        /> : null}
 
       {/* Low battery warning */}
-      {battery.isLow && !hasDeviated && (
-        <BatteryWarning
+      {battery.isLow && !hasDeviated ? <BatteryWarning
           percent={battery.percent}
           isCritical={battery.isCritical}
-        />
-      )}
+        /> : null}
 
       <BugroutMap
         userLocation={position}

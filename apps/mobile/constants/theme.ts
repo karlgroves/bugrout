@@ -4,7 +4,10 @@
  * Minimum 44pt touch targets. WCAG AA contrast ratios.
  */
 
-export const colors = {
+export /**
+ *
+ */
+const colors = {
   // Core
   background: "#0d0d0d",
   surface: "#1a1a1a",
@@ -46,7 +49,10 @@ export const colors = {
   maneuverHighlight: "#f59e0b",
 } as const;
 
-export const spacing = {
+export /**
+ *
+ */
+const spacing = {
   xs: 4,
   sm: 8,
   md: 16,
@@ -55,7 +61,10 @@ export const spacing = {
   xxl: 48,
 } as const;
 
-export const typography = {
+export /**
+ *
+ */
+const typography = {
   heading: {
     fontSize: 24,
     fontWeight: "700" as const,
@@ -84,13 +93,19 @@ export const typography = {
 } as const;
 
 // Minimum 44pt touch targets per Apple HIG and spec requirement
-export const touchTarget = {
+export /**
+ *
+ */
+const touchTarget = {
   minHeight: 44,
   minWidth: 44,
 } as const;
 
 // FAB (Bug Out button) — oversized for emergency use
-export const fab = {
+export /**
+ *
+ */
+const fab = {
   size: 72,
   iconSize: 32,
   backgroundColor: colors.danger,

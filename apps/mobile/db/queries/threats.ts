@@ -2,9 +2,13 @@
  * SQLite queries for cached threat zones.
  */
 
-import type { ThreatZone, ThreatType, ThreatSource } from "@bugrout/shared";
 import { getDatabase } from "../database";
 
+import type { ThreatZone, ThreatType, ThreatSource } from "@bugrout/shared";
+
+/**
+ * Inserts or replaces a batch of cached threat zones.
+ */
 export async function upsertThreatZones(
   threats: ThreatZone[],
 ): Promise<void> {
@@ -28,6 +32,9 @@ export async function upsertThreatZones(
   }
 }
 
+/**
+ * Returns cached threat zones, optionally filtered by source.
+ */
 export async function getCachedThreats(
   source?: ThreatSource,
 ): Promise<ThreatZone[]> {
@@ -47,7 +54,7 @@ export async function getCachedThreats(
     severity: string;
     geometry: string;
     headline: string;
-    description: string;
+    description: string | null;
     source: string;
     fetched_at: number;
     expires_at: number | null;
@@ -66,6 +73,9 @@ export async function getCachedThreats(
   }));
 }
 
+/**
+ * Deletes cached threat zones whose expiry time has passed.
+ */
 export async function clearExpiredThreats(): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
@@ -74,6 +84,9 @@ export async function clearExpiredThreats(): Promise<void> {
   );
 }
 
+/**
+ * Deletes all cached threat zones from a given source.
+ */
 export async function clearThreatsBySource(
   source: ThreatSource,
 ): Promise<void> {

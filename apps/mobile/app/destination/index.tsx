@@ -9,6 +9,9 @@
  * After selecting, "Route & Go" calculates and opens the route preview.
  */
 
+/* eslint-disable max-lines, max-lines-per-function, complexity -- pre-existing oversized destination picker with inline search/scenario/recent list rendering; tracked in docs/tech-debt.md (decompose destination picker) */
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   StyleSheet,
@@ -20,22 +23,20 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { v4 as uuidv4 } from "uuid";
-import type { LatLng } from "@bugrout/shared";
-import type { Scenario } from "@bugrout/shared";
+
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
-import { useConnectivityStore } from "@/stores/useConnectivityStore";
-import { useScenarioStore } from "@/stores/useScenarioStore";
-import { useLocation } from "@/hooks/useLocation";
-import { useRoute } from "@/hooks/useRoute";
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   getRecentDestinations,
   addRecentDestination,
   type RecentDestinationRow,
 } from "@/db/queries/preferences";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { useLocation } from "@/hooks/useLocation";
+import { useRoute } from "@/hooks/useRoute";
+import { useScenarioStore } from "@/stores/useScenarioStore";
+
+import type { LatLng, Scenario  } from "@bugrout/shared";
 
 interface GeocodingResult {
   displayName: string;
@@ -46,10 +47,10 @@ interface GeocodingResult {
 
 const SEARCH_DEBOUNCE_MS = 400;
 
-export default function DestinationScreen() {
+/** Destination picker offering scenarios, address search, and recent destinations. */
+export default function DestinationScreen(): React.JSX.Element {
   const router = useRouter();
   const params = useLocalSearchParams<{ pinLat?: string; pinLng?: string }>();
-  const isOnline = useConnectivityStore((s) => s.isOnline);
   const { scenarios } = useScenarioStore();
   const { position, getPosition, error: locationError } = useLocation(false);
   const { calculateRoute, calculateRouteWithStops } = useRoute();
@@ -69,8 +70,14 @@ export default function DestinationScreen() {
 
   useEffect(() => {
     setGettingLocation(true);
-    getPosition().finally(() => setGettingLocation(false));
-    getRecentDestinations(5).then(setRecents);
+    getPosition().finally(() => { setGettingLocation(false); }).catch(() => {
+      // getPosition surfaces its own error via locationError; swallow here
+    });
+    getRecentDestinations(5)
+      .then(setRecents)
+      .catch((err: unknown) => {
+        console.error("Failed to load recent destinations", err);
+      });
 
     // Auto-select pin dropped from map
     if (params.pinLat && params.pinLng) {
@@ -98,15 +105,15 @@ export default function DestinationScreen() {
       }
 
       debounceRef.current = setTimeout(() => {
-        searchAddress(text);
+        void searchAddress(text);
       }, SEARCH_DEBOUNCE_MS);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchAddress is stable (memoized below) and including it would create a declaration-order cycle
     [],
   );
 
   const searchAddress = useCallback(
     async (q: string) => {
-
       setSearching(true);
       setNoResults(false);
       try {
@@ -114,7 +121,7 @@ export default function DestinationScreen() {
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&countrycodes=us&addressdetails=1`,
           { headers: { "User-Agent": "BugRout/1.0" } },
         );
-        const data = (await resp.json()) as Array<{
+        const data = (await resp.json()) as {
           display_name: string;
           lat: string;
           lon: string;
@@ -126,7 +133,7 @@ export default function DestinationScreen() {
             road?: string;
             house_number?: string;
           };
-        }>;
+        }[];
 
         if (data.length === 0) {
           setNoResults(true);
@@ -147,7 +154,7 @@ export default function DestinationScreen() {
       }
       setSearching(false);
     },
-    [isOnline],
+    [],
   );
 
   const selectDestination = useCallback(
@@ -168,7 +175,7 @@ export default function DestinationScreen() {
         "Location Unavailable",
         "Your current location could not be determined. Please ensure location services are enabled and try again.",
         [
-          { text: "Retry", onPress: () => getPosition() },
+          { text: "Retry", onPress: () => { void getPosition(); } },
           { text: "Cancel", style: "cancel" },
         ],
       );
@@ -187,7 +194,7 @@ export default function DestinationScreen() {
 
     setCalculating(true);
     try {
-      if (selectedScenario?.resourceStops?.some((r) => r.enabled)) {
+      if (selectedScenario?.resourceStops.some((r) => r.enabled)) {
         await calculateRouteWithStops(
           position,
           selectedDest,
@@ -200,7 +207,7 @@ export default function DestinationScreen() {
         await calculateRoute(
           position,
           selectedDest,
-          selectedScenario?.avoidZones?.length
+          selectedScenario?.avoidZones.length
             ? { avoidPolygons: selectedScenario.avoidZones }
             : undefined,
         );
@@ -221,11 +228,14 @@ export default function DestinationScreen() {
     selectedScenario,
     calculateRoute,
     calculateRouteWithStops,
+    getPosition,
     router,
   ]);
 
-  const isSelected = (lat: number, lng: number) =>
-    selectedDest?.lat === lat && selectedDest?.lng === lng;
+  const isSelected = (lat: number, lng: number): boolean =>
+    selectedDest !== null &&
+    selectedDest.lat === lat &&
+    selectedDest.lng === lng;
 
   return (
     <View style={styles.container}>
@@ -246,6 +256,7 @@ export default function DestinationScreen() {
           value={query}
           onChangeText={handleSearchChange}
           accessibilityLabel="Search for an address"
+          accessibilityHint="Type at least three characters to look up matching addresses and cities"
           returnKeyType="search"
           testID="destination-search-input"
         />
@@ -258,24 +269,21 @@ export default function DestinationScreen() {
             }}
             style={styles.clearButton}
             accessibilityLabel="Clear search"
+            accessibilityHint="Clears the search field and removes the current results"
           >
             <FontAwesome name="times-circle" size={18} color={colors.textMuted} />
           </Pressable>
         )}
       </View>
 
-      {searching && (
-        <ActivityIndicator style={styles.spinner} color={colors.accent} />
-      )}
+      {searching ? <ActivityIndicator style={styles.spinner} color={colors.accent} /> : null}
 
-      {noResults && !searching && (
-        <View style={styles.noResults}>
+      {noResults && !searching ? <View style={styles.noResults}>
           <FontAwesome name="map-marker" size={20} color={colors.textMuted} />
           <Text style={styles.noResultsText}>
             No results found for "{query}"
           </Text>
-        </View>
-      )}
+        </View> : null}
 
       <FlatList
         style={styles.list}
@@ -295,10 +303,10 @@ export default function DestinationScreen() {
                   isSelected(item.lat, item.lng) && styles.selectedRow,
                 ]}
                 onPress={() =>
-                  selectDestination(
+                  { selectDestination(
                     { lat: item.lat, lng: item.lng },
                     item.shortName,
-                  )
+                  ); }
                 }
                 accessibilityRole="button"
                 testID={`search-result-${item.lat}`}
@@ -320,7 +328,7 @@ export default function DestinationScreen() {
 
           if (item._type === "scenario") {
             const scenario = scenarios.find((s) => s.id === item.id);
-            const hasStops = scenario?.resourceStops?.some((r) => r.enabled);
+            const hasStops = scenario?.resourceStops.some((r) => r.enabled);
             return (
               <Pressable
                 style={[
@@ -341,11 +349,9 @@ export default function DestinationScreen() {
                     <FontAwesome name="bookmark" size={13} color={colors.accent} />{" "}
                     {item.name}
                   </Text>
-                  {hasStops && (
-                    <Text style={styles.scenarioMeta}>
+                  {hasStops ? <Text style={styles.scenarioMeta}>
                       Includes resource stops
-                    </Text>
-                  )}
+                    </Text> : null}
                 </View>
                 {isSelected(item.lat, item.lng) && (
                   <FontAwesome name="check" size={16} color={colors.accent} />
@@ -362,10 +368,10 @@ export default function DestinationScreen() {
                 isSelected(item.lat, item.lng) && styles.selectedRow,
               ]}
               onPress={() =>
-                selectDestination(
+                { selectDestination(
                   { lat: item.lat, lng: item.lng },
                   item.label,
-                )
+                ); }
               }
               accessibilityRole="button"
             >
@@ -384,14 +390,11 @@ export default function DestinationScreen() {
       />
 
       {/* Status messages */}
-      {gettingLocation && (
-        <View style={styles.statusRow}>
+      {gettingLocation ? <View style={styles.statusRow}>
           <ActivityIndicator size="small" color={colors.accent} />
           <Text style={styles.statusText}>Getting your location...</Text>
-        </View>
-      )}
-      {!gettingLocation && !position && locationError && (
-        <Pressable
+        </View> : null}
+      {!gettingLocation && !position && locationError ? <Pressable accessibilityRole="button"
           style={styles.statusRow}
           onPress={() => getPosition()}
         >
@@ -399,18 +402,13 @@ export default function DestinationScreen() {
           <Text style={styles.statusText}>
             Location unavailable — tap to retry
           </Text>
-        </Pressable>
-      )}
-      {!gettingLocation && position && !selectedDest && (
-        <Text style={styles.statusText}>
+        </Pressable> : null}
+      {!gettingLocation && position && !selectedDest ? <Text style={styles.statusText}>
           Search for an address or select a scenario above
-        </Text>
-      )}
-      {selectedDest && position && (
-        <Text style={styles.statusText}>
+        </Text> : null}
+      {selectedDest && position ? <Text style={styles.statusText}>
           Ready to route
-        </Text>
-      )}
+        </Text> : null}
 
       {/* Confirm button — always tappable, shows alerts if not ready */}
       <Pressable
@@ -420,6 +418,7 @@ export default function DestinationScreen() {
         ]}
         onPress={confirmRoute}
         accessibilityLabel="Calculate route and start navigation"
+        accessibilityHint="Calculates the evacuation route to the selected destination and opens the route preview"
         accessibilityRole="button"
         testID="route-and-go-button"
       >

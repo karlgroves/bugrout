@@ -6,27 +6,32 @@
  * Tracks download state in SQLite.
  */
 
-import * as FileSystem from "@/platform/fileSystem";
-import { fetchWithRetry } from "@/utils/retry";
-import { track, Events } from "@/platform/analytics";
-import type { Region, DownloadedRegion } from "@bugrout/shared";
+import {
+  upsertDownloadProgress,
+  deleteDownloadProgress,
+} from "@/db/queries/downloads";
 import {
   insertDownloadedRegion,
   getDownloadedRegions as dbGetDownloadedRegions,
   getDownloadedRegion as dbGetDownloadedRegion,
   deleteDownloadedRegion as dbDeleteDownloadedRegion,
 } from "@/db/queries/regions";
-import {
-  upsertDownloadProgress,
-  deleteDownloadProgress,
-} from "@/db/queries/downloads";
 import { deleteResourcesByRegion } from "@/db/queries/resources";
+import { track, Events } from "@/platform/analytics";
+import * as FileSystem from "@/platform/fileSystem";
+import { fetchWithRetry } from "@/utils/retry";
+
+import type { Region, DownloadedRegion } from "@bugrout/shared";
+
 
 const TILE_SERVER_BASE =
   process.env.EXPO_PUBLIC_TILE_SERVER_URL ?? "https://tiles.bugrout.app";
 const TILES_DIR = `${FileSystem.documentDirectory}tiles/`;
 const STALE_THRESHOLD_DAYS = 90;
 
+/**
+ *
+ */
 export interface DownloadProgress {
   regionId: string;
   bytesDownloaded: number;
@@ -59,15 +64,23 @@ export async function fetchManifest(): Promise<Region[]> {
   return data.regions;
 }
 
+/** Subset of the expo-constants module shape used to detect the runtime. */
+interface ExpoConstantsModule {
+  executionEnvironment?: string;
+  default?: { executionEnvironment?: string };
+}
+
 /**
  * Check if we're running in Expo Go (vs a custom dev build).
  * Tile downloads require a custom dev build with native filesystem access.
  */
 export function isExpoGo(): boolean {
   try {
-    const Constants = require("expo-constants");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- native module loaded lazily; mocked on web
+    const Constants = require("expo-constants") as ExpoConstantsModule;
     // Expo Go reports "storeClient", dev builds report "standalone" or "bare"
-    const env = Constants.default?.executionEnvironment ?? Constants.executionEnvironment;
+    const env =
+      Constants.default?.executionEnvironment ?? Constants.executionEnvironment;
     return env === "storeClient";
   } catch {
     return false;
@@ -112,7 +125,7 @@ export async function downloadRegion(
       status,
     };
     onProgress?.(progress);
-    upsertDownloadProgress({
+    void upsertDownloadProgress({
       regionId: region.id,
       bytesDownloaded: downloaded,
       totalBytes: totalSize,
@@ -258,8 +271,7 @@ export async function getTotalStorageUsed(): Promise<number> {
  * Get available device storage in bytes.
  */
 export async function getAvailableStorage(): Promise<number> {
-  const freeSpace = await FileSystem.getFreeDiskStorageAsync();
-  return freeSpace;
+  return await FileSystem.getFreeDiskStorageAsync();
 }
 
 /**

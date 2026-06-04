@@ -5,6 +5,10 @@
 
 import { Platform } from "react-native";
 
+/**
+ * Speaks the given text aloud via expo-speech, logging to the console as a
+ * fallback on web / in Expo Go.
+ */
 export function speak(
   text: string,
   options?: { language?: string; rate?: number; pitch?: number },
@@ -22,6 +26,9 @@ export function speak(
   }
 }
 
+/**
+ * Stops any in-progress speech; a no-op on web / in Expo Go.
+ */
 export function stop(): void {
   if (Platform.OS === "web") {
     return;

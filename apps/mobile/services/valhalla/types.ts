@@ -3,6 +3,9 @@
  * Used to parse native module responses into our Route type.
  */
 
+/**
+ *
+ */
 export interface ValhallaRouteResponse {
   trip: {
     locations: ValhallaLocation[];
@@ -16,12 +19,18 @@ export interface ValhallaRouteResponse {
   };
 }
 
+/**
+ *
+ */
 export interface ValhallaLocation {
   lat: number;
   lon: number;
   type: string;
 }
 
+/**
+ *
+ */
 export interface ValhallaLeg {
   maneuvers: ValhallaManeuver[];
   summary: {
@@ -31,6 +40,9 @@ export interface ValhallaLeg {
   shape: string; // encoded polyline
 }
 
+/**
+ *
+ */
 export interface ValhallaManeuver {
   type: number;
   instruction: string;

@@ -8,10 +8,14 @@
  *   {regionDir}/{regionId}.flood.geojson
  */
 
-import type { ThreatZone, GeoJSONPolygon, GeoJSONMultiPolygon } from "@bugrout/shared";
-import * as FileSystem from "@/platform/fileSystem";
 import { getDownloadedRegion } from "@/db/queries/regions";
+import * as FileSystem from "@/platform/fileSystem";
 
+import type { ThreatZone, GeoJSONPolygon, GeoJSONMultiPolygon } from "@bugrout/shared";
+
+/**
+ *
+ */
 interface FloodFeature {
   type: "Feature";
   properties: {

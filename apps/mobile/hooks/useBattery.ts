@@ -8,21 +8,52 @@
  */
 
 import { useState, useEffect } from "react";
+
 import * as Battery from "@/platform/battery";
 
 const LOW_BATTERY_THRESHOLD = 0.2; // 20%
 const CRITICAL_BATTERY_THRESHOLD = 0.1; // 10%
 
-export function useBattery() {
+/**
+ * Reactive battery status derived from the platform battery module.
+ */
+export interface BatteryStatus {
+  /** Battery level from 0.0 to 1.0. */
+  level: number;
+  /** Battery level as an integer percentage. */
+  percent: number;
+  /** Whether the device is currently charging or full. */
+  isCharging: boolean;
+  /** True when below the low threshold and not charging. */
+  isLow: boolean;
+  /** True when below the critical threshold and not charging. */
+  isCritical: boolean;
+}
+
+/**
+ * Monitors battery level and charging state for battery-aware features.
+ */
+export function useBattery(): BatteryStatus {
   const [level, setLevel] = useState(1.0);
   const [isCharging, setIsCharging] = useState(false);
 
   useEffect(() => {
     // Get initial state
-    Battery.getBatteryLevelAsync().then(setLevel);
-    Battery.getBatteryStateAsync().then((state) => {
-      setIsCharging(state === Battery.BatteryState.CHARGING || state === Battery.BatteryState.FULL);
-    });
+    void Battery.getBatteryLevelAsync()
+      .then(setLevel)
+      .catch(() => {
+        /* noop: initial battery level is best-effort */
+      });
+    void Battery.getBatteryStateAsync()
+      .then((state) => {
+        setIsCharging(
+          state === Battery.BatteryState.CHARGING ||
+            state === Battery.BatteryState.FULL,
+        );
+      })
+      .catch(() => {
+        /* noop: initial charging state is best-effort */
+      });
 
     // Subscribe to changes
     const levelSub = Battery.addBatteryLevelListener(({ batteryLevel }) => {

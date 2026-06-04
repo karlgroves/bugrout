@@ -7,13 +7,17 @@
  * - Waypoint insertion for resource stops
  * - Deviation detection and automatic rerouting
  */
+/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (calculateSmartRoute: two-pass threat-avoidance + waypoint routing) */
 
-import type { LatLng, Route, RouteOptions, ResourceStopPreference } from "@bugrout/shared";
-import * as Valhalla from "../valhalla/ValhallaModule";
-import { threatsToAvoidancePolygons } from "./ThreatAvoidance";
-import { getResourceWaypoints } from "./WaypointInsertion";
 import { useThreatStore } from "@/stores/useThreatStore";
 import { haversineDistance } from "@/utils/geo";
+
+import * as Valhalla from "../valhalla/ValhallaModule";
+
+import { threatsToAvoidancePolygons } from "./ThreatAvoidance";
+import { getResourceWaypoints } from "./WaypointInsertion";
+
+import type { LatLng, Route, RouteOptions, ResourceStopPreference } from "@bugrout/shared";
 
 const DEVIATION_THRESHOLD_METERS = 500;
 
@@ -57,7 +61,7 @@ export async function calculateSmartRoute(
   // Find resource waypoints along the base route corridor
   let waypoints: LatLng[] = extraOptions?.waypoints ?? [];
 
-  if (resourcePreferences && resourcePreferences.some((p) => p.enabled)) {
+  if (resourcePreferences?.some((p) => p.enabled)) {
     const resourceWaypoints = await getResourceWaypoints(
       baseRoute.coordinates,
       resourcePreferences,
@@ -174,6 +178,9 @@ function getMinDistanceToPolyline(
   return minDist;
 }
 
+/**
+ * Approximate the distance (meters) from point p to the segment a→b.
+ */
 function pointToSegmentDistance(
   p: LatLng,
   a: LatLng,

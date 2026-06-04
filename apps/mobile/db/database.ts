@@ -10,11 +10,13 @@
  * - All queries are wrapped in try/catch at the caller level
  */
 
+import { deleteAsync, documentDirectory } from "@/platform/fileSystem";
 import {
   openDatabaseAsync,
   isUsingMockDatabase,
   type SQLiteDatabase,
 } from "@/platform/sqlite";
+
 import { CREATE_TABLES_SQL } from "./schema";
 
 const DB_NAME = "bugrout.db";
@@ -57,8 +59,6 @@ export async function getDatabase(): Promise<SQLiteDatabase> {
 
       try {
         // Delete the corrupt database
-        const { deleteAsync } = require("@/platform/fileSystem");
-        const { documentDirectory } = require("@/platform/fileSystem");
         await deleteAsync(`${documentDirectory}SQLite/${DB_NAME}`, {
           idempotent: true,
         });

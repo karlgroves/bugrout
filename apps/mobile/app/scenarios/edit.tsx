@@ -7,6 +7,8 @@
  * - Resource stop preferences (fuel, water with max detour)
  */
 
+/* eslint-disable max-lines-per-function, complexity -- pre-existing oversized scenario editor with inline form fields and validation; tracked in docs/tech-debt.md (decompose scenario editor) */
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState, useCallback } from "react";
 import {
   StyleSheet,
@@ -18,15 +20,18 @@ import {
   Switch,
   Alert,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { track, Events } from "@/platform/analytics";
 import { v4 as uuidv4 } from "uuid";
-import type { Scenario, ResourceStopPreference } from "@bugrout/shared";
-import { useScenarioStore } from "@/stores/useScenarioStore";
-import { upsertScenario, deleteScenario as dbDeleteScenario } from "@/db/queries/scenarios";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
-export default function ScenarioEditScreen() {
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { upsertScenario, deleteScenario as dbDeleteScenario } from "@/db/queries/scenarios";
+import { track, Events } from "@/platform/analytics";
+import { useScenarioStore } from "@/stores/useScenarioStore";
+
+import type { Scenario, ResourceStopPreference } from "@bugrout/shared";
+
+
+/** Editor for creating or updating an evacuation scenario and its resource stops. */
+export default function ScenarioEditScreen(): React.JSX.Element {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { scenarios, addScenario, updateScenario, deleteScenario } =
@@ -99,7 +104,7 @@ export default function ScenarioEditScreen() {
     router,
   ]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!existing) return;
     Alert.alert(
       "Delete Scenario",
@@ -109,11 +114,13 @@ export default function ScenarioEditScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: async () => {
-            deleteScenario(existing.id);
-            await dbDeleteScenario(existing.id);
-            track(Events.SCENARIO_DELETED);
-            router.back();
+          onPress: () => {
+            void (async () => {
+              deleteScenario(existing.id);
+              await dbDeleteScenario(existing.id);
+              track(Events.SCENARIO_DELETED);
+              router.back();
+            })();
           },
         },
       ],
@@ -131,6 +138,7 @@ export default function ScenarioEditScreen() {
         placeholderTextColor={colors.textMuted}
         maxLength={40}
         accessibilityLabel="Scenario name"
+        accessibilityHint="Enter a short name to identify this evacuation scenario"
       />
 
       <Text style={styles.label}>Destination Coordinates</Text>
@@ -143,6 +151,7 @@ export default function ScenarioEditScreen() {
           placeholderTextColor={colors.textMuted}
           keyboardType="numeric"
           accessibilityLabel="Destination latitude"
+          accessibilityHint="Enter the latitude coordinate of the evacuation destination"
         />
         <TextInput
           style={[styles.input, styles.coordInput]}
@@ -152,6 +161,7 @@ export default function ScenarioEditScreen() {
           placeholderTextColor={colors.textMuted}
           keyboardType="numeric"
           accessibilityLabel="Destination longitude"
+          accessibilityHint="Enter the longitude coordinate of the evacuation destination"
         />
       </View>
       <Text style={styles.hint}>
@@ -184,6 +194,7 @@ export default function ScenarioEditScreen() {
         style={styles.saveButton}
         onPress={handleSave}
         accessibilityLabel="Save scenario"
+        accessibilityHint="Saves this scenario and returns to the scenarios list"
         accessibilityRole="button"
       >
         <Text style={styles.saveText}>
@@ -191,16 +202,15 @@ export default function ScenarioEditScreen() {
         </Text>
       </Pressable>
 
-      {existing && (
-        <Pressable
+      {existing ? <Pressable
           style={styles.deleteButton}
           onPress={handleDelete}
           accessibilityLabel="Delete scenario"
+          accessibilityHint="Permanently removes this scenario after confirmation"
           accessibilityRole="button"
         >
           <Text style={styles.deleteText}>Delete Scenario</Text>
-        </Pressable>
-      )}
+        </Pressable> : null}
     </ScrollView>
   );
 }

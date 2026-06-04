@@ -2,9 +2,13 @@
  * SQLite queries for downloaded regions.
  */
 
-import type { DownloadedRegion, BBox } from "@bugrout/shared";
 import { getDatabase } from "../database";
 
+import type { DownloadedRegion, BBox } from "@bugrout/shared";
+
+/**
+ * Inserts or replaces a downloaded region record.
+ */
 export async function insertDownloadedRegion(
   region: DownloadedRegion,
 ): Promise<void> {
@@ -24,6 +28,9 @@ export async function insertDownloadedRegion(
   );
 }
 
+/**
+ * Returns all downloaded regions ordered by name.
+ */
 export async function getDownloadedRegions(): Promise<DownloadedRegion[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
@@ -49,6 +56,9 @@ export async function getDownloadedRegions(): Promise<DownloadedRegion[]> {
   }));
 }
 
+/**
+ * Returns a downloaded region by id, or null if not found.
+ */
 export async function getDownloadedRegion(
   regionId: string,
 ): Promise<DownloadedRegion | null> {
@@ -78,6 +88,9 @@ export async function getDownloadedRegion(
   };
 }
 
+/**
+ * Removes a downloaded region by id.
+ */
 export async function deleteDownloadedRegion(
   regionId: string,
 ): Promise<void> {

@@ -1,7 +1,7 @@
+/* eslint-disable max-lines-per-function, complexity -- pre-existing oversized map screen with many conditional overlays; tracked in docs/tech-debt.md (decompose map screen) */
+import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
-import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -10,23 +10,24 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import * as Haptics from "@/platform/haptics";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { BugroutMap } from "@/components/map/BugroutMap";
-import { ThreatOverlay } from "@/components/map/ThreatOverlay";
-import { ResourceMarkers } from "@/components/map/ResourceMarkers";
-import { ResourceFilterBar } from "@/components/map/ResourceFilterBar";
-import { ScenarioChips } from "@/components/map/ScenarioChips";
-import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { DownloadGuide } from "@/components/common/DownloadGuide";
-import { useLocation } from "@/hooks/useLocation";
-import { useDataSync } from "@/hooks/useDataSync";
-import { useRouteStore } from "@/stores/useRouteStore";
-import { useMapStore } from "@/stores/useMapStore";
-import { isRegionStale } from "@/services/tiles/TileManager";
+import { StatusIndicator } from "@/components/common/StatusIndicator";
+import { BugroutMap } from "@/components/map/BugroutMap";
+import { ResourceFilterBar } from "@/components/map/ResourceFilterBar";
+import { ResourceMarkers } from "@/components/map/ResourceMarkers";
+import { ScenarioChips } from "@/components/map/ScenarioChips";
+import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { colors, fab, spacing } from "@/constants/theme";
+import { useDataSync } from "@/hooks/useDataSync";
+import { useLocation } from "@/hooks/useLocation";
+import * as Haptics from "@/platform/haptics";
+import { isRegionStale } from "@/services/tiles/TileManager";
+import { useMapStore } from "@/stores/useMapStore";
+import { useRouteStore } from "@/stores/useRouteStore";
 
-export default function MapScreen() {
+export default function MapScreen(): React.JSX.Element {
   const router = useRouter();
   const { position } = useLocation(true);
   useDataSync(); // Background threat/resource refresh
@@ -55,9 +56,7 @@ export default function MapScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* First-launch download guide */}
-      {showDownloadGuide && !tilesLoaded && (
-        <DownloadGuide onDismiss={() => setShowDownloadGuide(false)} />
-      )}
+      {showDownloadGuide && !tilesLoaded ? <DownloadGuide onDismiss={() => { setShowDownloadGuide(false); }} /> : null}
 
       {/* Online/Offline status */}
       <View style={styles.statusBar}>
@@ -69,8 +68,9 @@ export default function MapScreen() {
         <Pressable
           testID="tile-download-banner"
           style={styles.tileBanner}
-          onPress={() => router.push("/downloads")}
+          onPress={() => { router.push("/downloads"); }}
           accessibilityLabel="Download offline maps to navigate without a connection"
+          accessibilityHint="Opens the offline map download manager for your region"
           accessibilityRole="button"
         >
           <Text style={styles.tileBannerText}>
@@ -80,19 +80,18 @@ export default function MapScreen() {
       )}
 
       {/* Stale tile warning */}
-      {tilesLoaded && tileStale && (
-        <Pressable
+      {tilesLoaded && tileStale ? <Pressable
           testID="stale-tile-banner"
           style={styles.staleBanner}
-          onPress={() => router.push("/downloads")}
+          onPress={() => { router.push("/downloads"); }}
           accessibilityLabel="Offline maps are outdated. Tap to update."
+          accessibilityHint="Opens the download manager to refresh your stored offline maps"
           accessibilityRole="button"
         >
           <Text style={styles.staleBannerText}>
             Maps outdated — tap to update
           </Text>
-        </Pressable>
-      )}
+        </Pressable> : null}
 
       {/* Map */}
       <BugroutMap
@@ -136,10 +135,11 @@ export default function MapScreen() {
             testID="bug-out-fab"
             style={styles.fabInner}
             onPress={() => {
-              Haptics.impact("heavy");
+              void Haptics.impact("heavy");
               router.push("/destination");
             }}
             accessibilityLabel="Bug Out — set evacuation destination"
+            accessibilityHint="Opens the destination picker to start planning an evacuation route"
             accessibilityRole="button"
           >
             <Text style={styles.fabText}>BUG OUT</Text>

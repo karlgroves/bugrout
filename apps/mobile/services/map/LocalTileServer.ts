@@ -12,7 +12,26 @@
  * The StyleBuilder checks which approach works and uses the appropriate URL.
  */
 
-import { Platform } from "react-native";
+import { Platform, NativeModules } from "react-native";
+
+/** Native module that serves PMTiles vector tiles over a localhost HTTP server. */
+interface PMTilesServerModule {
+  start(pmtilesPath: string): Promise<number>;
+  stop(): Promise<void>;
+}
+
+/** Native MapLibre module exposing PMTiles protocol capability. */
+interface MLNModuleNative {
+  supportsPMTiles?: () => Promise<boolean>;
+}
+
+/** Subset of react-native NativeModules used by this module. */
+interface TileNativeModules {
+  PMTilesServer?: PMTilesServerModule;
+  MLNModule?: MLNModuleNative;
+}
+
+const nativeModules = NativeModules as TileNativeModules;
 
 let serverPort: number | null = null;
 let serverRunning = false;
@@ -33,8 +52,7 @@ export async function startLocalTileServer(
     // The native module for serving tiles would be registered by the
     // Expo config plugin. It reads the PMTiles file directly and serves
     // individual tiles over HTTP.
-    const { NativeModules } = require("react-native");
-    const TileServer = NativeModules.PMTilesServer;
+    const TileServer = nativeModules.PMTilesServer;
 
     if (!TileServer) {
       console.warn("[BugRout] PMTilesServer native module not available");
@@ -59,13 +77,12 @@ export async function stopLocalTileServer(): Promise<void> {
   if (!serverRunning) return;
 
   try {
-    const { NativeModules } = require("react-native");
-    const TileServer = NativeModules.PMTilesServer;
+    const TileServer = nativeModules.PMTilesServer;
     if (TileServer) {
       await TileServer.stop();
     }
   } catch {
-    // No-op
+    // No-op: best-effort shutdown; reset local state regardless below.
   }
 
   serverPort = null;
@@ -89,8 +106,7 @@ export async function checkPMTilesProtocolSupport(): Promise<boolean> {
   try {
     // MapLibre Native >= 6.0 (iOS) and >= 11.0 (Android) support PMTiles
     // natively. Check if the protocol handler is registered.
-    const { NativeModules } = require("react-native");
-    const MapLibre = NativeModules.MLNModule;
+    const MapLibre = nativeModules.MLNModule;
 
     if (MapLibre?.supportsPMTiles) {
       return await MapLibre.supportsPMTiles();

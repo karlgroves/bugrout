@@ -6,18 +6,24 @@
  * destination and preferences — achieving a 2-tap activation path.
  */
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Scenario } from "@bugrout/shared";
-import { useScenarioStore } from "@/stores/useScenarioStore";
-import { useRouteStore } from "@/stores/useRouteStore";
-import { calculateSmartRoute } from "@/services/routing/RouteEngine";
-import { getCurrentPosition } from "@/services/location/LocationTracker";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
-export function ScenarioChips() {
+import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { getCurrentPosition } from "@/services/location/LocationTracker";
+import { calculateSmartRoute } from "@/services/routing/RouteEngine";
+import { useRouteStore } from "@/stores/useRouteStore";
+import { useScenarioStore } from "@/stores/useScenarioStore";
+
+import type { Scenario } from "@bugrout/shared";
+
+/**
+ * Row of quick-activate chips (one per saved scenario) that calculate and
+ * preview a route in a single tap using the scenario's saved preferences.
+ */
+export function ScenarioChips(): React.JSX.Element | null {
   const router = useRouter();
   const { scenarios } = useScenarioStore();
   const { setRoute, setStatus, setDestination } = useRouteStore();
@@ -63,6 +69,7 @@ export function ScenarioChips() {
           onPress={() => activateScenario(scenario)}
           disabled={activating !== null}
           accessibilityLabel={`Quick activate: ${scenario.name}`}
+          accessibilityHint="Calculates an evacuation route to this destination and opens the route preview"
           accessibilityRole="button"
         >
           {activating === scenario.id ? (

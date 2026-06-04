@@ -1,19 +1,26 @@
+/* eslint-disable max-lines-per-function -- pre-existing oversized scenarios screen with inline empty-state and list rendering; tracked in docs/tech-debt.md (decompose scenarios screen) */
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
-import { useRouter } from "expo-router";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useScenarioStore } from "@/stores/useScenarioStore";
-import { getScenarios } from "@/db/queries/scenarios";
+
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { getScenarios } from "@/db/queries/scenarios";
+import { useScenarioStore } from "@/stores/useScenarioStore";
 
 const MAX_SCENARIOS = 3;
 
-export default function ScenariosScreen() {
+/** Lists saved evacuation scenarios (max 3) and links to the scenario editor. */
+export default function ScenariosScreen(): React.JSX.Element {
   const router = useRouter();
   const { scenarios, setScenarios } = useScenarioStore();
 
   useEffect(() => {
-    getScenarios().then(setScenarios);
+    getScenarios()
+      .then(setScenarios)
+      .catch((err: unknown) => {
+        console.error("Failed to load scenarios", err);
+      });
   }, [setScenarios]);
 
   return (
@@ -29,8 +36,9 @@ export default function ScenariosScreen() {
           <Pressable
             testID="create-scenario-btn"
             style={styles.addButton}
-            onPress={() => router.push("/scenarios/edit")}
+            onPress={() => { router.push("/scenarios/edit"); }}
             accessibilityLabel="Create new evacuation scenario"
+            accessibilityHint="Opens the editor to configure a new evacuation scenario"
             accessibilityRole="button"
           >
             <Text style={styles.addButtonText}>Create Scenario</Text>
@@ -46,12 +54,13 @@ export default function ScenariosScreen() {
                 testID={`scenario-card-${item.id}`}
                 style={styles.scenarioCard}
                 onPress={() =>
-                  router.push({
+                  { router.push({
                     pathname: "/scenarios/edit",
                     params: { id: item.id },
-                  })
+                  }); }
                 }
                 accessibilityLabel={`Edit scenario: ${item.name}`}
+                accessibilityHint="Opens the editor to change this scenario's destination and stops"
                 accessibilityRole="button"
               >
                 <View style={styles.scenarioInfo}>
@@ -82,8 +91,9 @@ export default function ScenariosScreen() {
             <Pressable
               testID="add-scenario-btn"
               style={styles.addButtonOutline}
-              onPress={() => router.push("/scenarios/edit")}
+              onPress={() => { router.push("/scenarios/edit"); }}
               accessibilityLabel="Add another scenario"
+              accessibilityHint="Opens the editor to configure an additional evacuation scenario"
               accessibilityRole="button"
             >
               <FontAwesome name="plus" size={16} color={colors.accent} />

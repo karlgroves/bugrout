@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (declarative cluster/marker layers plus inline detail modal in one render tree) */
 /**
  * Resource Markers Component
  *
@@ -6,15 +7,17 @@
  * Tappable markers show detail cards with name, address, and distance.
  */
 
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useState } from "react";
 import { StyleSheet, View, Text, Pressable, Modal } from "react-native";
-import * as MapLibreGL from "@/platform/maplibre";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { ResourcePoint, LatLng } from "@bugrout/shared";
-import { useResourceStore } from "@/stores/useResourceStore";
-import { haversineDistance, formatDistance } from "@/utils/geo";
-import { useSettingsStore } from "@/stores/useSettingsStore";
+
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import * as MapLibreGL from "@/platform/maplibre";
+import { useResourceStore } from "@/stores/useResourceStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+import { haversineDistance, formatDistance } from "@/utils/geo";
+
+import type { ResourcePoint, LatLng } from "@bugrout/shared";
 
 const RESOURCE_ICONS: Record<string, { icon: string; color: string }> = {
   fuel: { icon: "tint", color: colors.resourceFuel },
@@ -22,11 +25,20 @@ const RESOURCE_ICONS: Record<string, { icon: string; color: string }> = {
   shelter: { icon: "home", color: colors.resourceShelter },
 };
 
+/**
+ * Props for {@link ResourceMarkers}.
+ */
 interface ResourceMarkersProps {
   userLocation?: LatLng | null;
 }
 
-export function ResourceMarkers({ userLocation }: ResourceMarkersProps) {
+/**
+ * Renders clustered fuel, water, and shelter markers on the map and shows a
+ * detail card (name, address, distance) when a marker is tapped.
+ */
+export function ResourceMarkers({
+  userLocation,
+}: ResourceMarkersProps): React.JSX.Element | null {
   const { resources, visibleTypes } = useResourceStore();
   const { units } = useSettingsStore();
   const [selectedResource, setSelectedResource] =
@@ -36,7 +48,7 @@ export function ResourceMarkers({ userLocation }: ResourceMarkersProps) {
 
   const handlePress = useCallback(
     (event: MapLibreGL.OnPressEvent) => {
-      const resourceId = event.features?.[0]?.properties?.id as string | undefined;
+      const resourceId = event.features[0]?.properties.id as string | undefined;
       if (resourceId) {
         const resource = resources.find((r) => r.id === resourceId);
         if (resource) setSelectedResource(resource);
@@ -122,12 +134,11 @@ export function ResourceMarkers({ userLocation }: ResourceMarkersProps) {
         visible={selectedResource !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelectedResource(null)}
+        onRequestClose={() => { setSelectedResource(null); }}
       >
         <View style={detailStyles.overlay}>
           <View style={detailStyles.card}>
-            {selectedResource && (
-              <>
+            {selectedResource ? <>
                 <View style={detailStyles.header}>
                   <FontAwesome
                     name={
@@ -153,14 +164,11 @@ export function ResourceMarkers({ userLocation }: ResourceMarkersProps) {
                   </View>
                 </View>
 
-                {selectedResource.address && (
-                  <Text style={detailStyles.address}>
+                {selectedResource.address ? <Text style={detailStyles.address}>
                     {selectedResource.address}
-                  </Text>
-                )}
+                  </Text> : null}
 
-                {userLocation && (
-                  <Text style={detailStyles.distance}>
+                {userLocation ? <Text style={detailStyles.distance}>
                     {formatDistance(
                       haversineDistance(userLocation, {
                         lat: selectedResource.lat,
@@ -169,19 +177,18 @@ export function ResourceMarkers({ userLocation }: ResourceMarkersProps) {
                       units,
                     )}{" "}
                     away
-                  </Text>
-                )}
+                  </Text> : null}
 
                 <Pressable
                   style={detailStyles.closeButton}
-                  onPress={() => setSelectedResource(null)}
+                  onPress={() => { setSelectedResource(null); }}
                   accessibilityLabel="Close resource details"
+                  accessibilityHint="Dismisses this resource detail card and returns to the map"
                   accessibilityRole="button"
                 >
                   <Text style={detailStyles.closeText}>Close</Text>
                 </Pressable>
-              </>
-            )}
+              </> : null}
           </View>
         </View>
       </Modal>

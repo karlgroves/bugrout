@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (per-type polygon layers plus inline detail modal in one render tree) */
 /**
  * Threat Overlay Component
  *
@@ -8,10 +9,12 @@
 
 import { useCallback, useState } from "react";
 import { StyleSheet, View, Text, Pressable, Modal } from "react-native";
-import * as MapLibreGL from "@/platform/maplibre";
-import type { ThreatZone } from "@bugrout/shared";
-import { useThreatStore } from "@/stores/useThreatStore";
+
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import * as MapLibreGL from "@/platform/maplibre";
+import { useThreatStore } from "@/stores/useThreatStore";
+
+import type { ThreatZone } from "@bugrout/shared";
 
 const THREAT_FALLBACK_COLOR = {
   fill: colors.threatWeather,
@@ -24,7 +27,11 @@ const THREAT_COLORS: Record<string, { fill: string; border: string }> = {
   weather: THREAT_FALLBACK_COLOR,
 };
 
-export function ThreatOverlay() {
+/**
+ * Renders active threat zones (wildfire, flood, weather) as color-coded
+ * polygons on the map and shows a detail card when a zone is tapped.
+ */
+export function ThreatOverlay(): React.JSX.Element | null {
   const { threatZones } = useThreatStore();
   const [selectedThreat, setSelectedThreat] = useState<ThreatZone | null>(
     null,
@@ -32,7 +39,9 @@ export function ThreatOverlay() {
 
   const handleThreatPress = useCallback(
     (event: MapLibreGL.OnPressEvent) => {
-      const threatId = event.features?.[0]?.properties?.threatId as string | undefined;
+      const threatId = event.features[0]?.properties.threatId as
+        | string
+        | undefined;
       if (threatId) {
         const threat = threatZones.find((t) => t.id === threatId);
         if (threat) setSelectedThreat(threat);
@@ -83,12 +92,11 @@ export function ThreatOverlay() {
         visible={selectedThreat !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelectedThreat(null)}
+        onRequestClose={() => { setSelectedThreat(null); }}
       >
         <View style={detailStyles.overlay}>
           <View style={detailStyles.card}>
-            {selectedThreat && (
-              <>
+            {selectedThreat ? <>
                 <View style={detailStyles.header}>
                   <View
                     style={[
@@ -124,14 +132,14 @@ export function ThreatOverlay() {
 
                 <Pressable
                   style={detailStyles.closeButton}
-                  onPress={() => setSelectedThreat(null)}
+                  onPress={() => { setSelectedThreat(null); }}
                   accessibilityLabel="Close threat details"
+                  accessibilityHint="Dismisses this threat detail card and returns to the map"
                   accessibilityRole="button"
                 >
                   <Text style={detailStyles.closeText}>Close</Text>
                 </Pressable>
-              </>
-            )}
+              </> : null}
           </View>
         </View>
       </Modal>
@@ -139,6 +147,10 @@ export function ThreatOverlay() {
   );
 }
 
+/**
+ * Groups threat zones by their type so each type can be rendered as its own
+ * color-coded map layer.
+ */
 function groupThreats(
   threats: ThreatZone[],
 ): Record<string, ThreatZone[]> {
@@ -150,6 +162,10 @@ function groupThreats(
   return groups;
 }
 
+/**
+ * Converts a list of threat zones into a GeoJSON FeatureCollection for use
+ * as a MapLibre ShapeSource.
+ */
 function threatsToFeatureCollection(threats: ThreatZone[]) {
   return {
     type: "FeatureCollection" as const,

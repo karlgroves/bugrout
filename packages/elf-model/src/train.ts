@@ -12,6 +12,9 @@
 
 import type { RoadSegmentFeatures } from "./features";
 
+/**
+ * A computed ELF weight: the congestion multiplier for a single road edge.
+ */
 export interface ELFWeight {
   edgeId: string;
   multiplier: number; // 1.0 to 10.0
@@ -37,20 +40,14 @@ export function computeELF(features: RoadSegmentFeatures): number {
     6: 1.0, // residential
   };
   elf *= classMultiplier[features.roadClass] ?? 1.0;
-
-  // Population proximity: roads near cities clog faster
-  if (features.popProximity < 5) {
-    elf *= 1.5;
-  } else if (features.popProximity < 20) {
-    elf *= 1.2;
-  }
-
-  // Evacuation origin proximity: roads near evac zones are first to fill
-  if (features.evacOriginProximity < 10) {
-    elf *= 1.4;
-  } else if (features.evacOriginProximity < 30) {
-    elf *= 1.2;
-  }
+  elf *= proximityFactor(features.popProximity, [
+    [5, 1.5],
+    [20, 1.2],
+  ]);
+  elf *= proximityFactor(features.evacOriginProximity, [
+    [10, 1.4],
+    [30, 1.2],
+  ]);
 
   // Bottleneck indicators
   if (features.isRamp) {
@@ -76,6 +73,23 @@ export function computeELF(features: RoadSegmentFeatures): number {
   return Math.min(10.0, Math.max(1.0, elf));
 }
 
+/**
+ * Distance-based factor: returns the factor for the first matching [threshold, factor]
+ * tier (ascending), or 1.0 when the distance exceeds all tiers.
+ */
+function proximityFactor(
+  distance: number,
+  tiers: [threshold: number, factor: number][],
+): number {
+  for (const [threshold, factor] of tiers) {
+    if (distance < threshold) return factor;
+  }
+  return 1.0;
+}
+
+/**
+ * Compute ELF multipliers for every road segment, producing the weight table input.
+ */
 export function trainELFWeights(
   features: RoadSegmentFeatures[],
 ): ELFWeight[] {

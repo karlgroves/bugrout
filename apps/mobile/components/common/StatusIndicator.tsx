@@ -1,14 +1,24 @@
 import { StyleSheet, View, Text } from "react-native";
-import { useConnectivityStore } from "@/stores/useConnectivityStore";
-import { colors, spacing } from "@/constants/theme";
 
-export function StatusIndicator() {
+import { colors, spacing } from "@/constants/theme";
+import { useConnectivityStore } from "@/stores/useConnectivityStore";
+
+/**
+ * Always-visible badge showing whether the device currently has internet
+ * connectivity, so the user knows if live data is available.
+ */
+export function StatusIndicator(): React.JSX.Element {
   const isOnline = useConnectivityStore((s) => s.isOnline);
 
   return (
     <View
       style={styles.container}
       accessibilityLabel={isOnline ? "Connected to internet" : "Offline mode"}
+      accessibilityHint={
+        isOnline
+          ? "Live threat and resource data is being updated"
+          : "Using downloaded maps and cached data; live updates are paused"
+      }
       accessibilityRole="text"
     >
       <View

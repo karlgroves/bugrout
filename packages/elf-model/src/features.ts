@@ -9,6 +9,9 @@
  * - Historical average daily traffic (ADT) from FHWA data
  */
 
+/**
+ * Per-road-segment feature vector used to compute an ELF congestion multiplier.
+ */
 export interface RoadSegmentFeatures {
   edgeId: string;
   /** 0=motorway, 1=trunk, 2=primary, 3=secondary, 4=tertiary, 5=unclassified, 6=residential */
@@ -26,6 +29,9 @@ export interface RoadSegmentFeatures {
   historicalADT: number;
 }
 
+/**
+ * Extract per-road-segment ELF feature vectors from an OSM PBF extract.
+ */
 export function extractFeatures(
   _osmPbfPath: string,
   _regionId: string,

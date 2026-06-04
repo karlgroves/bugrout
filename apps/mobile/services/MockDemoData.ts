@@ -7,12 +7,15 @@
  *
  * Only loaded when: no tiles are downloaded AND app is in preview mode.
  */
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (loadMockDemoData: inline static fixture data) */
 
 import { Platform } from "react-native";
-import type { ThreatZone, ResourcePoint } from "@bugrout/shared";
-import { useThreatStore } from "@/stores/useThreatStore";
+
 import { useResourceStore } from "@/stores/useResourceStore";
 import { useScenarioStore } from "@/stores/useScenarioStore";
+import { useThreatStore } from "@/stores/useThreatStore";
+
+import type { ThreatZone, ResourcePoint } from "@bugrout/shared";
 
 const IS_PREVIEW = Platform.OS === "web" || __DEV__;
 

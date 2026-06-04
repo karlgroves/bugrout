@@ -2,9 +2,13 @@
  * SQLite queries for cached resource points (fuel, water, shelter).
  */
 
-import type { ResourcePoint, ResourceType } from "@bugrout/shared";
 import { getDatabase } from "../database";
 
+import type { ResourcePoint, ResourceType } from "@bugrout/shared";
+
+/**
+ * Inserts or replaces a batch of cached resource points.
+ */
 export async function upsertResourcePoints(
   resources: ResourcePoint[],
 ): Promise<void> {
@@ -29,6 +33,9 @@ export async function upsertResourcePoints(
   }
 }
 
+/**
+ * Returns cached resource points for a region, optionally filtered by type.
+ */
 export async function getResourcesByRegion(
   regionId: string,
   type?: ResourceType,
@@ -50,7 +57,7 @@ export async function getResourcesByRegion(
     lat: number;
     lng: number;
     address: string | null;
-    metadata: string;
+    metadata: string | null;
     source: string;
     fetched_at: number;
     region_id: string;
@@ -70,6 +77,9 @@ export async function getResourcesByRegion(
   }));
 }
 
+/**
+ * Returns cached resource points within a bounding box around a point.
+ */
 export async function getResourcesNearPoint(
   lat: number,
   lng: number,
@@ -99,7 +109,7 @@ export async function getResourcesNearPoint(
     lat: number;
     lng: number;
     address: string | null;
-    metadata: string;
+    metadata: string | null;
     source: string;
     fetched_at: number;
     region_id: string;
@@ -119,6 +129,9 @@ export async function getResourcesNearPoint(
   }));
 }
 
+/**
+ * Removes all cached resource points for a region.
+ */
 export async function deleteResourcesByRegion(
   regionId: string,
 ): Promise<void> {

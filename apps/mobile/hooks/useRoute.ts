@@ -3,11 +3,35 @@
  */
 
 import { useCallback } from "react";
-import type { LatLng, RouteOptions, ResourceStopPreference } from "@bugrout/shared";
-import { useRouteStore } from "@/stores/useRouteStore";
-import * as RouteEngine from "@/services/routing/RouteEngine";
 
-export function useRoute() {
+import * as RouteEngine from "@/services/routing/RouteEngine";
+import { useRouteStore } from "@/stores/useRouteStore";
+
+import type { LatLng, Route, RouteOptions, ResourceStopPreference } from "@bugrout/shared";
+
+/** Route store state plus the imperative route actions from {@link useRoute}. */
+export type UseRouteResult = ReturnType<typeof useRouteStore.getState> & {
+  calculateRoute: (
+    origin: LatLng,
+    destination: LatLng,
+    options?: RouteOptions,
+  ) => Promise<Route>;
+  calculateRouteWithStops: (
+    origin: LatLng,
+    destination: LatLng,
+    resourcePreferences: ResourceStopPreference[],
+    options?: RouteOptions,
+  ) => Promise<Route>;
+  reroute: (currentPosition: LatLng) => Promise<Route | undefined>;
+  checkDeviation: (currentPosition: LatLng) => boolean;
+};
+
+/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (useRoute bundles several memoized route actions) */
+/**
+ * Expose route-store state together with route calculation, rerouting,
+ * and deviation-check helpers.
+ */
+export function useRoute(): UseRouteResult {
   const store = useRouteStore();
 
   /**
