@@ -28,8 +28,18 @@ pnpm workspaces + Turborepo. Four workspace roots:
 ## Commands
 
 ```bash
-# Install all dependencies
+# Install all dependencies (also installs Husky git hooks)
 pnpm install
+
+# Everyday quality gate: format check + lint + typecheck + tests + markdownlint
+pnpm run check
+
+# Full gate: check + duplication, links, security scans, license compliance
+pnpm run check:all
+
+# Lint all workspaces / autofix
+pnpm run lint
+pnpm run lint:fix
 
 # Typecheck all workspaces
 pnpm turbo typecheck
@@ -37,7 +47,7 @@ pnpm turbo typecheck
 # Typecheck mobile app only
 cd apps/mobile && npx tsc --noEmit
 
-# Run all tests
+# Run all tests (102 tests, 14 suites)
 pnpm turbo test
 
 # Start Expo dev server
@@ -45,9 +55,6 @@ cd apps/mobile && pnpm start
 
 # Start web preview (works without native build)
 cd apps/mobile && npx expo start --web
-
-# Run all unit tests (78 tests, 11 suites)
-cd apps/mobile && npx jest
 
 # Run a single test file
 cd apps/mobile && npx jest __tests__/utils/geo.test.ts
@@ -57,7 +64,31 @@ cd apps/mobile && npx detox test --configuration ios.sim.debug
 
 # Run a specific backend worker locally
 cd backend/workers/tile-server && pnpm dev
+
+# Install scanner binaries (gitleaks, semgrep, osv-scanner, lychee)
+bash scripts/bootstrap.sh
 ```
+
+## Quality Tooling
+
+- **ESLint:** single root `eslint.config.mjs` (flat config) covering every
+  workspace — typescript-eslint strict type-checked, naming-convention,
+  react/react-hooks/react-native-a11y (mobile), eslint-plugin-n (Node surfaces),
+  security, sonarjs, import-x, jsdoc (TSDoc). All plugins are ROOT
+  devDependencies (pnpm isolation) — never add ESLint deps to a workspace.
+  Composition decisions: `docs/adr/0006`.
+- **TypeScript:** `tsconfig.base.json` is strict + `noUncheckedIndexedAccess`
+  - `exactOptionalPropertyTypes`. All workspaces extend it except `apps/mobile`
+    (extends `expo/tsconfig.base`, flags repeated inline).
+- **Hooks (Husky):** pre-commit = lint-staged + gitleaks; commit-msg =
+  commitlint (Conventional Commits — commit messages MUST be conventional);
+  pre-push = `pnpm run check` + dupes/secrets/licenses.
+- **Grandfathered violations** live in `docs/tech-debt.md` with file-level
+  eslint-disables; new code gets no exemptions. Adaptation decisions from the
+  org tooling baseline (issue #1) are ADRs in `docs/adr/`.
+- CI (`.github/workflows/ci.yml`) is a safety net re-running the same gates;
+  `security.yml` (CodeQL, semgrep, OSV, Dependency-Check) and `docs.yml`
+  (lychee) run weekly.
 
 ## Technical Stack
 

@@ -1,0 +1,64 @@
+name: Security (scheduled)
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+
+  semgrep:
+    name: Semgrep (OWASP Top 10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: pipx install semgrep
+      - name: Scan
+        run: semgrep scan --config p/typescript --config p/react --config p/owasp-top-ten --config p/secrets --error --metrics=off
+
+  osv:
+    name: OSV-Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OSV-Scanner
+        run: |
+          curl -sSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+      - name: Scan lockfile
+        run: osv-scanner scan --lockfile pnpm-lock.yaml
+
+  dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: ${{ github.event.repository.name }}
+          path: "."
+          format: "HTML"
+          out: "reports/dep-check"
+          args: >-
+            --suppression .dependency-check-suppressions.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports/dep-check

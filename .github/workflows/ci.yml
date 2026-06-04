@@ -11,24 +11,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-typecheck-test:
-    name: Lint, Typecheck, Test
+  check:
+    name: Format, Lint, Typecheck, Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Safety net for anything that bypassed the Husky hooks
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
       - name: Typecheck
-        run: pnpm turbo typecheck
+        run: pnpm run typecheck
 
       - name: Test
-        run: pnpm turbo test
+        run: pnpm run test
+
+      - name: Markdown lint
+        run: pnpm run markdownlint
+
+      - name: Duplication
+        run: pnpm run dupes
+
+      - name: License compliance
+        run: pnpm run license:check
+
+      - name: Audit production dependencies
+        run: pnpm run security:audit
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
