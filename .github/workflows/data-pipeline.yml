@@ -14,13 +14,27 @@ on:
         default: false
 
 jobs:
+  prepare:
+    name: Resolve State Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      states: ${{ steps.parse.outputs.states }}
+    steps:
+      - name: Parse state list
+        id: parse
+        env:
+          STATES: ${{ github.event.inputs.states || 'california' }}
+        run: |
+          echo "states=$(jq -cn --arg s "$STATES" '$s | split(",") | map(gsub("^\\s+|\\s+$"; ""))')" >> "$GITHUB_OUTPUT"
+
   build-regions:
     name: Build Regional Packages
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
       matrix:
-        state: ${{ fromJson(format('["{0}"]', replace(github.event.inputs.states || 'california', ',', '","'))) }}
+        state: ${{ fromJson(needs.prepare.outputs.states) }}
     steps:
       - uses: actions/checkout@v4
 
