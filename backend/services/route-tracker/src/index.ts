@@ -125,6 +125,7 @@ function setStandardHeaders(req: IncomingMessage, res: ServerResponse): void {
   const corsOrigin =
     allowedOrigins.length > 0 && allowedOrigins.includes(origin) ? origin : "";
 
+  // nosemgrep: javascript.express.security.cors-misconfiguration.cors-misconfiguration -- corsOrigin is either "" or an exact match from the ALLOWED_ORIGINS env allowlist, never attacker-controlled
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");

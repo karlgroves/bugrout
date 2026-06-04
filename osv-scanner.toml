@@ -1,0 +1,9 @@
+# OSV-Scanner ignores. Each entry needs a reason and should be re-reviewed
+# when the dependency chain changes.
+
+[[IgnoredVulns]]
+id = "GHSA-w5hq-g745-h8pq"
+reason = """uuid@7.0.3 is pinned by xcode@3.0.1 (Expo prebuild tooling). \
+Dev-time only — generates Xcode project object IDs, never ships in the app \
+and never handles untrusted input. Remove when @expo/config-plugins bumps \
+its xcode dependency. (uuid@11 in the app itself is patched.)"""

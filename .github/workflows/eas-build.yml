@@ -75,10 +75,12 @@ jobs:
         working-directory: apps/mobile
         run: |
           eas build \
-            --profile ${{ github.event.inputs.profile || 'preview' }} \
-            --platform ${{ github.event.inputs.platform || 'all' }} \
+            --profile "$BUILD_PROFILE" \
+            --platform "$BUILD_PLATFORM" \
             --non-interactive
         env:
+          BUILD_PROFILE: ${{ github.event.inputs.profile || 'preview' }}
+          BUILD_PLATFORM: ${{ github.event.inputs.platform || 'all' }}
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
           EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           EXPO_PUBLIC_TILE_SERVER_URL: ${{ vars.TILE_SERVER_URL || 'https://tiles.bugrout.app' }}

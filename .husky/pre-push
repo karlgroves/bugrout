@@ -1,0 +1,7 @@
+# Full local gate: format, lint, typecheck, tests, markdown (Turbo-cached),
+# then the fast repo-wide scanners. Semgrep/OSV/links run in CI and via
+# `pnpm run check:all`.
+pnpm run check
+pnpm run dupes
+pnpm run security:secrets
+pnpm run license:check

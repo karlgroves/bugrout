@@ -60,3 +60,9 @@ code gets no exemptions. Remove the disable when the item is resolved.
   devDependencies or keep it runner-provided.
 - `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess` are fully on — no
   ratchet was needed.
+- `osv-scanner.toml` ignores GHSA-w5hq-g745-h8pq (uuid@7 inside `xcode@3.0.1`,
+  Expo prebuild tooling, dev-time only). Drop the ignore when
+  `@expo/config-plugins` updates its `xcode` dependency.
+- pnpm `overrides` pin patched `@xmldom/xmldom`, `fast-uri`, and `ws` over
+  Expo's transitive ranges — remove each override once the upstream range
+  includes the patched version.

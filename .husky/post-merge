@@ -1,0 +1,6 @@
+changed=$(git diff HEAD@{1} HEAD --name-only 2>/dev/null)
+if echo "$changed" | grep -q "pnpm-lock.yaml"; then
+  echo "Lockfile changed; installing and auditing..."
+  pnpm install
+  pnpm audit --prod --audit-level=high || true
+fi

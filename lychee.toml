@@ -1,0 +1,23 @@
+# Link checker configuration (lychee)
+no_progress = true
+max_concurrency = 8
+timeout = 20
+max_retries = 2
+
+# Accept GitHub's rate-limit and auth-walled responses as "alive"
+accept = ["200..=204", "429"]
+
+exclude = [
+  # Placeholder/templated URLs in docs
+  "<subdomain>",
+  "<state>",
+  "<code>",
+  "workers\\.dev",
+  "localhost",
+  "127\\.0\\.0\\.1",
+  # Example/stub endpoints
+  "example\\.com",
+  "sentry\\.io/your-project",
+]
+
+exclude_path = ["node_modules", "apps/mobile/.expo", "reports"]
