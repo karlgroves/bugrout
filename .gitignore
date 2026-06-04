@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Turborepo
+.turbo/
+
+# Expo
+.expo/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Native builds
+ios/
+android/
+*.ipa
+*.apk
+*.aab
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# Build outputs
+dist/
+build/
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# Data pipeline outputs
+data-pipeline/output/
+*.osm.pbf
+*.pmtiles
+*.mbtiles
+planetiler.jar
+data-pipeline/data/sources/
+
+# Secrets / local credentials (never commit)
+cloudflare_token

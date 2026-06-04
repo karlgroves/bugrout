@@ -1,0 +1,7 @@
+name = "bugrout-tile-server"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[[r2_buckets]]
+binding = "TILES_BUCKET"
+bucket_name = "bugrout-tiles"

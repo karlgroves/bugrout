@@ -1,0 +1,23 @@
+BugRout is a navigation app designed for emergency evacuations. Unlike standard navigation that optimizes for speed under normal conditions, BugRout optimizes for safe arrival during infrastructure stress events.
+
+KEY FEATURES
+
+• Offline Navigation — Download regional maps and navigate with zero cell service. Routing, fuel stations, water sources, and threat zones all work offline.
+
+• Predictive Congestion Routing — Our Evacuation Load Factor (ELF) model avoids roads that historically clog during mass evacuations, routing you through viable alternatives others won't think of.
+
+• Threat-Aware Routing — Active wildfire perimeters, flood zones, and severe weather polygons are overlaid on the map and automatically avoided during route calculation.
+
+• Resource Finder — Locate fuel stations, water sources, and emergency shelters along your route. Add resource stops with a single tap.
+
+• 3-Tap Activation — Launch → Bug Out → Go. Pre-configure up to 3 evacuation scenarios with destinations, avoidance zones, and resource preferences for instant activation.
+
+• Emergency Contacts — One-tap SMS sends your live location, destination, and ETA to up to 5 emergency contacts.
+
+• Privacy First — No account required. Location processed on-device only. Optional anonymous crowd signal uses rotating tokens with 48-hour retention. No advertising. No tracking.
+
+DATA SOURCES
+Maps from OpenStreetMap. Weather alerts from the National Weather Service. Fire perimeters from USFS/NIFC. Flood zones from FEMA. Fuel stations from NREL. Water sources from USGS.
+
+IMPORTANT DISCLAIMER
+BugRout provides advisory routing only. Route suggestions are based on statistical models and may not reflect real-time conditions. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.

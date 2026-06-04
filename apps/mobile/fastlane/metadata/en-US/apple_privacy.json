@@ -1,0 +1,39 @@
+{
+  "comment": "iOS App Privacy nutrition label — declare what data the app collects.",
+  "data_types": [
+    {
+      "data_type": "Coarse Location",
+      "purpose": "App Functionality",
+      "linked_to_user": false,
+      "used_for_tracking": false,
+      "collection": "Optional — only with Crowd Signal opt-in"
+    },
+    {
+      "data_type": "Crash Data",
+      "purpose": "App Functionality",
+      "linked_to_user": false,
+      "used_for_tracking": false,
+      "collection": "Automatic via Sentry when app crashes"
+    }
+  ],
+  "data_not_collected": [
+    "Name",
+    "Email Address",
+    "Phone Number",
+    "Physical Address",
+    "Precise Location",
+    "Contacts",
+    "Browsing History",
+    "Search History",
+    "Identifiers",
+    "Purchases",
+    "Financial Info",
+    "Health & Fitness",
+    "Sensitive Info",
+    "Photos or Videos",
+    "Audio Data",
+    "Gameplay Content",
+    "Customer Support",
+    "Advertising Data"
+  ]
+}

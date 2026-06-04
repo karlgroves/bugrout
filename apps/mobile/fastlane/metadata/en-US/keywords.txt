@@ -1,0 +1,1 @@
+evacuation,navigation,offline,maps,emergency,wildfire,flood,prepper,survival,routing,bug out,disaster,preparedness

@@ -1,0 +1,75 @@
+{
+  "cli": {
+    "version": ">= 15.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "node": "22.16.0",
+      "pnpm": "10.11.0"
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_VALHALLA_APPROACH": "http",
+        "EXPO_PUBLIC_VALHALLA_URL": "https://bugrout-valhalla.fly.dev",
+        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev"
+      }
+    },
+    "development-simulator": {
+      "extends": "development",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_VALHALLA_APPROACH": "http",
+        "EXPO_PUBLIC_VALHALLA_URL": "https://bugrout-valhalla.fly.dev",
+        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      },
+      "android": {
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_VALHALLA_APPROACH": "http",
+        "EXPO_PUBLIC_VALHALLA_URL": "https://bugrout-valhalla.fly.dev",
+        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev",
+        "EXPO_PUBLIC_SENTRY_DSN": "YOUR_SENTRY_DSN"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "YOUR_APPLE_ID",
+        "ascAppId": "YOUR_ASC_APP_ID",
+        "appleTeamId": "YOUR_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-services.json",
+        "track": "internal"
+      }
+    }
+  }
+}

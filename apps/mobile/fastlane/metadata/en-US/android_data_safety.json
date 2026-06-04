@@ -1,0 +1,28 @@
+{
+  "comment": "Android Play Store Data Safety section declaration.",
+  "data_shared": [],
+  "data_collected": [
+    {
+      "data_type": "Approximate location",
+      "purpose": "App functionality (anonymous crowd congestion signal)",
+      "optional": true,
+      "user_consent": "User must opt in via Settings > Crowd Signal",
+      "encrypted_in_transit": true,
+      "deletion_available": "Data auto-deletes after 48 hours. Token rotates every 24 hours."
+    },
+    {
+      "data_type": "App crash logs",
+      "purpose": "Analytics (crash-free rate monitoring)",
+      "optional": false,
+      "encrypted_in_transit": true,
+      "deletion_available": "Retained per Sentry data retention policy (90 days)"
+    }
+  ],
+  "security_practices": {
+    "data_encrypted_in_transit": true,
+    "data_can_be_deleted": true,
+    "independent_security_review": false
+  },
+  "account_required": false,
+  "commitment_to_play_families_policy": false
+}

@@ -1,0 +1,25 @@
+# fly.toml app configuration file generated for bugrout-valhalla on 2026-04-10T23:03:16-04:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'bugrout-valhalla'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+  [build.args]
+    PBF_URL = 'https://download.geofabrik.de/north-america/us/maryland-latest.osm.pbf'
+    REGION_NAME = 'maryland'
+
+[http_service]
+  internal_port = 8002
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '1024mb'

@@ -1,0 +1,8 @@
+Initial release of BugRout — evacuation-aware navigation.
+
+• Offline routing with Valhalla engine
+• Wildfire, flood, and weather threat overlays
+• Fuel, water, and shelter resource finder
+• Predictive congestion routing with ELF model
+• Emergency contact SMS
+• Privacy-first design with no account required

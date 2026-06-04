@@ -1,0 +1,10 @@
+name = "bugrout-alert-aggregator"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+
+[[kv_namespaces]]
+binding = "ALERTS_KV"
+id = "YOUR_KV_NAMESPACE_ID"
+
+[triggers]
+crons = ["*/15 * * * *"]

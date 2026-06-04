@@ -1,0 +1,33 @@
+{
+  "mjolnir": {
+    "tile_dir": "/tmp/valhalla_tiles",
+    "concurrency": 4,
+    "admin": "/tmp/valhalla_tiles/admin.sqlite",
+    "timezone": "/tmp/valhalla_tiles/tz_world.sqlite"
+  },
+  "loki": {
+    "actions": ["locate", "route", "sources_to_targets", "optimized_route"],
+    "service_defaults": {
+      "minimum_reachability": 50,
+      "radius": 0
+    }
+  },
+  "thor": {
+    "service_defaults": {
+      "minimum_reachability": 50,
+      "radius": 0
+    }
+  },
+  "meili": {
+    "auto": {
+      "turn_penalty_factor": 200,
+      "search_radius": 50
+    }
+  },
+  "service_limits": {
+    "auto": {
+      "max_distance": 5000000,
+      "max_locations": 20
+    }
+  }
+}

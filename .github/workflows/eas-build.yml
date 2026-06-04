@@ -1,0 +1,85 @@
+name: EAS Build
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "apps/mobile/**"
+      - "packages/**"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Build profile (development, preview, production)"
+        required: true
+        default: "preview"
+      platform:
+        description: "Platform (ios, android, all)"
+        required: true
+        default: "all"
+
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo typecheck
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo test
+
+  build:
+    name: EAS Build (${{ github.event.inputs.profile || 'preview' }})
+    runs-on: ubuntu-latest
+    needs: [typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build
+        working-directory: apps/mobile
+        run: |
+          eas build \
+            --profile ${{ github.event.inputs.profile || 'preview' }} \
+            --platform ${{ github.event.inputs.platform || 'all' }} \
+            --non-interactive
+        env:
+          EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          EXPO_PUBLIC_TILE_SERVER_URL: ${{ vars.TILE_SERVER_URL || 'https://tiles.bugrout.app' }}
+          EXPO_PUBLIC_VALHALLA_APPROACH: http
