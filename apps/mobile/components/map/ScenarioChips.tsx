@@ -9,7 +9,13 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
-import { StyleSheet, View, Text, Pressable, ActivityIndicator } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
 
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { getCurrentPosition } from "@/services/location/LocationTracker";

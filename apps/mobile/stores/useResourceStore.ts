@@ -22,18 +22,21 @@ const useResourceStore = create<ResourceState>((set) => ({
   resources: [],
   visibleTypes: new Set(["fuel", "water", "shelter"] as ResourceType[]),
 
-  setResources: (resources) => { set({ resources }); },
-  addResources: (resources) =>
-    { set((state) => ({
+  setResources: (resources) => {
+    set({ resources });
+  },
+  addResources: (resources) => {
+    set((state) => ({
       resources: [
         ...state.resources.filter(
           (existing) => !resources.some((r) => r.id === existing.id),
         ),
         ...resources,
       ],
-    })); },
-  toggleResourceType: (type) =>
-    { set((state) => {
+    }));
+  },
+  toggleResourceType: (type) => {
+    set((state) => {
       const next = new Set(state.visibleTypes);
       if (next.has(type)) {
         next.delete(type);
@@ -41,5 +44,6 @@ const useResourceStore = create<ResourceState>((set) => ({
         next.add(type);
       }
       return { visibleTypes: next };
-    }); },
+    });
+  },
 }));

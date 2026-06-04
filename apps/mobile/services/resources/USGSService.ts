@@ -78,10 +78,7 @@ async function fetchUSGSSites(
  * Parse USGS RDB (tab-delimited) format into ResourcePoints.
  * RDB files have comment lines starting with # and a header line.
  */
-function parseUSGSRdb(
-  rdbText: string,
-  regionId: string,
-): ResourcePoint[] {
+function parseUSGSRdb(rdbText: string, regionId: string): ResourcePoint[] {
   const lines = rdbText.split("\n");
   const resources: ResourcePoint[] = [];
 
@@ -127,8 +124,7 @@ function parseUSGSRdb(
 
     const name =
       nameIdx >= 0 ? (fields[nameIdx] ?? `USGS ${siteNo}`) : `USGS ${siteNo}`;
-    const siteType =
-      typeIdx >= 0 ? (fields[typeIdx] ?? "unknown") : "unknown";
+    const siteType = typeIdx >= 0 ? (fields[typeIdx] ?? "unknown") : "unknown";
 
     resources.push({
       id: `usgs-${siteNo}`,

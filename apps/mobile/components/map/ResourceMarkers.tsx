@@ -134,11 +134,14 @@ export function ResourceMarkers({
         visible={selectedResource !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => { setSelectedResource(null); }}
+        onRequestClose={() => {
+          setSelectedResource(null);
+        }}
       >
         <View style={detailStyles.overlay}>
           <View style={detailStyles.card}>
-            {selectedResource ? <>
+            {selectedResource ? (
+              <>
                 <View style={detailStyles.header}>
                   <FontAwesome
                     name={
@@ -164,11 +167,14 @@ export function ResourceMarkers({
                   </View>
                 </View>
 
-                {selectedResource.address ? <Text style={detailStyles.address}>
+                {selectedResource.address ? (
+                  <Text style={detailStyles.address}>
                     {selectedResource.address}
-                  </Text> : null}
+                  </Text>
+                ) : null}
 
-                {userLocation ? <Text style={detailStyles.distance}>
+                {userLocation ? (
+                  <Text style={detailStyles.distance}>
                     {formatDistance(
                       haversineDistance(userLocation, {
                         lat: selectedResource.lat,
@@ -177,18 +183,22 @@ export function ResourceMarkers({
                       units,
                     )}{" "}
                     away
-                  </Text> : null}
+                  </Text>
+                ) : null}
 
                 <Pressable
                   style={detailStyles.closeButton}
-                  onPress={() => { setSelectedResource(null); }}
+                  onPress={() => {
+                    setSelectedResource(null);
+                  }}
                   accessibilityLabel="Close resource details"
                   accessibilityHint="Dismisses this resource detail card and returns to the map"
                   accessibilityRole="button"
                 >
                   <Text style={detailStyles.closeText}>Close</Text>
                 </Pressable>
-              </> : null}
+              </>
+            ) : null}
           </View>
         </View>
       </Modal>

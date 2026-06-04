@@ -10,7 +10,9 @@
 
 import { Platform } from "react-native";
 
-let posthog: { capture: (event: string, props?: Record<string, unknown>) => void } | null = null;
+let posthog: {
+  capture: (event: string, props?: Record<string, unknown>) => void;
+} | null = null;
 let initialized = false;
 
 /**

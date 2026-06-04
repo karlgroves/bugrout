@@ -51,27 +51,48 @@ export async function refreshResources(
 
   const fetches: Promise<void>[] = [];
 
-  if (NREL_API_KEY && (fuelAge > FUEL_TTL || cached.filter((r) => r.type === "fuel").length === 0)) {
+  if (
+    NREL_API_KEY &&
+    (fuelAge > FUEL_TTL || cached.filter((r) => r.type === "fuel").length === 0)
+  ) {
     fetches.push(
       fetchFuelStations(stateCode, NREL_API_KEY, regionId)
-        .then((resources) => { store.addResources(resources); })
-        .catch(() => { /* noop: best-effort refresh; cached fuel data remains usable offline */ }),
+        .then((resources) => {
+          store.addResources(resources);
+        })
+        .catch(() => {
+          /* noop: best-effort refresh; cached fuel data remains usable offline */
+        }),
     );
   }
 
-  if (waterAge > WATER_TTL || cached.filter((r) => r.type === "water").length === 0) {
+  if (
+    waterAge > WATER_TTL ||
+    cached.filter((r) => r.type === "water").length === 0
+  ) {
     fetches.push(
       fetchWaterSources(stateCode, bbox, regionId)
-        .then((resources) => { store.addResources(resources); })
-        .catch(() => { /* noop: best-effort refresh; cached water data remains usable offline */ }),
+        .then((resources) => {
+          store.addResources(resources);
+        })
+        .catch(() => {
+          /* noop: best-effort refresh; cached water data remains usable offline */
+        }),
     );
   }
 
-  if (shelterAge > SHELTER_TTL || cached.filter((r) => r.type === "shelter").length === 0) {
+  if (
+    shelterAge > SHELTER_TTL ||
+    cached.filter((r) => r.type === "shelter").length === 0
+  ) {
     fetches.push(
       fetchShelters(bbox, regionId)
-        .then((resources) => { store.addResources(resources); })
-        .catch(() => { /* noop: best-effort refresh; cached shelter data remains usable offline */ }),
+        .then((resources) => {
+          store.addResources(resources);
+        })
+        .catch(() => {
+          /* noop: best-effort refresh; cached shelter data remains usable offline */
+        }),
     );
   }
 

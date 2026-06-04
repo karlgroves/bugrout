@@ -29,7 +29,11 @@ export function DeviationBanner({
   return (
     <View style={styles.container} accessibilityRole="alert">
       <View style={styles.content}>
-        <FontAwesome name="exclamation-circle" size={20} color={colors.warning} />
+        <FontAwesome
+          name="exclamation-circle"
+          size={20}
+          color={colors.warning}
+        />
         <Text style={styles.text}>You have left the planned route</Text>
       </View>
       <View style={styles.actions}>

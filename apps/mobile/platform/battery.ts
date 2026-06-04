@@ -80,14 +80,22 @@ export function addBatteryLevelListener(
   callback: (event: BatteryLevelEvent) => void,
 ): Subscription {
   if (Platform.OS === "web") {
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
   try {
     const mod = EXPO_BATTERY;
     const Battery = require(mod);
     return Battery.addBatteryLevelListener(callback);
   } catch {
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
 }
 
@@ -99,13 +107,21 @@ export function addBatteryStateListener(
   callback: (event: BatteryStateEvent) => void,
 ): Subscription {
   if (Platform.OS === "web") {
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
   try {
     const mod = EXPO_BATTERY;
     const Battery = require(mod);
     return Battery.addBatteryStateListener(callback);
   } catch {
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
 }

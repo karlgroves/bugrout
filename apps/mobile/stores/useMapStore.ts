@@ -26,7 +26,13 @@ const useMapStore = create<MapState>((set) => ({
   activeRegion: null,
   tilesLoaded: false,
 
-  setViewport: (bbox) => { set({ viewport: bbox }); },
-  setActiveRegion: (region) => { set({ activeRegion: region }); },
-  setTilesLoaded: (loaded) => { set({ tilesLoaded: loaded }); },
+  setViewport: (bbox) => {
+    set({ viewport: bbox });
+  },
+  setActiveRegion: (region) => {
+    set({ activeRegion: region });
+  },
+  setTilesLoaded: (loaded) => {
+    set({ tilesLoaded: loaded });
+  },
 }));

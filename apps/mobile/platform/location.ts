@@ -159,7 +159,11 @@ export async function watchHeadingAsync(
 ): Promise<LocationSubscription> {
   if (Platform.OS === "web") {
     callback({ trueHeading: 0, magHeading: 0 });
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
   try {
     const mod = EXPO_LOCATION;
@@ -168,7 +172,11 @@ export async function watchHeadingAsync(
   } catch {
     // Mock: static heading
     callback({ trueHeading: 0, magHeading: 0 });
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
 }
 

@@ -8,7 +8,11 @@
  * All data expires after 2 hours (active evacuation window).
  */
 
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 
 import Redis from "ioredis";
 
@@ -80,7 +84,9 @@ async function routeRequest(
   }
 
   // GET /v1/density/:regionId — get edge assignment counts
-  const densityMatch = req.url?.match(/^\/v1\/density\/([a-z][a-z0-9-]{0,63})$/);
+  const densityMatch = req.url?.match(
+    /^\/v1\/density\/([a-z][a-z0-9-]{0,63})$/,
+  );
   if (req.method === "GET" && densityMatch) {
     await handleDensity(densityMatch[1] ?? "", res);
     return;
@@ -113,9 +119,11 @@ function resolveClientIp(req: IncomingMessage): string {
  */
 function setStandardHeaders(req: IncomingMessage, res: ServerResponse): void {
   // CORS — only allow configured origins (or none in production)
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) ?? [];
+  const allowedOrigins =
+    process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) ?? [];
   const origin = req.headers.origin ?? "";
-  const corsOrigin = allowedOrigins.length > 0 && allowedOrigins.includes(origin) ? origin : "";
+  const corsOrigin =
+    allowedOrigins.length > 0 && allowedOrigins.includes(origin) ? origin : "";
 
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -134,7 +142,9 @@ function authenticate(req: IncomingMessage, res: ServerResponse): boolean {
     return false;
   }
   const authHeader = req.headers.authorization ?? "";
-  const providedSecret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  const providedSecret = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : "";
   if (!timingSafeEqual(providedSecret, API_SECRET)) {
     res.writeHead(401, JSON_CONTENT_TYPE);
     res.end(JSON.stringify({ error: "Unauthorized" }));
@@ -233,14 +243,23 @@ async function handleAssignment(
 /**
  * Handle GET /v1/density/:regionId: return per-edge assignment counts.
  */
-async function handleDensity(regionId: string, res: ServerResponse): Promise<void> {
+async function handleDensity(
+  regionId: string,
+  res: ServerResponse,
+): Promise<void> {
   const pattern = `density:${regionId}:*`;
 
   // Use SCAN instead of KEYS to avoid blocking Redis
   const edges: Record<string, number> = {};
   let cursor = "0";
   do {
-    const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 200);
+    const [nextCursor, keys] = await redis.scan(
+      cursor,
+      "MATCH",
+      pattern,
+      "COUNT",
+      200,
+    );
     cursor = nextCursor;
 
     if (keys.length > 0) {
@@ -274,7 +293,9 @@ function readBody(req: IncomingMessage, maxSize: number): Promise<string> {
       }
       chunks.push(chunk);
     });
-    req.on("end", () => { resolve(Buffer.concat(chunks).toString()); });
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks).toString());
+    });
     req.on("error", reject);
   });
 }

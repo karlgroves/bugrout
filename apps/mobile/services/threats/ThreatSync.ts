@@ -18,10 +18,7 @@ import { useThreatStore } from "@/stores/useThreatStore";
 
 import { loadFloodZones } from "./FEMAService";
 import { fetchNWSAlerts, CACHE_TTL_MS as NWS_TTL } from "./NWSService";
-import {
-  fetchFirePerimeters,
-  CACHE_TTL_MS as USFS_TTL,
-} from "./USFSService";
+import { fetchFirePerimeters, CACHE_TTL_MS as USFS_TTL } from "./USFSService";
 
 import type { ThreatZone, ThreatSource, BBox } from "@bugrout/shared";
 
@@ -125,7 +122,5 @@ export async function loadCachedThreats(): Promise<void> {
 export function hasActiveThreatsInRegion(_bbox: BBox): boolean {
   const threats = useThreatStore.getState().threatZones;
   // Simplified check: any non-expired threat exists
-  return threats.some(
-    (t) => t.expiresAt === null || t.expiresAt > Date.now(),
-  );
+  return threats.some((t) => t.expiresAt === null || t.expiresAt > Date.now());
 }

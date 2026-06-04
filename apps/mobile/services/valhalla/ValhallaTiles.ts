@@ -24,7 +24,9 @@ export type ValhallaApproach = "native" | "http";
  * builds without the native binaries keep using the remote Fly service.
  */
 export function configuredApproach(): ValhallaApproach {
-  return process.env.EXPO_PUBLIC_VALHALLA_APPROACH === "native" ? "native" : "http";
+  return process.env.EXPO_PUBLIC_VALHALLA_APPROACH === "native"
+    ? "native"
+    : "http";
 }
 
 /** True when the region's Valhalla archive is present and non-empty on disk. */

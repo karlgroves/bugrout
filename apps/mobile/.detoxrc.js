@@ -12,8 +12,7 @@ module.exports = {
   apps: {
     "ios.debug": {
       type: "ios.app",
-      binaryPath:
-        "ios/build/Build/Products/Debug-iphonesimulator/BugRout.app",
+      binaryPath: "ios/build/Build/Products/Debug-iphonesimulator/BugRout.app",
       build:
         "xcodebuild -workspace ios/BugRout.xcworkspace -scheme BugRout -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
     },

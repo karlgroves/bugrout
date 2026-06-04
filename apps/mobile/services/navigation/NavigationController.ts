@@ -177,7 +177,10 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
   const maneuvers = getAllManeuvers(route);
   const currentManeuver = maneuvers[currentManeuverIndex];
   if (currentManeuverIndex < maneuvers.length && currentManeuver) {
-    const distToManeuver = haversineDistance(position, currentManeuver.position);
+    const distToManeuver = haversineDistance(
+      position,
+      currentManeuver.position,
+    );
 
     // Check if we've passed this maneuver
     if (distToManeuver < MANEUVER_PASSED_THRESHOLD) {
@@ -241,9 +244,10 @@ function handleVoiceAnnouncements(
     if (rounded < state.lastAnnouncedDistance && rounded > 0) {
       // Only announce significant distances
       if (rounded === 200 || rounded === 400) {
-        const distText = rounded >= 1000
-          ? `${(rounded / 1000).toFixed(1)} kilometers`
-          : `${rounded} meters`;
+        const distText =
+          rounded >= 1000
+            ? `${(rounded / 1000).toFixed(1)} kilometers`
+            : `${rounded} meters`;
         announceVoice(`In ${distText}, ${maneuver.instruction.toLowerCase()}`);
       }
       state.lastAnnouncedDistance = rounded;

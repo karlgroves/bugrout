@@ -53,7 +53,8 @@ export function RouteBottomBar({
       </View>
 
       <View style={styles.actions}>
-        {showReroute && onReroute ? <Pressable
+        {showReroute && onReroute ? (
+          <Pressable
             testID="reroute-btn"
             style={[styles.actionButton, styles.rerouteButton]}
             onPress={onReroute}
@@ -62,7 +63,8 @@ export function RouteBottomBar({
             accessibilityRole="button"
           >
             <FontAwesome name="refresh" size={18} color={colors.warning} />
-          </Pressable> : null}
+          </Pressable>
+        ) : null}
 
         <Pressable
           testID="emergency-contact-btn"

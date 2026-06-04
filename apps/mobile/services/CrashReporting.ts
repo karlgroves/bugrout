@@ -62,7 +62,10 @@ export function addErrorBreadcrumb(
 /**
  * Capture a non-fatal error.
  */
-export function captureError(error: Error, context?: Record<string, unknown>): void {
+export function captureError(
+  error: Error,
+  context?: Record<string, unknown>,
+): void {
   if (context) {
     Sentry.setContext("app_state", context);
   }

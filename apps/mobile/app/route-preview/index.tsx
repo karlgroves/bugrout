@@ -68,9 +68,8 @@ export default function RoutePreviewScreen(): React.JSX.Element | null {
   }
 
   // Count resource waypoints
-  const waypointCount = (activeRoute.legs.length > 1)
-    ? activeRoute.legs.length - 1
-    : 0;
+  const waypointCount =
+    activeRoute.legs.length > 1 ? activeRoute.legs.length - 1 : 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,7 +85,10 @@ export default function RoutePreviewScreen(): React.JSX.Element | null {
 
       {/* Route info panel */}
       <View style={styles.infoPanel}>
-        <ScrollView style={styles.infoScroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.infoScroll}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Summary row */}
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
@@ -110,16 +112,15 @@ export default function RoutePreviewScreen(): React.JSX.Element | null {
           </View>
 
           {/* Route name */}
-          <Text style={styles.routeSummary}>
-            via {activeRoute.summary}
-          </Text>
+          <Text style={styles.routeSummary}>via {activeRoute.summary}</Text>
 
           {/* Resource stops */}
           {waypointCount > 0 && (
             <View style={styles.infoRow}>
               <FontAwesome name="map-pin" size={16} color={colors.accent} />
               <Text style={styles.infoText}>
-                {waypointCount} resource stop{waypointCount > 1 ? "s" : ""} included
+                {waypointCount} resource stop{waypointCount > 1 ? "s" : ""}{" "}
+                included
               </Text>
             </View>
           )}
@@ -171,7 +172,11 @@ export default function RoutePreviewScreen(): React.JSX.Element | null {
             accessibilityHint="Begins turn-by-turn navigation along the previewed route"
             accessibilityRole="button"
           >
-            <FontAwesome name="location-arrow" size={18} color={colors.background} />
+            <FontAwesome
+              name="location-arrow"
+              size={18}
+              color={colors.background}
+            />
             <Text style={styles.goText}>Go</Text>
           </Pressable>
         </View>

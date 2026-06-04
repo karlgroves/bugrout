@@ -51,10 +51,7 @@ export function expandBBox(bbox: BBox, meters: number): BBox {
 /**
  * Format distance for display based on user's preferred units.
  */
-export function formatDistance(
-  meters: number,
-  units: "mi" | "km",
-): string {
+export function formatDistance(meters: number, units: "mi" | "km"): string {
   if (units === "mi") {
     const miles = meters / 1609.344;
     return miles < 0.1

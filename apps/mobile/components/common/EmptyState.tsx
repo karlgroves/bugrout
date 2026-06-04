@@ -37,7 +37,8 @@ export function EmptyState({
       <FontAwesome name={icon} size={48} color={colors.textMuted} />
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
-      {actionLabel && onAction ? <Pressable
+      {actionLabel && onAction ? (
+        <Pressable
           style={styles.actionButton}
           onPress={onAction}
           accessibilityLabel={actionLabel}
@@ -45,7 +46,8 @@ export function EmptyState({
           accessibilityRole="button"
         >
           <Text style={styles.actionText}>{actionLabel}</Text>
-        </Pressable> : null}
+        </Pressable>
+      ) : null}
     </View>
   );
 }

@@ -45,7 +45,11 @@ export function addNetworkStateListener(
   callback: (state: NetworkState) => void,
 ): NetworkSubscription {
   if (Platform.OS === "web") {
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
   try {
     const mod = "expo-network";
@@ -53,6 +57,10 @@ export function addNetworkStateListener(
     return Network.addNetworkStateListener(callback);
   } catch {
     // No-op in Expo Go
-    return { remove() { /* no-op mock */ } };
+    return {
+      remove() {
+        /* no-op mock */
+      },
+    };
   }
 }

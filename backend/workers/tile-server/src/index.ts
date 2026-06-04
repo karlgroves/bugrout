@@ -50,7 +50,10 @@ export default {
     }
 
     // GET /v1/tiles/:regionId/:type — key-protected
-    const tileMatch = /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|resources)$/.exec(url.pathname);
+    const tileMatch =
+      /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|resources)$/.exec(
+        url.pathname,
+      );
     if (tileMatch) {
       return handleTileRequest(request, env, tileMatch, headers);
     }
@@ -71,7 +74,9 @@ async function handleTileRequest(
   // Validate API key if configured
   if (env.API_KEY) {
     const authHeader = request.headers.get("Authorization") ?? "";
-    const providedKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const providedKey = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : "";
     const isValid = await timingSafeEqual(providedKey, env.API_KEY);
     if (!isValid) {
       return Response.json(
@@ -128,10 +133,18 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   bPadded.set(bBuf);
 
   const aKey = await crypto.subtle.importKey(
-    "raw", aPadded, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    "raw",
+    aPadded,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
   const bKey = await crypto.subtle.importKey(
-    "raw", bPadded, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    "raw",
+    bPadded,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
 
   const aSign = await crypto.subtle.sign("HMAC", aKey, new Uint8Array(0));
@@ -219,9 +232,7 @@ async function getTilePackage(
     }
 
     const start = range.offset;
-    const end = range.length
-      ? start + range.length - 1
-      : objHead.size - 1;
+    const end = range.length ? start + range.length - 1 : objHead.size - 1;
 
     return new Response(obj.body, {
       status: 206,

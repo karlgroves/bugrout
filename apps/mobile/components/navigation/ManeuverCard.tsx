@@ -52,9 +52,11 @@ export function ManeuverCard({
         <Text style={styles.instruction} numberOfLines={2}>
           {maneuver.instruction}
         </Text>
-        {maneuver.streetName ? <Text style={styles.street} numberOfLines={1}>
+        {maneuver.streetName ? (
+          <Text style={styles.street} numberOfLines={1}>
             {maneuver.streetName}
-          </Text> : null}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

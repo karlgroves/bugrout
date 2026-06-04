@@ -10,7 +10,6 @@ import * as TileManager from "@/services/tiles/TileManager";
 import type { DownloadProgress } from "@/services/tiles/TileManager";
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
-
 /** Offline tile download state and actions returned by {@link useTileManager}. */
 export interface UseTileManagerResult {
   downloadedRegions: DownloadedRegion[];
@@ -33,8 +32,9 @@ export function useTileManager(): UseTileManagerResult {
     DownloadedRegion[]
   >([]);
   const [availableRegions, setAvailableRegions] = useState<Region[]>([]);
-  const [activeDownload, setActiveDownload] =
-    useState<DownloadProgress | null>(null);
+  const [activeDownload, setActiveDownload] = useState<DownloadProgress | null>(
+    null,
+  );
   const [storageUsed, setStorageUsed] = useState(0);
   const [storageAvailable, setStorageAvailable] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -33,18 +33,28 @@ const useRouteStore = create<RouteState>((set) => ({
   hasDeviated: false,
   destination: null,
 
-  setRoute: (route) =>
-    { set({ activeRoute: route, status: "active", currentManeuverIndex: 0 }); },
-  setStatus: (status) => { set({ status }); },
-  setCurrentManeuverIndex: (index) => { set({ currentManeuverIndex: index }); },
-  setDeviated: (deviated) => { set({ hasDeviated: deviated }); },
-  setDestination: (dest) => { set({ destination: dest }); },
-  clearRoute: () =>
-    { set({
+  setRoute: (route) => {
+    set({ activeRoute: route, status: "active", currentManeuverIndex: 0 });
+  },
+  setStatus: (status) => {
+    set({ status });
+  },
+  setCurrentManeuverIndex: (index) => {
+    set({ currentManeuverIndex: index });
+  },
+  setDeviated: (deviated) => {
+    set({ hasDeviated: deviated });
+  },
+  setDestination: (dest) => {
+    set({ destination: dest });
+  },
+  clearRoute: () => {
+    set({
       activeRoute: null,
       status: "idle",
       currentManeuverIndex: 0,
       hasDeviated: false,
       destination: null,
-    }); },
+    });
+  },
 }));

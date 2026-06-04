@@ -79,7 +79,9 @@ export function useDataSync(): DataSyncHandle {
       },
     );
 
-    return () => { subscription.remove(); };
+    return () => {
+      subscription.remove();
+    };
   }, [sync]);
 
   return { sync };

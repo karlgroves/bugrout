@@ -3,5 +3,11 @@
   "singleQuote": false,
   "trailingComma": "all",
   "printWidth": 80,
-  "tabWidth": 2
+  "tabWidth": 2,
+  "overrides": [
+    { "files": "*.md", "options": { "printWidth": 80, "proseWrap": "always" } },
+    { "files": "*.{yml,yaml}", "options": { "singleQuote": false } },
+    { "files": "*.json", "options": { "printWidth": 200 } },
+    { "files": "package.json", "options": { "printWidth": 200, "tabWidth": 2 } }
+  ]
 }

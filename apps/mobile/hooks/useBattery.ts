@@ -63,7 +63,7 @@ export function useBattery(): BatteryStatus {
     const stateSub = Battery.addBatteryStateListener(({ batteryState }) => {
       setIsCharging(
         batteryState === Battery.BatteryState.CHARGING ||
-        batteryState === Battery.BatteryState.FULL,
+          batteryState === Battery.BatteryState.FULL,
       );
     });
 

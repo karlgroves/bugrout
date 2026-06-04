@@ -127,10 +127,7 @@ export async function getResourceWaypoints(
 /**
  * Sample points along a polyline at regular intervals.
  */
-function sampleRoute(
-  coordinates: LatLng[],
-  intervalMeters: number,
-): LatLng[] {
+function sampleRoute(coordinates: LatLng[], intervalMeters: number): LatLng[] {
   const first = coordinates[0];
   if (!first) return [];
 
@@ -162,10 +159,7 @@ function sampleRoute(
 /**
  * Get minimum distance from a point to any segment of a polyline.
  */
-function getMinDistanceToPolyline(
-  point: LatLng,
-  polyline: LatLng[],
-): number {
+function getMinDistanceToPolyline(point: LatLng, polyline: LatLng[]): number {
   let minDist = Infinity;
 
   for (let i = 0; i < polyline.length - 1; i++) {
@@ -182,11 +176,7 @@ function getMinDistanceToPolyline(
 /**
  * Distance from a point to a line segment (approximate, using haversine to endpoints).
  */
-function pointToSegmentDistance(
-  p: LatLng,
-  a: LatLng,
-  b: LatLng,
-): number {
+function pointToSegmentDistance(p: LatLng, a: LatLng, b: LatLng): number {
   const dA = haversineDistance(p, a);
   const dB = haversineDistance(p, b);
   const dAB = haversineDistance(a, b);
@@ -198,7 +188,11 @@ function pointToSegmentDistance(
   // Approximate with scalar projection on flat plane
   const t = Math.max(
     0,
-    Math.min(1, ((p.lat - a.lat) * (b.lat - a.lat) + (p.lng - a.lng) * (b.lng - a.lng)) / (dAB * dAB * METERS_TO_DEGREES * METERS_TO_DEGREES)),
+    Math.min(
+      1,
+      ((p.lat - a.lat) * (b.lat - a.lat) + (p.lng - a.lng) * (b.lng - a.lng)) /
+        (dAB * dAB * METERS_TO_DEGREES * METERS_TO_DEGREES),
+    ),
   );
 
   const projected: LatLng = {

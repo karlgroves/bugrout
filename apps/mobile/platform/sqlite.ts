@@ -100,9 +100,7 @@ function mockInsert(
   // Replace existing row with same first column (assumed PK)
   const pkCol = cols[0];
   const idx = pkCol
-    ? rows.findIndex(
-        (r) => (r as Record<string, unknown>)[pkCol] === params[0],
-      )
+    ? rows.findIndex((r) => (r as Record<string, unknown>)[pkCol] === params[0])
     : -1;
   if (idx >= 0) {
     rows[idx] = row;

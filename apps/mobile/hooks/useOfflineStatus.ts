@@ -30,7 +30,9 @@ export function useOfflineStatus(): boolean {
 
     // Subscribe to changes
     const subscription = Network.addNetworkStateListener((state) => {
-      setOnline(state.isConnected === true && state.isInternetReachable === true);
+      setOnline(
+        state.isConnected === true && state.isInternetReachable === true,
+      );
     });
 
     return () => {

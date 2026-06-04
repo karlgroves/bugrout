@@ -102,7 +102,9 @@ export default function EmergencyContactsScreen(): React.JSX.Element {
             <Pressable
               testID={`remove-contact-${item.id}`}
               style={styles.removeButton}
-              onPress={() => { handleDelete(item); }}
+              onPress={() => {
+                handleDelete(item);
+              }}
               accessibilityLabel={`Remove ${item.name}`}
               accessibilityHint="Removes this person from your emergency contacts"
               accessibilityRole="button"
@@ -173,7 +175,9 @@ export default function EmergencyContactsScreen(): React.JSX.Element {
           <Pressable
             testID="add-contact-btn"
             style={styles.addButton}
-            onPress={() => { setShowAdd(true); }}
+            onPress={() => {
+              setShowAdd(true);
+            }}
             accessibilityLabel="Add emergency contact"
             accessibilityHint="Opens a form to enter a new emergency contact"
             accessibilityRole="button"

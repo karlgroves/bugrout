@@ -14,7 +14,13 @@ import { NativeModules } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 
 import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
-import type { LatLng, Route, RouteOptions, RouteManeuver, RouteLeg } from "@bugrout/shared";
+import type {
+  LatLng,
+  Route,
+  RouteOptions,
+  RouteManeuver,
+  RouteLeg,
+} from "@bugrout/shared";
 
 /**
  *
@@ -83,7 +89,10 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
         return;
       }
     } catch (err) {
-      console.warn("[BugRout] Native Valhalla init failed, falling back to HTTP:", err);
+      console.warn(
+        "[BugRout] Native Valhalla init failed, falling back to HTTP:",
+        err,
+      );
       nativeModule = null;
     }
   }
@@ -132,10 +141,15 @@ export async function calculateRoute(
   if (activeApproach === "native" && nativeModule) {
     try {
       const responseJson = await nativeModule.route(JSON.stringify(body));
-      const valhallaResponse = JSON.parse(responseJson) as ValhallaRouteResponse;
+      const valhallaResponse = JSON.parse(
+        responseJson,
+      ) as ValhallaRouteResponse;
       return parseValhallaResponse(valhallaResponse, origin, destination);
     } catch (err) {
-      console.warn("[BugRout] Native Valhalla route failed, using mock route:", err);
+      console.warn(
+        "[BugRout] Native Valhalla route failed, using mock route:",
+        err,
+      );
       return buildMockRoute(origin, destination);
     }
   }
@@ -178,9 +192,7 @@ function buildValhallaRequest(
   destination: LatLng,
   options?: RouteOptions,
 ): Record<string, unknown> {
-  const locations = [
-    { lat: origin.lat, lon: origin.lng, type: "break" },
-  ];
+  const locations = [{ lat: origin.lat, lon: origin.lng, type: "break" }];
 
   // Insert waypoints as "through" locations
   if (options?.waypoints) {
@@ -387,7 +399,8 @@ function buildMockRoute(origin: LatLng, destination: LatLng): Route {
     Math.cos((origin.lat * Math.PI) / 180) *
       Math.cos((destination.lat * Math.PI) / 180) *
       Math.sin(dLng / 2) ** 2;
-  const distance = EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance =
+    EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const duration = distance / 15; // ~15 m/s = ~34 mph avg
 
   // Interpolate points along the route

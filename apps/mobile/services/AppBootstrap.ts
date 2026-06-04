@@ -14,12 +14,18 @@ import { getDatabase } from "@/db/database";
 import { getPreference, setPreference } from "@/db/queries/preferences";
 import { getScenarios } from "@/db/queries/scenarios";
 import { initAnalytics, track, Events } from "@/platform/analytics";
-import { initCrashReporting, setRegionContext } from "@/services/CrashReporting";
+import {
+  initCrashReporting,
+  setRegionContext,
+} from "@/services/CrashReporting";
 import { loadMockDemoData } from "@/services/MockDemoData";
 import { loadCachedResources } from "@/services/resources/ResourceSync";
 import { startSettingsPersistence } from "@/services/SettingsPersistence";
 import { loadCachedThreats } from "@/services/threats/ThreatSync";
-import { getDownloadedRegions, getStaleRegions } from "@/services/tiles/TileManager";
+import {
+  getDownloadedRegions,
+  getStaleRegions,
+} from "@/services/tiles/TileManager";
 import { initValhalla } from "@/services/valhalla/ValhallaModule";
 import { planValhallaInit } from "@/services/valhalla/ValhallaTiles";
 import { useMapStore } from "@/stores/useMapStore";

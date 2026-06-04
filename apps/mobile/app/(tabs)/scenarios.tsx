@@ -36,7 +36,9 @@ export default function ScenariosScreen(): React.JSX.Element {
           <Pressable
             testID="create-scenario-btn"
             style={styles.addButton}
-            onPress={() => { router.push("/scenarios/edit"); }}
+            onPress={() => {
+              router.push("/scenarios/edit");
+            }}
             accessibilityLabel="Create new evacuation scenario"
             accessibilityHint="Opens the editor to configure a new evacuation scenario"
             accessibilityRole="button"
@@ -53,12 +55,12 @@ export default function ScenariosScreen(): React.JSX.Element {
               <Pressable
                 testID={`scenario-card-${item.id}`}
                 style={styles.scenarioCard}
-                onPress={() =>
-                  { router.push({
+                onPress={() => {
+                  router.push({
                     pathname: "/scenarios/edit",
                     params: { id: item.id },
-                  }); }
-                }
+                  });
+                }}
                 accessibilityLabel={`Edit scenario: ${item.name}`}
                 accessibilityHint="Opens the editor to change this scenario's destination and stops"
                 accessibilityRole="button"
@@ -91,7 +93,9 @@ export default function ScenariosScreen(): React.JSX.Element {
             <Pressable
               testID="add-scenario-btn"
               style={styles.addButtonOutline}
-              onPress={() => { router.push("/scenarios/edit"); }}
+              onPress={() => {
+                router.push("/scenarios/edit");
+              }}
               accessibilityLabel="Add another scenario"
               accessibilityHint="Opens the editor to configure an additional evacuation scenario"
               accessibilityRole="button"

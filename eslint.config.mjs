@@ -151,7 +151,11 @@ export default tseslint.config(
         { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
         { selector: "import", format: ["camelCase", "PascalCase"] },
         {
-          selector: ["objectLiteralProperty", "typeProperty", "objectLiteralMethod"],
+          selector: [
+            "objectLiteralProperty",
+            "typeProperty",
+            "objectLiteralMethod",
+          ],
           format: null,
         },
       ],
@@ -170,7 +174,10 @@ export default tseslint.config(
       "sonarjs/prefer-single-boolean-return": "error",
 
       // File/function size
-      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      "max-lines": [
+        "error",
+        { max: 300, skipBlankLines: true, skipComments: true },
+      ],
       "max-lines-per-function": [
         "error",
         { max: 75, skipBlankLines: true, skipComments: true },

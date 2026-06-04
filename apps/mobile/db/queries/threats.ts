@@ -9,9 +9,7 @@ import type { ThreatZone, ThreatType, ThreatSource } from "@bugrout/shared";
 /**
  * Inserts or replaces a batch of cached threat zones.
  */
-export async function upsertThreatZones(
-  threats: ThreatZone[],
-): Promise<void> {
+export async function upsertThreatZones(threats: ThreatZone[]): Promise<void> {
   const db = await getDatabase();
 
   for (const t of threats) {

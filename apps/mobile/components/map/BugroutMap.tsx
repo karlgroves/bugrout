@@ -18,7 +18,6 @@ import { useMapStore } from "@/stores/useMapStore";
 
 import type { LatLng } from "@bugrout/shared";
 
-
 // Initialize MapLibre (required once)
 MapLibreGL.setAccessToken(null);
 
@@ -38,7 +37,12 @@ interface BugroutMapProps {
   onMapPress?: ((coordinate: LatLng) => void) | undefined;
   /** Callback when map region changes */
   onRegionChange?:
-    | ((bbox: { west: number; south: number; east: number; north: number }) => void)
+    | ((bbox: {
+        west: number;
+        south: number;
+        east: number;
+        north: number;
+      }) => void)
     | undefined;
   children?: React.ReactNode;
 }
@@ -136,7 +140,8 @@ export function BugroutMap({
         />
 
         {/* Route polyline */}
-        {routeCoordinates && routeCoordinates.length > 0 ? <MapLibreGL.ShapeSource
+        {routeCoordinates && routeCoordinates.length > 0 ? (
+          <MapLibreGL.ShapeSource
             id="route-line"
             shape={{
               type: "Feature",
@@ -168,14 +173,14 @@ export function BugroutMap({
                 lineOpacity: 0.3,
               }}
             />
-          </MapLibreGL.ShapeSource> : null}
+          </MapLibreGL.ShapeSource>
+        ) : null}
 
         {children}
       </MapLibreGL.MapView>
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

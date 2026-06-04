@@ -13,7 +13,9 @@ const SENTRY_MODULE = "@sentry/react-native";
  */
 export function init(_options: Record<string, unknown>): void {
   if (Platform.OS === "web") {
-    console.log("[BugRout] Sentry not available (web). Crash reporting disabled.");
+    console.log(
+      "[BugRout] Sentry not available (web). Crash reporting disabled.",
+    );
     return;
   }
   try {
@@ -21,7 +23,9 @@ export function init(_options: Record<string, unknown>): void {
     const Sentry = require(mod);
     Sentry.init(_options);
   } catch {
-    console.log("[BugRout] Sentry not available (Expo Go). Crash reporting disabled.");
+    console.log(
+      "[BugRout] Sentry not available (Expo Go). Crash reporting disabled.",
+    );
   }
 }
 

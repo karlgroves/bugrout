@@ -39,7 +39,9 @@ declare module "@maplibre/maplibre-react-native" {
     getVisibleBounds: () => Promise<[[number, number], [number, number]]>;
   }
 
-  export class MapView extends Component<MapViewProps & { ref?: React.Ref<MapViewRef> }> {}
+  export class MapView extends Component<
+    MapViewProps & { ref?: React.Ref<MapViewRef> }
+  > {}
 
   export interface CameraProps {
     defaultSettings?: {

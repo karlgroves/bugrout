@@ -19,7 +19,6 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 
 import type { LatLng } from "@bugrout/shared";
 
-
 const LOW_BATTERY_THRESHOLD = 0.2;
 
 const SIGNAL_ENDPOINT = "https://signal.bugrout.app/v1/signal";

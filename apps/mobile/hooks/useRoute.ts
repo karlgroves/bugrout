@@ -7,7 +7,12 @@ import { useCallback } from "react";
 import * as RouteEngine from "@/services/routing/RouteEngine";
 import { useRouteStore } from "@/stores/useRouteStore";
 
-import type { LatLng, Route, RouteOptions, ResourceStopPreference } from "@bugrout/shared";
+import type {
+  LatLng,
+  Route,
+  RouteOptions,
+  ResourceStopPreference,
+} from "@bugrout/shared";
 
 /** Route store state plus the imperative route actions from {@link useRoute}. */
 export type UseRouteResult = ReturnType<typeof useRouteStore.getState> & {

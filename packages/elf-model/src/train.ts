@@ -90,9 +90,7 @@ function proximityFactor(
 /**
  * Compute ELF multipliers for every road segment, producing the weight table input.
  */
-export function trainELFWeights(
-  features: RoadSegmentFeatures[],
-): ELFWeight[] {
+export function trainELFWeights(features: RoadSegmentFeatures[]): ELFWeight[] {
   return features.map((f) => ({
     edgeId: f.edgeId,
     multiplier: computeELF(f),

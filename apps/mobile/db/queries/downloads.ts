@@ -69,9 +69,7 @@ export async function upsertDownloadProgress(
 /**
  * Removes the download progress record for a region.
  */
-export async function deleteDownloadProgress(
-  regionId: string,
-): Promise<void> {
+export async function deleteDownloadProgress(regionId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     "DELETE FROM download_progress WHERE region_id = ?",
@@ -82,9 +80,7 @@ export async function deleteDownloadProgress(
 /**
  * Returns all tracked download progress records.
  */
-export async function getAllDownloadProgress(): Promise<
-  DownloadProgressRow[]
-> {
+export async function getAllDownloadProgress(): Promise<DownloadProgressRow[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
     region_id: string;

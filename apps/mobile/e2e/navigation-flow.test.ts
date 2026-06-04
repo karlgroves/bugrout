@@ -22,7 +22,9 @@ describe("Navigation Flow", () => {
   it("should accept disclaimer and show map", async () => {
     await element(by.text("I Understand — Continue")).tap();
     // Should now be on the map screen
-    await expect(element(by.label("Bug Out — set evacuation destination"))).toBeVisible();
+    await expect(
+      element(by.label("Bug Out — set evacuation destination")),
+    ).toBeVisible();
   });
 
   it("should open destination picker on FAB tap", async () => {
@@ -60,7 +62,9 @@ describe("Offline Mode", () => {
 
   it("should show tile download banner when no tiles downloaded", async () => {
     await expect(
-      element(by.label("Download offline maps to navigate without a connection")),
+      element(
+        by.label("Download offline maps to navigate without a connection"),
+      ),
     ).toBeVisible();
   });
 });
@@ -84,7 +88,11 @@ describe("Settings", () => {
   it("should open offline maps screen", async () => {
     await element(by.text("Offline Maps")).tap();
     await expect(
-      element(by.text("Download offline maps to navigate without any data connection.")),
+      element(
+        by.text(
+          "Download offline maps to navigate without any data connection.",
+        ),
+      ),
     ).toBeVisible();
   });
 });

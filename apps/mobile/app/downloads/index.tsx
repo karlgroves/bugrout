@@ -8,8 +8,14 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity -- pre-existing oversized downloads manager with inline list-header and multi-type row rendering; tracked in docs/tech-debt.md (decompose downloads screen) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState } from "react";
-import { StyleSheet, View, Text, Pressable, FlatList, Alert } from "react-native";
-
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  Alert,
+} from "react-native";
 
 import { getCountyGroups } from "@/constants/counties";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
@@ -63,7 +69,9 @@ export default function DownloadsScreen(): React.JSX.Element {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => { void deleteRegion(region.id); },
+          onPress: () => {
+            void deleteRegion(region.id);
+          },
         },
       ],
     );
@@ -78,8 +86,8 @@ export default function DownloadsScreen(): React.JSX.Element {
             <View style={styles.expoGoBanner}>
               <FontAwesome name="info-circle" size={16} color={colors.info} />
               <Text style={styles.expoGoBannerText}>
-                Downloads are not available in Expo Go. Create a dev build
-                to enable offline maps:{"\n"}
+                Downloads are not available in Expo Go. Create a dev build to
+                enable offline maps:{"\n"}
                 <Text style={styles.expoGoCommand}>
                   eas build --profile development
                 </Text>
@@ -88,8 +96,8 @@ export default function DownloadsScreen(): React.JSX.Element {
           )}
 
           <Text style={styles.description}>
-            Download offline maps to navigate without any data connection.
-            Maps include routing data, fuel stations, water sources, and shelters.
+            Download offline maps to navigate without any data connection. Maps
+            include routing data, fuel stations, water sources, and shelters.
           </Text>
 
           {/* Storage info */}
@@ -103,7 +111,8 @@ export default function DownloadsScreen(): React.JSX.Element {
           )}
 
           {/* Active download progress */}
-          {activeDownload ? <View style={styles.progressCard}>
+          {activeDownload ? (
+            <View style={styles.progressCard}>
               <Text style={styles.progressLabel}>
                 Downloading... {activeDownload.percent.toFixed(0)}%
               </Text>
@@ -119,7 +128,8 @@ export default function DownloadsScreen(): React.JSX.Element {
                 {formatBytes(activeDownload.bytesDownloaded)} /{" "}
                 {formatBytes(activeDownload.totalBytes)}
               </Text>
-            </View> : null}
+            </View>
+          ) : null}
 
           {/* Downloaded regions */}
           {downloadedRegions.length > 0 && (
@@ -128,7 +138,10 @@ export default function DownloadsScreen(): React.JSX.Element {
         </View>
       }
       data={[
-        ...downloadedRegions.map((r) => ({ ...r, _type: "downloaded" as const })),
+        ...downloadedRegions.map((r) => ({
+          ...r,
+          _type: "downloaded" as const,
+        })),
         ...(notDownloaded.length > 0
           ? [{ _type: "header" as const, id: "__header__" }]
           : []),
@@ -148,9 +161,11 @@ export default function DownloadsScreen(): React.JSX.Element {
               <View style={styles.regionInfo}>
                 <View style={styles.regionHeader}>
                   <Text style={styles.regionName}>{region.name}</Text>
-                  {stale ? <View style={styles.staleBadge}>
+                  {stale ? (
+                    <View style={styles.staleBadge}>
                       <Text style={styles.staleText}>Update available</Text>
-                    </View> : null}
+                    </View>
+                  ) : null}
                 </View>
                 <Text style={styles.regionMeta}>
                   {formatBytes(region.sizeBytes)} · Downloaded{" "}
@@ -160,7 +175,9 @@ export default function DownloadsScreen(): React.JSX.Element {
               <Pressable
                 testID={`delete-region-${region.id}`}
                 style={styles.deleteButton}
-                onPress={() => { handleDelete(region); }}
+                onPress={() => {
+                  handleDelete(region);
+                }}
                 accessibilityLabel={`Delete ${region.name} offline map`}
                 accessibilityHint="Removes this region's offline maps to free up storage"
                 accessibilityRole="button"
@@ -192,9 +209,9 @@ export default function DownloadsScreen(): React.JSX.Element {
                 {countyGroups.length > 0 && (
                   <Pressable
                     style={styles.expandButton}
-                    onPress={() =>
-                      { setExpandedState(isExpanded ? null : region.id); }
-                    }
+                    onPress={() => {
+                      setExpandedState(isExpanded ? null : region.id);
+                    }}
                     accessibilityLabel={
                       isExpanded
                         ? `Collapse ${region.name} county groups`
@@ -235,28 +252,30 @@ export default function DownloadsScreen(): React.JSX.Element {
             </View>
 
             {/* County group sub-rows */}
-            {isExpanded ? countyGroups.map((cg) => (
-                <View key={cg.id} style={styles.countyRow}>
-                  <View style={styles.regionInfo}>
-                    <Text style={styles.countyName}>{cg.name}</Text>
-                    <Text style={styles.regionMeta}>
-                      ~{cg.estimatedSizeMB} MB · {cg.counties.length} counties
-                    </Text>
+            {isExpanded
+              ? countyGroups.map((cg) => (
+                  <View key={cg.id} style={styles.countyRow}>
+                    <View style={styles.regionInfo}>
+                      <Text style={styles.countyName}>{cg.name}</Text>
+                      <Text style={styles.regionMeta}>
+                        ~{cg.estimatedSizeMB} MB · {cg.counties.length} counties
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={styles.downloadButton}
+                      accessibilityLabel={`Download ${cg.name} county group`}
+                      accessibilityHint="Downloads only this smaller county group instead of the full state package"
+                      accessibilityRole="button"
+                    >
+                      <FontAwesome
+                        name="download"
+                        size={16}
+                        color={colors.textPrimary}
+                      />
+                    </Pressable>
                   </View>
-                  <Pressable
-                    style={styles.downloadButton}
-                    accessibilityLabel={`Download ${cg.name} county group`}
-                    accessibilityHint="Downloads only this smaller county group instead of the full state package"
-                    accessibilityRole="button"
-                  >
-                    <FontAwesome
-                      name="download"
-                      size={16}
-                      color={colors.textPrimary}
-                    />
-                  </Pressable>
-                </View>
-              )) : null}
+                ))
+              : null}
           </View>
         );
       }}

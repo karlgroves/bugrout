@@ -27,9 +27,7 @@ export function checkAlertsAgainstRoute(
   routeCoordinates: LatLng[],
 ): AlertNotification[] {
   return threats
-    .filter(
-      (t) => t.expiresAt === null || t.expiresAt > Date.now(),
-    )
+    .filter((t) => t.expiresAt === null || t.expiresAt > Date.now())
     .map((t) => {
       const intersects = routeIntersectsThreat(routeCoordinates, t);
       return {
@@ -50,10 +48,7 @@ export function checkAlertsAgainstRoute(
  * Tests whether any vertex of the threat polygon falls within the bbox,
  * OR any corner of the bbox falls within the threat polygon.
  */
-export function threatOverlapsBBox(
-  threat: ThreatZone,
-  bbox: BBox,
-): boolean {
+export function threatOverlapsBBox(threat: ThreatZone, bbox: BBox): boolean {
   const coords = extractAllCoordinates(threat.geometry);
 
   // Check 1: Any threat vertex inside bbox?
@@ -102,9 +97,7 @@ export function filterThreatsInBBox(
 /**
  * Extract all coordinate pairs from a geometry.
  */
-function extractAllCoordinates(
-  geometry: ThreatZone["geometry"],
-): number[][] {
+function extractAllCoordinates(geometry: ThreatZone["geometry"]): number[][] {
   if (geometry.type === "Polygon") {
     return geometry.coordinates[0] ?? []; // outer ring
   }
@@ -114,10 +107,7 @@ function extractAllCoordinates(
 /**
  * Ray-casting point-in-polygon test.
  */
-function pointInPolygon(
-  point: [number, number],
-  polygon: number[][],
-): boolean {
+function pointInPolygon(point: [number, number], polygon: number[][]): boolean {
   let inside = false;
   const [px, py] = point;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -138,8 +128,7 @@ function pointInPolygon(
     }
 
     const intersect =
-      yi > py !== yj > py &&
-      px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+      yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;

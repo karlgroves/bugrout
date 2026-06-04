@@ -93,7 +93,10 @@ export default {
         bboxParts.some((p) => isNaN(parseFloat(p.trim())))
       ) {
         return Response.json(
-          { error: "bbox must be four comma-separated numbers: west,south,east,north" },
+          {
+            error:
+              "bbox must be four comma-separated numbers: west,south,east,north",
+          },
           { status: 400, headers },
         );
       }
@@ -158,11 +161,9 @@ export default {
     };
 
     // Store with 1-hour TTL as a general key
-    await env.ALERTS_KV.put(
-      "alerts:all",
-      JSON.stringify(featureCollection),
-      { expirationTtl: 3600 },
-    );
+    await env.ALERTS_KV.put("alerts:all", JSON.stringify(featureCollection), {
+      expirationTtl: 3600,
+    });
   },
 };
 
@@ -236,9 +237,7 @@ async function fetchUSFSFirePerimeters(): Promise<ThreatZone[]> {
     id: `fire-${f.properties.poly_IncidentName}`,
     type: "wildfire" as const,
     severity:
-      (f.properties.irwin_PercentContained ?? 0) < 50
-        ? "severe"
-        : "moderate",
+      (f.properties.irwin_PercentContained ?? 0) < 50 ? "severe" : "moderate",
     geometry: f.geometry,
     headline: `Active Fire: ${f.properties.poly_IncidentName}`,
     description: `${f.properties.irwin_PercentContained ?? 0}% contained`,

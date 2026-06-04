@@ -1,0 +1,43 @@
+# Build outputs
+dist/
+build/
+coverage/
+.expo/
+.turbo/
+.wrangler/
+
+# Dependencies
+node_modules/
+
+# Generated / lockfiles
+pnpm-lock.yaml
+*.min.js
+*.min.css
+*.generated.*
+*.d.ts
+
+# Native build trees and artifacts
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/native-modules/valhalla/cpp/
+
+# Data pipeline outputs
+data-pipeline/output/
+data-pipeline/data/
+
+# Env and secrets
+.env*
+!.env.example
+
+# Logs and caches
+*.log
+.cache/
+.eslintcache
+
+# Reports
+reports/
+
+# Misc
+.DS_Store
+CHANGELOG.md
+LICENSE

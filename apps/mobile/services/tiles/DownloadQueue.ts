@@ -5,10 +5,7 @@
  * Only one download active at a time to avoid overwhelming the connection.
  */
 
-import {
-  downloadRegion,
-  type DownloadProgress,
-} from "./TileManager";
+import { downloadRegion, type DownloadProgress } from "./TileManager";
 
 import type { Region } from "@bugrout/shared";
 
@@ -98,9 +95,7 @@ async function processQueue(): Promise<void> {
     item.resolve();
   } catch (error) {
     queue.shift();
-    item.reject(
-      error instanceof Error ? error : new Error("Download failed"),
-    );
+    item.reject(error instanceof Error ? error : new Error("Download failed"));
   } finally {
     isProcessing = false;
     // Process next item

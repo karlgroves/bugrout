@@ -136,11 +136,7 @@ export function buildMapStyle(options: StyleOptions): object {
         type: "line",
         source: "openmaptiles",
         "source-layer": "transportation",
-        filter: [
-          "all",
-          ["!has", "brunnel"],
-          ["==", "class", "primary"],
-        ],
+        filter: ["all", ["!has", "brunnel"], ["==", "class", "primary"]],
         paint: {
           "line-color": "#404040",
           "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 16, 10],

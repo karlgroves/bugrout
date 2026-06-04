@@ -36,7 +36,7 @@ import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
-import type { LatLng, Scenario  } from "@bugrout/shared";
+import type { LatLng, Scenario } from "@bugrout/shared";
 
 interface GeocodingResult {
   displayName: string;
@@ -70,9 +70,13 @@ export default function DestinationScreen(): React.JSX.Element {
 
   useEffect(() => {
     setGettingLocation(true);
-    getPosition().finally(() => { setGettingLocation(false); }).catch(() => {
-      // getPosition surfaces its own error via locationError; swallow here
-    });
+    getPosition()
+      .finally(() => {
+        setGettingLocation(false);
+      })
+      .catch(() => {
+        // getPosition surfaces its own error via locationError; swallow here
+      });
     getRecentDestinations(5)
       .then(setRecents)
       .catch((err: unknown) => {
@@ -112,58 +116,52 @@ export default function DestinationScreen(): React.JSX.Element {
     [],
   );
 
-  const searchAddress = useCallback(
-    async (q: string) => {
-      setSearching(true);
-      setNoResults(false);
-      try {
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&countrycodes=us&addressdetails=1`,
-          { headers: { "User-Agent": "BugRout/1.0" } },
-        );
-        const data = (await resp.json()) as {
-          display_name: string;
-          lat: string;
-          lon: string;
-          address?: {
-            city?: string;
-            town?: string;
-            village?: string;
-            state?: string;
-            road?: string;
-            house_number?: string;
-          };
-        }[];
+  const searchAddress = useCallback(async (q: string) => {
+    setSearching(true);
+    setNoResults(false);
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&countrycodes=us&addressdetails=1`,
+        { headers: { "User-Agent": "BugRout/1.0" } },
+      );
+      const data = (await resp.json()) as {
+        display_name: string;
+        lat: string;
+        lon: string;
+        address?: {
+          city?: string;
+          town?: string;
+          village?: string;
+          state?: string;
+          road?: string;
+          house_number?: string;
+        };
+      }[];
 
-        if (data.length === 0) {
-          setNoResults(true);
-          setResults([]);
-        } else {
-          setResults(
-            data.map((d) => ({
-              displayName: d.display_name,
-              shortName: buildShortName(d.address, d.display_name),
-              lat: parseFloat(d.lat),
-              lng: parseFloat(d.lon),
-            })),
-          );
-          setNoResults(false);
-        }
-      } catch {
+      if (data.length === 0) {
+        setNoResults(true);
         setResults([]);
+      } else {
+        setResults(
+          data.map((d) => ({
+            displayName: d.display_name,
+            shortName: buildShortName(d.address, d.display_name),
+            lat: parseFloat(d.lat),
+            lng: parseFloat(d.lon),
+          })),
+        );
+        setNoResults(false);
       }
-      setSearching(false);
-    },
-    [],
-  );
+    } catch {
+      setResults([]);
+    }
+    setSearching(false);
+  }, []);
 
-  const selectDestination = useCallback(
-    (dest: LatLng, label: string) => {
-      setSelectedDest(dest);
-      setSelectedLabel(label);
-    },
-    [],
-  );
+  const selectDestination = useCallback((dest: LatLng, label: string) => {
+    setSelectedDest(dest);
+    setSelectedLabel(label);
+  }, []);
 
   const confirmRoute = useCallback(async () => {
     if (!selectedDest) {
@@ -175,7 +173,12 @@ export default function DestinationScreen(): React.JSX.Element {
         "Location Unavailable",
         "Your current location could not be determined. Please ensure location services are enabled and try again.",
         [
-          { text: "Retry", onPress: () => { void getPosition(); } },
+          {
+            text: "Retry",
+            onPress: () => {
+              void getPosition();
+            },
+          },
           { text: "Cancel", style: "cancel" },
         ],
       );
@@ -271,19 +274,27 @@ export default function DestinationScreen(): React.JSX.Element {
             accessibilityLabel="Clear search"
             accessibilityHint="Clears the search field and removes the current results"
           >
-            <FontAwesome name="times-circle" size={18} color={colors.textMuted} />
+            <FontAwesome
+              name="times-circle"
+              size={18}
+              color={colors.textMuted}
+            />
           </Pressable>
         )}
       </View>
 
-      {searching ? <ActivityIndicator style={styles.spinner} color={colors.accent} /> : null}
+      {searching ? (
+        <ActivityIndicator style={styles.spinner} color={colors.accent} />
+      ) : null}
 
-      {noResults && !searching ? <View style={styles.noResults}>
+      {noResults && !searching ? (
+        <View style={styles.noResults}>
           <FontAwesome name="map-marker" size={20} color={colors.textMuted} />
           <Text style={styles.noResultsText}>
             No results found for "{query}"
           </Text>
-        </View> : null}
+        </View>
+      ) : null}
 
       <FlatList
         style={styles.list}
@@ -302,12 +313,12 @@ export default function DestinationScreen(): React.JSX.Element {
                   styles.resultRow,
                   isSelected(item.lat, item.lng) && styles.selectedRow,
                 ]}
-                onPress={() =>
-                  { selectDestination(
+                onPress={() => {
+                  selectDestination(
                     { lat: item.lat, lng: item.lng },
                     item.shortName,
-                  ); }
-                }
+                  );
+                }}
                 accessibilityRole="button"
                 testID={`search-result-${item.lat}`}
               >
@@ -346,12 +357,18 @@ export default function DestinationScreen(): React.JSX.Element {
               >
                 <View style={styles.resultContent}>
                   <Text style={styles.resultText}>
-                    <FontAwesome name="bookmark" size={13} color={colors.accent} />{" "}
+                    <FontAwesome
+                      name="bookmark"
+                      size={13}
+                      color={colors.accent}
+                    />{" "}
                     {item.name}
                   </Text>
-                  {hasStops ? <Text style={styles.scenarioMeta}>
+                  {hasStops ? (
+                    <Text style={styles.scenarioMeta}>
                       Includes resource stops
-                    </Text> : null}
+                    </Text>
+                  ) : null}
                 </View>
                 {isSelected(item.lat, item.lng) && (
                   <FontAwesome name="check" size={16} color={colors.accent} />
@@ -367,17 +384,18 @@ export default function DestinationScreen(): React.JSX.Element {
                 styles.resultRow,
                 isSelected(item.lat, item.lng) && styles.selectedRow,
               ]}
-              onPress={() =>
-                { selectDestination(
-                  { lat: item.lat, lng: item.lng },
-                  item.label,
-                ); }
-              }
+              onPress={() => {
+                selectDestination({ lat: item.lat, lng: item.lng }, item.label);
+              }}
               accessibilityRole="button"
             >
               <View style={styles.resultContent}>
                 <Text style={styles.resultText}>
-                  <FontAwesome name="clock-o" size={13} color={colors.textMuted} />{" "}
+                  <FontAwesome
+                    name="clock-o"
+                    size={13}
+                    color={colors.textMuted}
+                  />{" "}
                   {item.label}
                 </Text>
               </View>
@@ -390,39 +408,51 @@ export default function DestinationScreen(): React.JSX.Element {
       />
 
       {/* Status messages */}
-      {gettingLocation ? <View style={styles.statusRow}>
+      {gettingLocation ? (
+        <View style={styles.statusRow}>
           <ActivityIndicator size="small" color={colors.accent} />
           <Text style={styles.statusText}>Getting your location...</Text>
-        </View> : null}
-      {!gettingLocation && !position && locationError ? <Pressable accessibilityRole="button"
+        </View>
+      ) : null}
+      {!gettingLocation && !position && locationError ? (
+        <Pressable
+          accessibilityRole="button"
           style={styles.statusRow}
           onPress={() => getPosition()}
         >
-          <FontAwesome name="exclamation-circle" size={14} color={colors.warning} />
+          <FontAwesome
+            name="exclamation-circle"
+            size={14}
+            color={colors.warning}
+          />
           <Text style={styles.statusText}>
             Location unavailable — tap to retry
           </Text>
-        </Pressable> : null}
-      {!gettingLocation && position && !selectedDest ? <Text style={styles.statusText}>
+        </Pressable>
+      ) : null}
+      {!gettingLocation && position && !selectedDest ? (
+        <Text style={styles.statusText}>
           Search for an address or select a scenario above
-        </Text> : null}
-      {selectedDest && position ? <Text style={styles.statusText}>
-          Ready to route
-        </Text> : null}
+        </Text>
+      ) : null}
+      {selectedDest && position ? (
+        <Text style={styles.statusText}>Ready to route</Text>
+      ) : null}
 
       {/* Confirm button — always tappable, shows alerts if not ready */}
       <Pressable
-        style={[
-          styles.confirmButton,
-          !selectedDest && styles.confirmDisabled,
-        ]}
+        style={[styles.confirmButton, !selectedDest && styles.confirmDisabled]}
         onPress={confirmRoute}
         accessibilityLabel="Calculate route and start navigation"
         accessibilityHint="Calculates the evacuation route to the selected destination and opens the route preview"
         accessibilityRole="button"
         testID="route-and-go-button"
       >
-        <FontAwesome name="location-arrow" size={16} color={colors.background} />
+        <FontAwesome
+          name="location-arrow"
+          size={16}
+          color={colors.background}
+        />
         <Text style={styles.confirmText}>Route & Go</Text>
       </Pressable>
     </View>
@@ -447,7 +477,9 @@ function buildShortName(
   if (city) parts.push(city);
   if (address.state) parts.push(address.state);
 
-  return parts.length > 0 ? parts.join(", ") : (fallback.split(",")[0] ?? fallback);
+  return parts.length > 0
+    ? parts.join(", ")
+    : (fallback.split(",")[0] ?? fallback);
 }
 
 /** Build the heterogeneous list data. */

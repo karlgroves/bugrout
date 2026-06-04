@@ -49,9 +49,9 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.props.fallbackMessage ??
               "An unexpected error occurred. Your offline data is safe."}
           </Text>
-          {__DEV__ && this.state.error ? <Text style={styles.errorDetail}>
-              {this.state.error.message}
-            </Text> : null}
+          {__DEV__ && this.state.error ? (
+            <Text style={styles.errorDetail}>{this.state.error.message}</Text>
+          ) : null}
           <Pressable
             style={styles.retryButton}
             onPress={this.handleRetry}

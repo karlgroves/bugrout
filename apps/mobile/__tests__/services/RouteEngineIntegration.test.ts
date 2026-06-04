@@ -119,15 +119,13 @@ describe("deviation detection edge cases", () => {
 
   it("reports deviation for position far east of route", () => {
     // ~10km east of route
-    expect(
-      hasDeviated({ lat: 37.2, lng: -121.9 }, straightRoute),
-    ).toBe(true);
+    expect(hasDeviated({ lat: 37.2, lng: -121.9 }, straightRoute)).toBe(true);
   });
 
   it("reports no deviation for position slightly off route", () => {
     // ~100m east of route (well within 500m threshold)
-    expect(
-      hasDeviated({ lat: 37.2, lng: -121.999 }, straightRoute),
-    ).toBe(false);
+    expect(hasDeviated({ lat: 37.2, lng: -121.999 }, straightRoute)).toBe(
+      false,
+    );
   });
 });

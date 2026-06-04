@@ -21,9 +21,7 @@ export function StatusIndicator(): React.JSX.Element {
       }
       accessibilityRole="text"
     >
-      <View
-        style={[styles.dot, isOnline ? styles.online : styles.offline]}
-      />
+      <View style={[styles.dot, isOnline ? styles.online : styles.offline]} />
       <Text style={styles.label}>{isOnline ? "Live" : "Offline"}</Text>
     </View>
   );

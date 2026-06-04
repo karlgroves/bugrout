@@ -56,7 +56,13 @@ export default function MapScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* First-launch download guide */}
-      {showDownloadGuide && !tilesLoaded ? <DownloadGuide onDismiss={() => { setShowDownloadGuide(false); }} /> : null}
+      {showDownloadGuide && !tilesLoaded ? (
+        <DownloadGuide
+          onDismiss={() => {
+            setShowDownloadGuide(false);
+          }}
+        />
+      ) : null}
 
       {/* Online/Offline status */}
       <View style={styles.statusBar}>
@@ -68,7 +74,9 @@ export default function MapScreen(): React.JSX.Element {
         <Pressable
           testID="tile-download-banner"
           style={styles.tileBanner}
-          onPress={() => { router.push("/downloads"); }}
+          onPress={() => {
+            router.push("/downloads");
+          }}
           accessibilityLabel="Download offline maps to navigate without a connection"
           accessibilityHint="Opens the offline map download manager for your region"
           accessibilityRole="button"
@@ -80,10 +88,13 @@ export default function MapScreen(): React.JSX.Element {
       )}
 
       {/* Stale tile warning */}
-      {tilesLoaded && tileStale ? <Pressable
+      {tilesLoaded && tileStale ? (
+        <Pressable
           testID="stale-tile-banner"
           style={styles.staleBanner}
-          onPress={() => { router.push("/downloads"); }}
+          onPress={() => {
+            router.push("/downloads");
+          }}
           accessibilityLabel="Offline maps are outdated. Tap to update."
           accessibilityHint="Opens the download manager to refresh your stored offline maps"
           accessibilityRole="button"
@@ -91,7 +102,8 @@ export default function MapScreen(): React.JSX.Element {
           <Text style={styles.staleBannerText}>
             Maps outdated — tap to update
           </Text>
-        </Pressable> : null}
+        </Pressable>
+      ) : null}
 
       {/* Map */}
       <BugroutMap

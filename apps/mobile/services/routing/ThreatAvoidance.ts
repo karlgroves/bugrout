@@ -5,11 +5,7 @@
  * Checks if a route intersects any active threats.
  */
 
-import type {
-  ThreatZone,
-  GeoJSONPolygon,
-  LatLng,
-} from "@bugrout/shared";
+import type { ThreatZone, GeoJSONPolygon, LatLng } from "@bugrout/shared";
 
 /**
  * Convert active threat zones to Valhalla exclude_polygons format.
@@ -57,10 +53,7 @@ export function routeIntersectsThreat(
 /**
  * Ray-casting point-in-polygon test for a [lng, lat] point against a ring.
  */
-function pointInPolygon(
-  point: [number, number],
-  polygon: number[][],
-): boolean {
+function pointInPolygon(point: [number, number], polygon: number[][]): boolean {
   let inside = false;
   const [px, py] = point;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -81,8 +74,7 @@ function pointInPolygon(
     }
 
     const intersect =
-      yi > py !== yj > py &&
-      px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+      yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;

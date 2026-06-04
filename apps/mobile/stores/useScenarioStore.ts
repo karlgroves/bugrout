@@ -22,20 +22,25 @@ export /**
 const useScenarioStore = create<ScenarioState>((set) => ({
   scenarios: [],
 
-  addScenario: (scenario) =>
-    { set((state) => {
+  addScenario: (scenario) => {
+    set((state) => {
       if (state.scenarios.length >= MAX_SCENARIOS) return state;
       return { scenarios: [...state.scenarios, scenario] };
-    }); },
-  updateScenario: (id, updates) =>
-    { set((state) => ({
+    });
+  },
+  updateScenario: (id, updates) => {
+    set((state) => ({
       scenarios: state.scenarios.map((s) =>
         s.id === id ? { ...s, ...updates, updatedAt: Date.now() } : s,
       ),
-    })); },
-  deleteScenario: (id) =>
-    { set((state) => ({
+    }));
+  },
+  deleteScenario: (id) => {
+    set((state) => ({
       scenarios: state.scenarios.filter((s) => s.id !== id),
-    })); },
-  setScenarios: (scenarios) => { set({ scenarios }); },
+    }));
+  },
+  setScenarios: (scenarios) => {
+    set({ scenarios });
+  },
 }));

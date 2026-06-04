@@ -21,10 +21,7 @@ export async function getPreference(key: string): Promise<string | null> {
 /**
  * Inserts or updates a preference key/value pair.
  */
-export async function setPreference(
-  key: string,
-  value: string,
-): Promise<void> {
+export async function setPreference(key: string, value: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     "INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)",
@@ -48,9 +45,7 @@ export interface EmergencyContactRow {
 /**
  * Returns all emergency contacts ordered by sort position.
  */
-export async function getEmergencyContacts(): Promise<
-  EmergencyContactRow[]
-> {
+export async function getEmergencyContacts(): Promise<EmergencyContactRow[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{
     id: string;

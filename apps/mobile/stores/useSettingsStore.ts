@@ -24,8 +24,16 @@ const useSettingsStore = create<SettingsState>((set) => ({
   batteryOptimization: true,
   crowdSignalOptIn: false,
 
-  setUnits: (units) => { set({ units }); },
-  setVoiceEnabled: (enabled) => { set({ voiceEnabled: enabled }); },
-  setBatteryOptimization: (enabled) => { set({ batteryOptimization: enabled }); },
-  setCrowdSignalOptIn: (optIn) => { set({ crowdSignalOptIn: optIn }); },
+  setUnits: (units) => {
+    set({ units });
+  },
+  setVoiceEnabled: (enabled) => {
+    set({ voiceEnabled: enabled });
+  },
+  setBatteryOptimization: (enabled) => {
+    set({ batteryOptimization: enabled });
+  },
+  setCrowdSignalOptIn: (optIn) => {
+    set({ crowdSignalOptIn: optIn });
+  },
 }));

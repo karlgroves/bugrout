@@ -33,9 +33,7 @@ const THREAT_COLORS: Record<string, { fill: string; border: string }> = {
  */
 export function ThreatOverlay(): React.JSX.Element | null {
   const { threatZones } = useThreatStore();
-  const [selectedThreat, setSelectedThreat] = useState<ThreatZone | null>(
-    null,
-  );
+  const [selectedThreat, setSelectedThreat] = useState<ThreatZone | null>(null);
 
   const handleThreatPress = useCallback(
     (event: MapLibreGL.OnPressEvent) => {
@@ -92,11 +90,14 @@ export function ThreatOverlay(): React.JSX.Element | null {
         visible={selectedThreat !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => { setSelectedThreat(null); }}
+        onRequestClose={() => {
+          setSelectedThreat(null);
+        }}
       >
         <View style={detailStyles.overlay}>
           <View style={detailStyles.card}>
-            {selectedThreat ? <>
+            {selectedThreat ? (
+              <>
                 <View style={detailStyles.header}>
                   <View
                     style={[
@@ -132,14 +133,17 @@ export function ThreatOverlay(): React.JSX.Element | null {
 
                 <Pressable
                   style={detailStyles.closeButton}
-                  onPress={() => { setSelectedThreat(null); }}
+                  onPress={() => {
+                    setSelectedThreat(null);
+                  }}
                   accessibilityLabel="Close threat details"
                   accessibilityHint="Dismisses this threat detail card and returns to the map"
                   accessibilityRole="button"
                 >
                   <Text style={detailStyles.closeText}>Close</Text>
                 </Pressable>
-              </> : null}
+              </>
+            ) : null}
           </View>
         </View>
       </Modal>
@@ -151,9 +155,7 @@ export function ThreatOverlay(): React.JSX.Element | null {
  * Groups threat zones by their type so each type can be rendered as its own
  * color-coded map layer.
  */
-function groupThreats(
-  threats: ThreatZone[],
-): Record<string, ThreatZone[]> {
+function groupThreats(threats: ThreatZone[]): Record<string, ThreatZone[]> {
   const groups: Record<string, ThreatZone[]> = {};
   for (const t of threats) {
     const group = groups[t.type] ?? (groups[t.type] = []);

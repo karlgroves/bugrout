@@ -7,7 +7,14 @@ describe("parseFloodFeatures", () => {
       properties: { FLD_ZONE: "AE", ZONE_SUBTY: "Floodway" },
       geometry: {
         type: "Polygon" as const,
-        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
       },
     },
     {
@@ -15,7 +22,14 @@ describe("parseFloodFeatures", () => {
       properties: { FLD_ZONE: "VE", STATIC_BFE: 12 },
       geometry: {
         type: "Polygon" as const,
-        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
       },
     },
     {
@@ -23,7 +37,14 @@ describe("parseFloodFeatures", () => {
       properties: { FLD_ZONE: "X" }, // Low risk — should be filtered out
       geometry: {
         type: "Polygon" as const,
-        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
       },
     },
   ];
@@ -52,7 +73,14 @@ describe("parseFloodFeatures", () => {
         properties: { FLD_ZONE: "VE", ZONE_SUBTY: "Coastal", STATIC_BFE: 12 },
         geometry: {
           type: "Polygon" as const,
-          coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]],
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
         },
       },
     ];

@@ -9,7 +9,7 @@
  * Minimal steps — user can skip download and do it later.
  */
 
-/* eslint-disable max-lines-per-function -- pre-existing oversized onboarding screen rendering all three step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
+/* eslint-disable max-lines, max-lines-per-function -- pre-existing oversized onboarding screen rendering all three step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
@@ -38,7 +38,11 @@ export default function OnboardingScreen(): React.JSX.Element {
     const { status } = await requestForegroundPermissionsAsync();
     const granted = status === "granted";
     setLocationGranted(granted);
-    track(granted ? Events.LOCATION_PERMISSION_GRANTED : Events.LOCATION_PERMISSION_DENIED);
+    track(
+      granted
+        ? Events.LOCATION_PERMISSION_GRANTED
+        : Events.LOCATION_PERMISSION_DENIED,
+    );
     setStep("ready");
   }, []);
 
@@ -154,7 +158,10 @@ export default function OnboardingScreen(): React.JSX.Element {
             <FeatureItem icon="road" text="Offline turn-by-turn routing" />
             <FeatureItem icon="fire" text="Wildfire & flood avoidance" />
             <FeatureItem icon="tint" text="Fuel & water station finder" />
-            <FeatureItem icon="clock-o" text="3 taps from launch to navigation" />
+            <FeatureItem
+              icon="clock-o"
+              text="3 taps from launch to navigation"
+            />
           </View>
 
           <Pressable

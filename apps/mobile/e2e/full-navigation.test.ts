@@ -38,7 +38,9 @@ describe("Full Navigation Flow", () => {
   });
 
   it("selects a destination", async () => {
-    await element(by.text(/Los Angeles/)).atIndex(0).tap();
+    await element(by.text(/Los Angeles/))
+      .atIndex(0)
+      .tap();
     // Confirm button should be active
     await expect(element(by.id("route-and-go-button"))).toBeVisible();
   });

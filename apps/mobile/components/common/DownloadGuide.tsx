@@ -51,16 +51,18 @@ export function DownloadGuide({
         <Text style={styles.title}>Download Offline Maps</Text>
 
         <Text style={styles.description}>
-          BugRout works best with offline maps. Download your region now
-          so you can navigate even without cell service.
+          BugRout works best with offline maps. Download your region now so you
+          can navigate even without cell service.
         </Text>
 
-        {suggestedRegion ? <View style={styles.suggestion}>
+        {suggestedRegion ? (
+          <View style={styles.suggestion}>
             <FontAwesome name="map-marker" size={14} color={colors.accent} />
             <Text style={styles.suggestionText}>
               Detected: <Text style={styles.bold}>{suggestedRegion}</Text>
             </Text>
-          </View> : null}
+          </View>
+        ) : null}
 
         <View style={styles.features}>
           <FeatureRow icon="road" text="Turn-by-turn routing" />
@@ -80,9 +82,7 @@ export function DownloadGuide({
         >
           <FontAwesome name="download" size={16} color={colors.background} />
           <Text style={styles.downloadText}>
-            {suggestedRegion
-              ? `Download ${suggestedRegion}`
-              : "Download Maps"}
+            {suggestedRegion ? `Download ${suggestedRegion}` : "Download Maps"}
           </Text>
         </Pressable>
 

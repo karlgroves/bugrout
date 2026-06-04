@@ -64,9 +64,7 @@ describe("useScenarioStore", () => {
 
   it("updates a scenario", () => {
     useScenarioStore.getState().addScenario(mockScenario);
-    useScenarioStore
-      .getState()
-      .updateScenario("s1", { name: "Updated" });
+    useScenarioStore.getState().updateScenario("s1", { name: "Updated" });
     expect(useScenarioStore.getState().scenarios[0]!.name).toBe("Updated");
   });
 
@@ -137,7 +135,17 @@ describe("useThreatStore", () => {
     id: "t1",
     type: "wildfire",
     severity: "severe",
-    geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    },
     headline: "Test Fire",
     description: "",
     source: "usfs",

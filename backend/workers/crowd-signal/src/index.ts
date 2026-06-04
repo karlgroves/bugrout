@@ -147,18 +147,17 @@ function isValidSignal(payload: SignalPayload): boolean {
     typeof payload.lng === "number" &&
     typeof payload.token === "string" &&
     !!payload.token &&
-    payload.lat >= -90 && payload.lat <= 90 &&
-    payload.lng >= -180 && payload.lng <= 180
+    payload.lat >= -90 &&
+    payload.lat <= 90 &&
+    payload.lng >= -180 &&
+    payload.lng <= 180
   );
 }
 
 /**
  * Increment and check the per-IP rate-limit counter; returns true when over the limit.
  */
-async function checkRateLimit(
-  kv: KVNamespace,
-  ip: string,
-): Promise<boolean> {
+async function checkRateLimit(kv: KVNamespace, ip: string): Promise<boolean> {
   const key = `ratelimit:${ip}`;
   const current = parseInt((await kv.get(key)) ?? "0", 10);
 

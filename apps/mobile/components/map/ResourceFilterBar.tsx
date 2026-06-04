@@ -13,7 +13,6 @@ import { useResourceStore } from "@/stores/useResourceStore";
 
 import type { ResourceType } from "@bugrout/shared";
 
-
 const FILTERS: {
   type: ResourceType;
   icon: React.ComponentProps<typeof FontAwesome>["name"];
@@ -45,7 +44,9 @@ export function ResourceFilterBar(): React.JSX.Element {
           <Pressable
             key={filter.type}
             style={[styles.button, active && styles.buttonActive]}
-            onPress={() => { toggleResourceType(filter.type); }}
+            onPress={() => {
+              toggleResourceType(filter.type);
+            }}
             accessibilityLabel={`${active ? "Hide" : "Show"} ${filter.label} markers`}
             accessibilityHint={
               active

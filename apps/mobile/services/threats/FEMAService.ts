@@ -11,7 +11,11 @@
 import { getDownloadedRegion } from "@/db/queries/regions";
 import * as FileSystem from "@/platform/fileSystem";
 
-import type { ThreatZone, GeoJSONPolygon, GeoJSONMultiPolygon } from "@bugrout/shared";
+import type {
+  ThreatZone,
+  GeoJSONPolygon,
+  GeoJSONMultiPolygon,
+} from "@bugrout/shared";
 
 /**
  *
@@ -26,7 +30,6 @@ interface FloodFeature {
   geometry: GeoJSONPolygon | GeoJSONMultiPolygon;
 }
 
-
 /** High-risk flood zones (A and V zones) */
 const HIGH_RISK_ZONES = new Set(["A", "AE", "AH", "AO", "AR", "V", "VE"]);
 
@@ -34,9 +37,7 @@ const HIGH_RISK_ZONES = new Set(["A", "AE", "AH", "AO", "AR", "V", "VE"]);
  * Load flood zone polygons from the locally stored regional package.
  * Returns only high-risk flood zones (A and V designations).
  */
-export async function loadFloodZones(
-  regionId: string,
-): Promise<ThreatZone[]> {
+export async function loadFloodZones(regionId: string): Promise<ThreatZone[]> {
   const region = await getDownloadedRegion(regionId);
   if (!region) return [];
 

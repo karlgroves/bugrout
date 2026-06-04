@@ -40,13 +40,15 @@ export function loadMockDemoData(): void {
       severity: "severe",
       geometry: {
         type: "Polygon",
-        coordinates: [[
-          [-122.3, 37.85],
-          [-122.2, 37.85],
-          [-122.2, 37.95],
-          [-122.3, 37.95],
-          [-122.3, 37.85],
-        ]],
+        coordinates: [
+          [
+            [-122.3, 37.85],
+            [-122.2, 37.85],
+            [-122.2, 37.95],
+            [-122.3, 37.95],
+            [-122.3, 37.85],
+          ],
+        ],
       },
       headline: "Demo: Oak Hills Fire",
       description: "Active wildfire — 35% contained. ~2,400 acres.",
@@ -60,13 +62,15 @@ export function loadMockDemoData(): void {
       severity: "moderate",
       geometry: {
         type: "Polygon",
-        coordinates: [[
-          [-122.5, 37.6],
-          [-122.4, 37.6],
-          [-122.4, 37.65],
-          [-122.5, 37.65],
-          [-122.5, 37.6],
-        ]],
+        coordinates: [
+          [
+            [-122.5, 37.6],
+            [-122.4, 37.6],
+            [-122.4, 37.65],
+            [-122.5, 37.65],
+            [-122.5, 37.6],
+          ],
+        ],
       },
       headline: "Demo: FEMA Flood Zone AE",
       description: "High-risk flood zone (riverine)",
@@ -80,13 +84,15 @@ export function loadMockDemoData(): void {
       severity: "moderate",
       geometry: {
         type: "Polygon",
-        coordinates: [[
-          [-122.6, 37.7],
-          [-122.4, 37.7],
-          [-122.4, 37.8],
-          [-122.6, 37.8],
-          [-122.6, 37.7],
-        ]],
+        coordinates: [
+          [
+            [-122.6, 37.7],
+            [-122.4, 37.7],
+            [-122.4, 37.8],
+            [-122.6, 37.8],
+            [-122.6, 37.7],
+          ],
+        ],
       },
       headline: "Demo: High Wind Advisory",
       description: "Winds 35-45 mph with gusts to 60 mph expected.",

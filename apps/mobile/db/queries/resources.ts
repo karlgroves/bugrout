@@ -6,6 +6,38 @@ import { getDatabase } from "../database";
 
 import type { ResourcePoint, ResourceType } from "@bugrout/shared";
 
+/** Raw resource_points row as stored in SQLite. */
+interface ResourceRow {
+  id: string;
+  type: string;
+  name: string;
+  lat: number;
+  lng: number;
+  address: string | null;
+  metadata: string | null;
+  source: string;
+  fetched_at: number;
+  region_id: string;
+}
+
+/**
+ * Maps a raw SQLite row to a ResourcePoint domain object.
+ */
+function rowToResourcePoint(row: ResourceRow): ResourcePoint {
+  return {
+    id: row.id,
+    type: row.type as ResourceType,
+    name: row.name,
+    lat: row.lat,
+    lng: row.lng,
+    address: row.address,
+    metadata: JSON.parse(row.metadata ?? "{}") as ResourcePoint["metadata"],
+    source: row.source as ResourcePoint["source"],
+    fetchedAt: row.fetched_at,
+    regionId: row.region_id,
+  };
+}
+
 /**
  * Inserts or replaces a batch of cached resource points.
  */
@@ -50,31 +82,8 @@ export async function getResourcesByRegion(
     params.push(type);
   }
 
-  const rows = await db.getAllAsync<{
-    id: string;
-    type: string;
-    name: string;
-    lat: number;
-    lng: number;
-    address: string | null;
-    metadata: string | null;
-    source: string;
-    fetched_at: number;
-    region_id: string;
-  }>(query, ...params);
-
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type as ResourceType,
-    name: row.name,
-    lat: row.lat,
-    lng: row.lng,
-    address: row.address,
-    metadata: JSON.parse(row.metadata ?? "{}") as ResourcePoint["metadata"],
-    source: row.source as ResourcePoint["source"],
-    fetchedAt: row.fetched_at,
-    regionId: row.region_id,
-  }));
+  const rows = await db.getAllAsync<ResourceRow>(query, ...params);
+  return rows.map(rowToResourcePoint);
 }
 
 /**
@@ -102,39 +111,14 @@ export async function getResourcesNearPoint(
     params.push(type);
   }
 
-  const rows = await db.getAllAsync<{
-    id: string;
-    type: string;
-    name: string;
-    lat: number;
-    lng: number;
-    address: string | null;
-    metadata: string | null;
-    source: string;
-    fetched_at: number;
-    region_id: string;
-  }>(query, ...params);
-
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type as ResourceType,
-    name: row.name,
-    lat: row.lat,
-    lng: row.lng,
-    address: row.address,
-    metadata: JSON.parse(row.metadata ?? "{}") as ResourcePoint["metadata"],
-    source: row.source as ResourcePoint["source"],
-    fetchedAt: row.fetched_at,
-    regionId: row.region_id,
-  }));
+  const rows = await db.getAllAsync<ResourceRow>(query, ...params);
+  return rows.map(rowToResourcePoint);
 }
 
 /**
  * Removes all cached resource points for a region.
  */
-export async function deleteResourcesByRegion(
-  regionId: string,
-): Promise<void> {
+export async function deleteResourcesByRegion(regionId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     "DELETE FROM resource_points WHERE region_id = ?",

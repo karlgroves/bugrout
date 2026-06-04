@@ -30,9 +30,6 @@ export type {
   ResourcePoint,
 } from "./types/resource";
 
-export type {
-  ResourceStopPreference,
-  Scenario,
-} from "./types/scenario";
+export type { ResourceStopPreference, Scenario } from "./types/scenario";
 
 export type { Region, DownloadedRegion } from "./types/region";

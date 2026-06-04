@@ -6,6 +6,8 @@
  * Tracks download state in SQLite.
  */
 
+/* eslint-disable max-lines-per-function -- pre-existing long downloadRegion orchestration; tracked in docs/tech-debt.md (split download orchestration) */
+
 import {
   upsertDownloadProgress,
   deleteDownloadProgress,
@@ -22,7 +24,6 @@ import * as FileSystem from "@/platform/fileSystem";
 import { fetchWithRetry } from "@/utils/retry";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
-
 
 const TILE_SERVER_BASE =
   process.env.EXPO_PUBLIC_TILE_SERVER_URL ?? "https://tiles.bugrout.app";
@@ -180,7 +181,10 @@ export async function downloadRegion(
 
   await insertDownloadedRegion(result);
   await deleteDownloadProgress(region.id);
-  track(Events.TILE_DOWNLOAD_COMPLETED, { region_id: region.id, size_mb: Math.round(totalSize / 1048576) });
+  track(Events.TILE_DOWNLOAD_COMPLETED, {
+    region_id: region.id,
+    size_mb: Math.round(totalSize / 1048576),
+  });
 
   return result;
 }
@@ -196,7 +200,11 @@ async function downloadFileResumable(
   // Check for existing partial download
   const fileInfo = await FileSystem.getInfoAsync(destPath);
   let existingBytes = 0;
-  if (fileInfo.exists && "size" in fileInfo && typeof fileInfo.size === "number") {
+  if (
+    fileInfo.exists &&
+    "size" in fileInfo &&
+    typeof fileInfo.size === "number"
+  ) {
     existingBytes = fileInfo.size;
   }
 
@@ -207,9 +215,7 @@ async function downloadFileResumable(
       headers: existingBytes > 0 ? { Range: `bytes=${existingBytes}-` } : {},
     },
     (progress) => {
-      onProgress?.(
-        existingBytes + progress.totalBytesWritten,
-      );
+      onProgress?.(existingBytes + progress.totalBytesWritten);
     },
   );
 

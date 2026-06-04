@@ -1,6 +1,14 @@
+/* eslint-disable max-lines-per-function -- pre-existing oversized settings screen; tracked in docs/tech-debt.md (decompose settings screen) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { StyleSheet, View, Text, ScrollView, Pressable, Switch } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Switch,
+} from "react-native";
 
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -26,13 +34,17 @@ export default function SettingsScreen(): React.JSX.Element {
         icon="download"
         label="Offline Maps"
         hint="Opens the offline map download manager"
-        onPress={() => { router.push("/downloads"); }}
+        onPress={() => {
+          router.push("/downloads");
+        }}
       />
       <NavRow
         icon="phone"
         label="Emergency Contacts"
         hint="Opens the emergency contacts manager"
-        onPress={() => { router.push("/contacts"); }}
+        onPress={() => {
+          router.push("/contacts");
+        }}
       />
 
       {/* Toggle rows */}
@@ -42,7 +54,9 @@ export default function SettingsScreen(): React.JSX.Element {
         icon="exchange"
         label={`Units: ${units === "mi" ? "Miles" : "Kilometers"}`}
         value={units === "km"}
-        onToggle={(v) => { setUnits(v ? "km" : "mi"); }}
+        onToggle={(v) => {
+          setUnits(v ? "km" : "mi");
+        }}
       />
       <ToggleRow
         icon="volume-up"
@@ -72,7 +86,9 @@ export default function SettingsScreen(): React.JSX.Element {
         icon="file-text-o"
         label="Legal & Disclaimers"
         hint="Opens the legal disclaimers, privacy policy, and terms of service"
-        onPress={() => { router.push("/onboarding"); }}
+        onPress={() => {
+          router.push("/onboarding");
+        }}
       />
 
       <Text style={styles.version}>BugRout v1.0.0</Text>
@@ -130,7 +146,10 @@ function ToggleRow({
   onToggle: (value: boolean) => void;
 }): React.JSX.Element {
   return (
-    <View testID={`settings-toggle-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} style={styles.row}>
+    <View
+      testID={`settings-toggle-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+      style={styles.row}
+    >
       <FontAwesome
         name={icon}
         size={20}

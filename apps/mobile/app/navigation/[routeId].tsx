@@ -23,14 +23,16 @@ import { colors, spacing } from "@/constants/theme";
 import { getEmergencyContacts } from "@/db/queries/preferences";
 import { useBattery } from "@/hooks/useBattery";
 import * as NavController from "@/services/navigation/NavigationController";
-import { estimateRemaining, calculateSmartRoute } from "@/services/routing/RouteEngine";
+import {
+  estimateRemaining,
+  calculateSmartRoute,
+} from "@/services/routing/RouteEngine";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { haversineDistance } from "@/utils/geo";
 import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 
 import type { NavigationEvent } from "@/services/navigation/NavigationController";
 import type { LatLng } from "@bugrout/shared";
-
 
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 export default function NavigationScreen(): React.JSX.Element {
@@ -53,9 +55,7 @@ export default function NavigationScreen(): React.JSX.Element {
           setHeading(event.update.heading);
           // Update remaining estimates
           if (activeRoute) {
-            setRemaining(
-              estimateRemaining(event.update.position, activeRoute),
-            );
+            setRemaining(estimateRemaining(event.update.position, activeRoute));
           }
           break;
 
@@ -198,7 +198,8 @@ export default function NavigationScreen(): React.JSX.Element {
       />
 
       {/* Deviation warning */}
-      {hasDeviated ? <DeviationBanner
+      {hasDeviated ? (
+        <DeviationBanner
           onReroute={() => {
             deviationAlertShown.current = false;
             void handleReroute();
@@ -206,13 +207,16 @@ export default function NavigationScreen(): React.JSX.Element {
           onDismiss={() => {
             deviationAlertShown.current = false;
           }}
-        /> : null}
+        />
+      ) : null}
 
       {/* Low battery warning */}
-      {battery.isLow && !hasDeviated ? <BatteryWarning
+      {battery.isLow && !hasDeviated ? (
+        <BatteryWarning
           percent={battery.percent}
           isCritical={battery.isCritical}
-        /> : null}
+        />
+      ) : null}
 
       <BugroutMap
         userLocation={position}

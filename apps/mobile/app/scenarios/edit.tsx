@@ -23,12 +23,14 @@ import {
 import { v4 as uuidv4 } from "uuid";
 
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
-import { upsertScenario, deleteScenario as dbDeleteScenario } from "@/db/queries/scenarios";
+import {
+  upsertScenario,
+  deleteScenario as dbDeleteScenario,
+} from "@/db/queries/scenarios";
 import { track, Events } from "@/platform/analytics";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
 import type { Scenario, ResourceStopPreference } from "@bugrout/shared";
-
 
 /** Editor for creating or updating an evacuation scenario and its resource stops. */
 export default function ScenarioEditScreen(): React.JSX.Element {
@@ -106,25 +108,21 @@ export default function ScenarioEditScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(() => {
     if (!existing) return;
-    Alert.alert(
-      "Delete Scenario",
-      `Delete "${existing.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              deleteScenario(existing.id);
-              await dbDeleteScenario(existing.id);
-              track(Events.SCENARIO_DELETED);
-              router.back();
-            })();
-          },
+    Alert.alert("Delete Scenario", `Delete "${existing.name}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            deleteScenario(existing.id);
+            await dbDeleteScenario(existing.id);
+            track(Events.SCENARIO_DELETED);
+            router.back();
+          })();
         },
-      ],
-    );
+      },
+    ]);
   }, [existing, deleteScenario, router]);
 
   return (
@@ -202,7 +200,8 @@ export default function ScenarioEditScreen(): React.JSX.Element {
         </Text>
       </Pressable>
 
-      {existing ? <Pressable
+      {existing ? (
+        <Pressable
           style={styles.deleteButton}
           onPress={handleDelete}
           accessibilityLabel="Delete scenario"
@@ -210,7 +209,8 @@ export default function ScenarioEditScreen(): React.JSX.Element {
           accessibilityRole="button"
         >
           <Text style={styles.deleteText}>Delete Scenario</Text>
-        </Pressable> : null}
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }

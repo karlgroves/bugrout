@@ -18,7 +18,11 @@ describe("Offline Maps", () => {
     await element(by.text("Settings")).tap();
     await element(by.id("settings-row-offline-maps")).tap();
     await expect(
-      element(by.text("Download offline maps to navigate without any data connection.")),
+      element(
+        by.text(
+          "Download offline maps to navigate without any data connection.",
+        ),
+      ),
     ).toBeVisible();
   });
 

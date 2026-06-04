@@ -18,7 +18,13 @@ interface RoadSegmentFeatures {
 function computeELF(features: RoadSegmentFeatures): number {
   let elf = 1.0;
   const classMultiplier: Record<number, number> = {
-    0: 6.0, 1: 4.5, 2: 3.0, 3: 2.0, 4: 1.5, 5: 1.2, 6: 1.0,
+    0: 6.0,
+    1: 4.5,
+    2: 3.0,
+    3: 2.0,
+    4: 1.5,
+    5: 1.2,
+    6: 1.0,
   };
   elf *= classMultiplier[features.roadClass] ?? 1.0;
   if (features.popProximity < 5) elf *= 1.5;

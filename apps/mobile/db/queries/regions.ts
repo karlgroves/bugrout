@@ -91,9 +91,7 @@ export async function getDownloadedRegion(
 /**
  * Removes a downloaded region by id.
  */
-export async function deleteDownloadedRegion(
-  regionId: string,
-): Promise<void> {
+export async function deleteDownloadedRegion(regionId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync("DELETE FROM downloaded_regions WHERE id = ?", regionId);
 }

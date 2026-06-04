@@ -27,20 +27,28 @@ const useThreatStore = create<ThreatState>((set) => ({
   lastFetched: {},
   avoidanceEnabled: true,
 
-  setThreats: (threats) => { set({ threatZones: threats }); },
-  addThreats: (threats) =>
-    { set((state) => ({
+  setThreats: (threats) => {
+    set({ threatZones: threats });
+  },
+  addThreats: (threats) => {
+    set((state) => ({
       threatZones: [
         ...state.threatZones.filter(
           (existing) => !threats.some((t) => t.id === existing.id),
         ),
         ...threats,
       ],
-    })); },
-  setLastFetched: (source, timestamp) =>
-    { set((state) => ({
+    }));
+  },
+  setLastFetched: (source, timestamp) => {
+    set((state) => ({
       lastFetched: { ...state.lastFetched, [source]: timestamp },
-    })); },
-  setAvoidanceEnabled: (enabled) => { set({ avoidanceEnabled: enabled }); },
-  clearThreats: () => { set({ threatZones: [], lastFetched: {} }); },
+    }));
+  },
+  setAvoidanceEnabled: (enabled) => {
+    set({ avoidanceEnabled: enabled });
+  },
+  clearThreats: () => {
+    set({ threatZones: [], lastFetched: {} });
+  },
 }));

@@ -41,7 +41,12 @@ function addPodfileEntry(config) {
       const podfile = path.join(cfg.modRequest.platformProjectRoot, "Podfile");
       const podPath = path.relative(
         cfg.modRequest.platformProjectRoot,
-        path.join(cfg.modRequest.projectRoot, "native-modules", "valhalla", "ios"),
+        path.join(
+          cfg.modRequest.projectRoot,
+          "native-modules",
+          "valhalla",
+          "ios",
+        ),
       );
       let contents = fs.readFileSync(podfile, "utf8");
       if (!contents.includes(`pod '${POD_NAME}'`)) {
@@ -56,7 +61,11 @@ function addPodfileEntry(config) {
 
       const xcframework = path.join(
         cfg.modRequest.projectRoot,
-        "native-modules", "valhalla", "bin", "ios", "valhalla.xcframework",
+        "native-modules",
+        "valhalla",
+        "bin",
+        "ios",
+        "valhalla.xcframework",
       );
       if (!fs.existsSync(xcframework)) {
         console.warn(
@@ -73,14 +82,24 @@ function copyAndroidSources(config) {
     "android",
     (cfg) => {
       const nativeDir = path.join(
-        cfg.modRequest.projectRoot, "native-modules", "valhalla", "android",
+        cfg.modRequest.projectRoot,
+        "native-modules",
+        "valhalla",
+        "android",
       );
       const destDir = path.join(
         cfg.modRequest.platformProjectRoot,
-        "app", "src", "main", "java", ...ANDROID_PKG.split("."),
+        "app",
+        "src",
+        "main",
+        "java",
+        ...ANDROID_PKG.split("."),
       );
       fs.mkdirSync(destDir, { recursive: true });
-      for (const file of ["ValhallaEngineModule.kt", "ValhallaEnginePackage.kt"]) {
+      for (const file of [
+        "ValhallaEngineModule.kt",
+        "ValhallaEnginePackage.kt",
+      ]) {
         fs.copyFileSync(path.join(nativeDir, file), path.join(destDir, file));
       }
       console.log("[Valhalla] Copied Kotlin module + package to", destDir);

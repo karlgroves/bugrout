@@ -42,12 +42,12 @@ export function LocationPermission({
       <FontAwesome name="map-marker" size={48} color={colors.accent} />
       <Text style={styles.title}>Location Access Needed</Text>
       <Text style={styles.description}>
-        BugRout needs your location to provide turn-by-turn navigation
-        and calculate evacuation routes from your current position.
+        BugRout needs your location to provide turn-by-turn navigation and
+        calculate evacuation routes from your current position.
       </Text>
       <Text style={styles.privacy}>
-        Your location is processed on-device only and never sent to our
-        servers unless you opt in to Crowd Signal.
+        Your location is processed on-device only and never sent to our servers
+        unless you opt in to Crowd Signal.
       </Text>
 
       {denied ? (

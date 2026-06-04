@@ -13,5 +13,7 @@ export /**
  */
 const useConnectivityStore = create<ConnectivityState>((set) => ({
   isOnline: true, // Optimistic default — network check will correct if offline
-  setOnline: (online) => { set({ isOnline: online }); },
+  setOnline: (online) => {
+    set({ isOnline: online });
+  },
 }));

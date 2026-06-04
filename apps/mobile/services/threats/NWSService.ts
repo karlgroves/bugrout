@@ -54,9 +54,7 @@ export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
   const stateAlerts = await fetchByArea(centerLat, centerLng);
   if (stateAlerts.length > 0) {
     // Filter to bbox
-    const filtered = stateAlerts.filter((a) =>
-      alertIntersectsBBox(a, bbox),
-    );
+    const filtered = stateAlerts.filter((a) => alertIntersectsBBox(a, bbox));
     if (filtered.length > 0) {
       await upsertThreatZones(filtered);
       return filtered;
@@ -70,10 +68,7 @@ export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
 /**
  * Fetch alerts by finding the state for a given lat/lng.
  */
-async function fetchByArea(
-  lat: number,
-  lng: number,
-): Promise<ThreatZone[]> {
+async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
   // First, get the state from the NWS points API
   try {
     const pointResp = await fetch(
@@ -209,9 +204,7 @@ function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
 /**
  * Flatten a threat geometry into a list of [lng, lat] coordinate pairs.
  */
-function extractCoordinates(
-  geometry: ThreatZone["geometry"],
-): number[][] {
+function extractCoordinates(geometry: ThreatZone["geometry"]): number[][] {
   if (geometry.type === "Polygon") {
     return geometry.coordinates[0] ?? [];
   }

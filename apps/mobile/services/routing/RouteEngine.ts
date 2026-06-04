@@ -17,7 +17,12 @@ import * as Valhalla from "../valhalla/ValhallaModule";
 import { threatsToAvoidancePolygons } from "./ThreatAvoidance";
 import { getResourceWaypoints } from "./WaypointInsertion";
 
-import type { LatLng, Route, RouteOptions, ResourceStopPreference } from "@bugrout/shared";
+import type {
+  LatLng,
+  Route,
+  RouteOptions,
+  ResourceStopPreference,
+} from "@bugrout/shared";
 
 const DEVIATION_THRESHOLD_METERS = 500;
 
@@ -52,10 +57,7 @@ export async function calculateSmartRoute(
   // First pass: calculate base route (no waypoints) to get a corridor
   const baseRoute = await Valhalla.calculateRoute(origin, destination, {
     ...extraOptions,
-    avoidPolygons: [
-      ...(extraOptions?.avoidPolygons ?? []),
-      ...avoidPolygons,
-    ],
+    avoidPolygons: [...(extraOptions?.avoidPolygons ?? []), ...avoidPolygons],
   });
 
   // Find resource waypoints along the base route corridor
@@ -73,10 +75,7 @@ export async function calculateSmartRoute(
   if (waypoints.length > 0) {
     return Valhalla.calculateRoute(origin, destination, {
       ...extraOptions,
-      avoidPolygons: [
-        ...(extraOptions?.avoidPolygons ?? []),
-        ...avoidPolygons,
-      ],
+      avoidPolygons: [...(extraOptions?.avoidPolygons ?? []), ...avoidPolygons],
       waypoints,
     });
   }
@@ -155,10 +154,7 @@ export function estimateRemaining(
 /**
  * Calculate minimum distance from a point to a polyline in meters.
  */
-function getMinDistanceToPolyline(
-  point: LatLng,
-  polyline: LatLng[],
-): number {
+function getMinDistanceToPolyline(point: LatLng, polyline: LatLng[]): number {
   if (polyline.length === 0) return Infinity;
   const first = polyline[0];
   if (polyline.length === 1 && first) return haversineDistance(point, first);
@@ -181,11 +177,7 @@ function getMinDistanceToPolyline(
 /**
  * Approximate the distance (meters) from point p to the segment a→b.
  */
-function pointToSegmentDistance(
-  p: LatLng,
-  a: LatLng,
-  b: LatLng,
-): number {
+function pointToSegmentDistance(p: LatLng, a: LatLng, b: LatLng): number {
   const dA = haversineDistance(p, a);
   const dB = haversineDistance(p, b);
   return Math.min(dA, dB);

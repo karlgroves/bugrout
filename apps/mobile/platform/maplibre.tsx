@@ -42,7 +42,12 @@ export function setAccessToken(token: string | null): void {
 // --- Mock helpers ---
 
 /** Data-only wrapper (ShapeSource) — passes children through invisibly */
-function MockDataSource({ children }: { children?: React.ReactNode; [key: string]: unknown }) {
+function MockDataSource({
+  children,
+}: {
+  children?: React.ReactNode;
+  [key: string]: unknown;
+}) {
   return <>{children}</>;
 }
 
@@ -56,50 +61,52 @@ function MockHidden(_props: Record<string, unknown>) {
 export /**
  *
  */
-const MapView = MapLibreGL?.MapView ?? (({
-  children,
-  style,
-  onPress,
-}: {
-  children?: React.ReactNode;
-  style?: object;
-  onPress?: (event: unknown) => void;
-  [key: string]: unknown;
-}) => (
-  <View
-    style={[mockStyles.map, style]}
-    onTouchEnd={() => {
-      onPress?.({
-        coordinates: { latitude: 37.7749, longitude: -122.4194 },
-        features: [],
-      });
-    }}
-  >
-    {/* Grid lines to suggest a map */}
-    <View style={mockStyles.gridH} />
-    <View style={[mockStyles.gridH, { top: "33%" }]} />
-    <View style={[mockStyles.gridH, { top: "66%" }]} />
-    <View style={mockStyles.gridV} />
-    <View style={[mockStyles.gridV, { left: "33%" }]} />
-    <View style={[mockStyles.gridV, { left: "66%" }]} />
+const MapView =
+  MapLibreGL?.MapView ??
+  (({
+    children,
+    style,
+    onPress,
+  }: {
+    children?: React.ReactNode;
+    style?: object;
+    onPress?: (event: unknown) => void;
+    [key: string]: unknown;
+  }) => (
+    <View
+      style={[mockStyles.map, style]}
+      onTouchEnd={() => {
+        onPress?.({
+          coordinates: { latitude: 37.7749, longitude: -122.4194 },
+          features: [],
+        });
+      }}
+    >
+      {/* Grid lines to suggest a map */}
+      <View style={mockStyles.gridH} />
+      <View style={[mockStyles.gridH, { top: "33%" }]} />
+      <View style={[mockStyles.gridH, { top: "66%" }]} />
+      <View style={mockStyles.gridV} />
+      <View style={[mockStyles.gridV, { left: "33%" }]} />
+      <View style={[mockStyles.gridV, { left: "66%" }]} />
 
-    {/* Crosshair center */}
-    <View style={mockStyles.crosshair}>
-      <View style={mockStyles.crosshairDot} />
+      {/* Crosshair center */}
+      <View style={mockStyles.crosshair}>
+        <View style={mockStyles.crosshairDot} />
+      </View>
+
+      {/* Label */}
+      <View style={mockStyles.labelBox}>
+        <Text style={mockStyles.label}>Map Preview</Text>
+        <Text style={mockStyles.sublabel}>
+          Install a dev build for full MapLibre rendering
+        </Text>
+      </View>
+
+      {/* Children (ShapeSources etc. render invisibly) */}
+      {children}
     </View>
-
-    {/* Label */}
-    <View style={mockStyles.labelBox}>
-      <Text style={mockStyles.label}>Map Preview</Text>
-      <Text style={mockStyles.sublabel}>
-        Install a dev build for full MapLibre rendering
-      </Text>
-    </View>
-
-    {/* Children (ShapeSources etc. render invisibly) */}
-    {children}
-  </View>
-));
+  ));
 
 // --- Camera ---
 export /**

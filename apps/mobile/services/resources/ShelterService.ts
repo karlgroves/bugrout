@@ -60,7 +60,10 @@ async function fetchRedCrossShelters(
   try {
     const resp = await fetch(
       "https://www.redcross.org/content/dam/redcross/get-help/find-open-shelter/shelter-data.json",
-      { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000) },
+      {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(15000),
+      },
     );
 
     if (!resp.ok) return [];

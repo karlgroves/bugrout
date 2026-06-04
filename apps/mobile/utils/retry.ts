@@ -89,7 +89,8 @@ export async function fetchWithRetry(
       retryIf: (error) => {
         // Retry network errors and 5xx responses
         if (error instanceof TypeError) return true; // Network error
-        if (error instanceof Error && error.message.startsWith("Server error")) return true;
+        if (error instanceof Error && error.message.startsWith("Server error"))
+          return true;
         return false;
       },
     },

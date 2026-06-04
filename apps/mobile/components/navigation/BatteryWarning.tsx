@@ -40,7 +40,8 @@ export function BatteryWarning({
         color={isCritical ? colors.danger : colors.warning}
       />
       <Text style={[styles.text, isCritical && styles.criticalText]}>
-        Battery {percent}%{isCritical ? " — Save battery: stop crowd signal" : ""}
+        Battery {percent}%
+        {isCritical ? " — Save battery: stop crowd signal" : ""}
       </Text>
     </View>
   );
