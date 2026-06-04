@@ -36,7 +36,7 @@ jobs:
       matrix:
         state: ${{ fromJson(needs.prepare.outputs.states) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -70,7 +70,7 @@ jobs:
     needs: build-regions
     if: ${{ github.event.inputs.upload == 'true' || github.event_name == 'schedule' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
