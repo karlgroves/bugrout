@@ -2,7 +2,7 @@ import {
   threatsToAvoidancePolygons,
   routeIntersectsThreat,
 } from "@/services/routing/ThreatAvoidance";
-import type { ThreatZone, GeoJSONPolygon } from "@bugrout/shared";
+import type { ThreatZone } from "@bugrout/shared";
 
 const makeThreat = (
   type: ThreatZone["type"],
@@ -35,7 +35,7 @@ describe("threatsToAvoidancePolygons", () => {
     const threats = [makeThreat("wildfire", squarePolygon)];
     const polygons = threatsToAvoidancePolygons(threats);
     expect(polygons).toHaveLength(1);
-    expect(polygons[0].type).toBe("Polygon");
+    expect(polygons[0]!.type).toBe("Polygon");
   });
 
   it("converts flood threats to polygons", () => {
@@ -67,7 +67,7 @@ describe("threatsToAvoidancePolygons", () => {
     };
     const polygons = threatsToAvoidancePolygons([threat]);
     expect(polygons).toHaveLength(1);
-    expect(polygons[0].type).toBe("Polygon");
+    expect(polygons[0]!.type).toBe("Polygon");
   });
 });
 

@@ -107,7 +107,9 @@ export function findClosestRoutePoint(
   let minIndex = 0;
 
   for (let i = 0; i < routeCoordinates.length; i++) {
-    const dist = haversineDistance(position, routeCoordinates[i]);
+    const coord = routeCoordinates[i];
+    if (!coord) continue;
+    const dist = haversineDistance(position, coord);
     if (dist < minDist) {
       minDist = dist;
       minIndex = i;
@@ -129,10 +131,10 @@ export function estimateRemaining(
   // Sum distance from closest point to end
   let remainingDistance = 0;
   for (let i = index; i < route.coordinates.length - 1; i++) {
-    remainingDistance += haversineDistance(
-      route.coordinates[i],
-      route.coordinates[i + 1],
-    );
+    const a = route.coordinates[i];
+    const b = route.coordinates[i + 1];
+    if (!a || !b) continue;
+    remainingDistance += haversineDistance(a, b);
   }
 
   // Estimate duration proportionally
@@ -154,12 +156,16 @@ function getMinDistanceToPolyline(
   polyline: LatLng[],
 ): number {
   if (polyline.length === 0) return Infinity;
-  if (polyline.length === 1) return haversineDistance(point, polyline[0]);
+  const first = polyline[0];
+  if (polyline.length === 1 && first) return haversineDistance(point, first);
 
   let minDist = Infinity;
 
   for (let i = 0; i < polyline.length - 1; i++) {
-    const dist = pointToSegmentDistance(point, polyline[i], polyline[i + 1]);
+    const a = polyline[i];
+    const b = polyline[i + 1];
+    if (!a || !b) continue;
+    const dist = pointToSegmentDistance(point, a, b);
     if (dist < minDist) {
       minDist = dist;
     }

@@ -32,8 +32,6 @@ import { haversineDistance } from "@/utils/geo";
 
 /** Distance thresholds for voice announcements */
 const VOICE_APPROACH_HIGHWAY = 500; // meters
-const VOICE_APPROACH_LOCAL = 150;
-const VOICE_ARRIVAL = 50;
 
 /** Distance to next maneuver below which we switch to high-frequency GPS */
 const HIGH_FREQ_THRESHOLD = 1000; // meters
@@ -156,15 +154,16 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
 
   // 4. Advance maneuver if we've passed the current one
   const maneuvers = getAllManeuvers(route);
-  if (currentManeuverIndex < maneuvers.length) {
-    const currentManeuver = maneuvers[currentManeuverIndex];
+  const currentManeuver = maneuvers[currentManeuverIndex];
+  if (currentManeuverIndex < maneuvers.length && currentManeuver) {
     const distToManeuver = haversineDistance(position, currentManeuver.position);
 
     // Check if we've passed this maneuver
     if (distToManeuver < MANEUVER_PASSED_THRESHOLD) {
       const nextIndex = currentManeuverIndex + 1;
+      const nextManeuver = maneuvers[nextIndex];
 
-      if (nextIndex >= maneuvers.length) {
+      if (nextIndex >= maneuvers.length || !nextManeuver) {
         // Arrived at destination
         announceVoice("You have arrived at your destination");
         emit({ type: "arrival" });
@@ -177,7 +176,7 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
       emit({
         type: "maneuver_advance",
         index: nextIndex,
-        maneuver: maneuvers[nextIndex],
+        maneuver: nextManeuver,
       });
     }
 
@@ -205,6 +204,7 @@ function handleVoiceAnnouncements(
   if (idx >= maneuvers.length) return;
 
   const maneuver = maneuvers[idx];
+  if (!maneuver) return;
   const dist = haversineDistance(position, maneuver.position);
   const threshold = VOICE_APPROACH_HIGHWAY; // Simplified: same threshold for all roads
 
@@ -236,7 +236,7 @@ function handleVoiceAnnouncements(
  */
 async function handleGpsFrequency(
   distToNextManeuver: number,
-  currentUpdate: LocationUpdate,
+  _currentUpdate: LocationUpdate,
 ): Promise<void> {
   if (!state || !useSettingsStore.getState().batteryOptimization) return;
 

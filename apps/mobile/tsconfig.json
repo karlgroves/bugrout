@@ -1,7 +1,18 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    // Extends expo's base (not ../../tsconfig.base.json), so the repo-wide
+    // hardening flags are repeated here explicitly.
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "paths": {
       "@/*": [
         "./*"

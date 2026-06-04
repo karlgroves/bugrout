@@ -18,7 +18,6 @@ import {
 } from "@/db/queries/regions";
 import {
   upsertDownloadProgress,
-  getDownloadProgress,
   deleteDownloadProgress,
 } from "@/db/queries/downloads";
 import { deleteResourcesByRegion } from "@/db/queries/resources";

@@ -1,4 +1,4 @@
-import { hasDeviated, DEVIATION_THRESHOLD_METERS } from "@/services/routing/RouteEngine";
+import { hasDeviated } from "@/services/routing/RouteEngine";
 
 describe("hasDeviated", () => {
   const routeCoordinates = [

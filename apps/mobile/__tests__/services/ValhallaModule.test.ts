@@ -61,7 +61,7 @@ describe("decodePolyline", () => {
   it("handles single-point polyline", () => {
     const coords = decodePolyline("_p~iF~ps|U");
     expect(coords).toHaveLength(1);
-    expect(typeof coords[0].lat).toBe("number");
-    expect(typeof coords[0].lng).toBe("number");
+    expect(typeof coords[0]!.lat).toBe("number");
+    expect(typeof coords[0]!.lng).toBe("number");
   });
 });

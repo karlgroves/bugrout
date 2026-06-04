@@ -53,6 +53,7 @@ export function threatOverlapsBBox(
 
   // Check 1: Any threat vertex inside bbox?
   for (const [lng, lat] of coords) {
+    if (lng === undefined || lat === undefined) continue;
     if (
       lat >= bbox.south &&
       lat <= bbox.north &&
@@ -100,10 +101,10 @@ function extractAllCoordinates(
   geometry: ThreatZone["geometry"],
 ): number[][] {
   if (geometry.type === "Polygon") {
-    return geometry.coordinates[0]; // outer ring
+    return geometry.coordinates[0] ?? []; // outer ring
   }
   if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.flatMap((poly) => poly[0]);
+    return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
   }
   return [];
 }
@@ -116,15 +117,28 @@ function pointInPolygon(
   polygon: number[][],
 ): boolean {
   let inside = false;
+  const [px, py] = point;
+  if (px === undefined || py === undefined) return false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0],
-      yi = polygon[i][1];
-    const xj = polygon[j][0],
-      yj = polygon[j][1];
+    const pi = polygon[i];
+    const pj = polygon[j];
+    if (!pi || !pj) continue;
+    const xi = pi[0],
+      yi = pi[1];
+    const xj = pj[0],
+      yj = pj[1];
+    if (
+      xi === undefined ||
+      yi === undefined ||
+      xj === undefined ||
+      yj === undefined
+    ) {
+      continue;
+    }
 
     const intersect =
-      yi > point[1] !== yj > point[1] &&
-      point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi;
+      yi > py !== yj > py &&
+      px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;

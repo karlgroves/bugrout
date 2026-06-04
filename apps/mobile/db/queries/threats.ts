@@ -57,7 +57,7 @@ export async function getCachedThreats(
     id: row.id,
     type: row.type as ThreatType,
     severity: row.severity as ThreatZone["severity"],
-    geometry: JSON.parse(row.geometry),
+    geometry: JSON.parse(row.geometry) as ThreatZone["geometry"],
     headline: row.headline,
     description: row.description ?? "",
     source: row.source as ThreatSource,

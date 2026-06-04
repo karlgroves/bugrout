@@ -88,6 +88,6 @@ describe("filterThreatsInBBox", () => {
 
     const result = filterThreatsInBBox([inside, outside], sfBbox);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("test");
+    expect(result[0]!.id).toBe("test");
   });
 });

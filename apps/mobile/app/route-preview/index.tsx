@@ -29,7 +29,7 @@ import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
 export default function RoutePreviewScreen() {
   const router = useRouter();
-  const { activeRoute, destination, status } = useRouteStore();
+  const { activeRoute } = useRouteStore();
   const { threatZones } = useThreatStore();
   const { units } = useSettingsStore();
 

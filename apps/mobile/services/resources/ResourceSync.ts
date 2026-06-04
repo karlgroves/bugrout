@@ -43,7 +43,6 @@ export async function refreshResources(
   if (!stateCode) return;
 
   // Check what needs refreshing based on cached data age
-  const now = Date.now();
   const fuelAge = getOldestFetchAge(cached, "fuel");
   const waterAge = getOldestFetchAge(cached, "water");
   const shelterAge = getOldestFetchAge(cached, "shelter");

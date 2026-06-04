@@ -9,7 +9,7 @@
  */
 
 import { Platform } from "react-native";
-import type { ThreatZone, ResourcePoint, Scenario } from "@bugrout/shared";
+import type { ThreatZone, ResourcePoint } from "@bugrout/shared";
 import { useThreatStore } from "@/stores/useThreatStore";
 import { useResourceStore } from "@/stores/useResourceStore";
 import { useScenarioStore } from "@/stores/useScenarioStore";

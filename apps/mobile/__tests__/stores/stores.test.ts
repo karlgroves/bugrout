@@ -66,7 +66,7 @@ describe("useScenarioStore", () => {
     useScenarioStore
       .getState()
       .updateScenario("s1", { name: "Updated" });
-    expect(useScenarioStore.getState().scenarios[0].name).toBe("Updated");
+    expect(useScenarioStore.getState().scenarios[0]!.name).toBe("Updated");
   });
 
   it("deletes a scenario", () => {

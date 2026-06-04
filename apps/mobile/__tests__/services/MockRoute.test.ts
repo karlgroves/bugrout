@@ -56,7 +56,7 @@ function buildMockRoute(origin: LatLng, destination: LatLng): Route {
             streetName: "Mock Route",
             distance: distance / 2,
             duration: duration / 2,
-            position: coordinates[Math.floor(numPoints / 2)],
+            position: coordinates[Math.floor(numPoints / 2)]!,
             bearingAfter: 0,
           },
           {
@@ -81,11 +81,11 @@ describe("buildMockRoute", () => {
 
   it("generates a route with correct origin and destination", () => {
     const route = buildMockRoute(sf, la);
-    expect(route.coordinates[0].lat).toBeCloseTo(sf.lat, 4);
-    expect(route.coordinates[0].lng).toBeCloseTo(sf.lng, 4);
+    expect(route.coordinates[0]!.lat).toBeCloseTo(sf.lat, 4);
+    expect(route.coordinates[0]!.lng).toBeCloseTo(sf.lng, 4);
     const last = route.coordinates[route.coordinates.length - 1];
-    expect(last.lat).toBeCloseTo(la.lat, 4);
-    expect(last.lng).toBeCloseTo(la.lng, 4);
+    expect(last!.lat).toBeCloseTo(la.lat, 4);
+    expect(last!.lng).toBeCloseTo(la.lng, 4);
   });
 
   it("calculates reasonable distance (~559 km SF to LA)", () => {
@@ -108,11 +108,11 @@ describe("buildMockRoute", () => {
 
   it("has exactly 3 maneuvers (depart, continue, arrive)", () => {
     const route = buildMockRoute(sf, la);
-    const maneuvers = route.legs[0].maneuvers;
+    const maneuvers = route.legs[0]!.maneuvers;
     expect(maneuvers).toHaveLength(3);
-    expect(maneuvers[0].type).toBe("depart");
-    expect(maneuvers[1].type).toBe("continue");
-    expect(maneuvers[2].type).toBe("arrive");
+    expect(maneuvers[0]!.type).toBe("depart");
+    expect(maneuvers[1]!.type).toBe("continue");
+    expect(maneuvers[2]!.type).toBe("arrive");
   });
 
   it("has exactly 1 leg", () => {
@@ -146,7 +146,7 @@ describe("buildMockRoute", () => {
     // Check that consecutive points have roughly equal spacing
     const distances: number[] = [];
     for (let i = 1; i < coords.length; i++) {
-      distances.push(haversineDistance(coords[i - 1], coords[i]));
+      distances.push(haversineDistance(coords[i - 1]!, coords[i]!));
     }
 
     const avg = distances.reduce((s, d) => s + d, 0) / distances.length;

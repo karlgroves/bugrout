@@ -88,7 +88,7 @@ export async function findBestResourceStop(
     (a, b) => a.estimatedDetour - b.estimatedDetour,
   );
 
-  return sorted[0];
+  return sorted[0] ?? null;
 }
 
 /**
@@ -127,24 +127,28 @@ function sampleRoute(
   coordinates: LatLng[],
   intervalMeters: number,
 ): LatLng[] {
-  if (coordinates.length === 0) return [];
+  const first = coordinates[0];
+  if (!first) return [];
 
-  const samples: LatLng[] = [coordinates[0]];
+  const samples: LatLng[] = [first];
   let accumulated = 0;
 
   for (let i = 1; i < coordinates.length; i++) {
-    const dist = haversineDistance(coordinates[i - 1], coordinates[i]);
+    const prev = coordinates[i - 1];
+    const curr = coordinates[i];
+    if (!prev || !curr) continue;
+    const dist = haversineDistance(prev, curr);
     accumulated += dist;
 
     if (accumulated >= intervalMeters) {
-      samples.push(coordinates[i]);
+      samples.push(curr);
       accumulated = 0;
     }
   }
 
   // Always include the last point
   const last = coordinates[coordinates.length - 1];
-  if (samples[samples.length - 1] !== last) {
+  if (last && samples[samples.length - 1] !== last) {
     samples.push(last);
   }
 
@@ -161,7 +165,10 @@ function getMinDistanceToPolyline(
   let minDist = Infinity;
 
   for (let i = 0; i < polyline.length - 1; i++) {
-    const dist = pointToSegmentDistance(point, polyline[i], polyline[i + 1]);
+    const a = polyline[i];
+    const b = polyline[i + 1];
+    if (!a || !b) continue;
+    const dist = pointToSegmentDistance(point, a, b);
     if (dist < minDist) minDist = dist;
   }
 

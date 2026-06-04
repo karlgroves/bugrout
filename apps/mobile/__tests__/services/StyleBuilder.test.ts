@@ -7,9 +7,9 @@ describe("buildMapStyle", () => {
       sources: Record<string, unknown>;
       layers: unknown[];
     };
-    expect(style.name).toBe("BugRout Fallback");
-    expect(Object.keys(style.sources)).toHaveLength(0);
-    expect(style.layers).toHaveLength(1); // Just background
+    expect(style.name).toBe("BugRout Online Fallback");
+    expect(Object.keys(style.sources)).toEqual(["carto-dark"]);
+    expect(style.layers).toHaveLength(2); // Background + CARTO raster
   });
 
   it("returns full style with tile source when pmtiles path provided", () => {
@@ -22,7 +22,7 @@ describe("buildMapStyle", () => {
     };
     expect(style.name).toBe("BugRout Dark");
     expect(style.sources.openmaptiles).toBeDefined();
-    expect(style.sources.openmaptiles.type).toBe("vector");
+    expect(style.sources.openmaptiles!.type).toBe("vector");
     expect(style.layers.length).toBeGreaterThan(5); // Multiple road/water/label layers
   });
 
@@ -33,7 +33,7 @@ describe("buildMapStyle", () => {
     }) as {
       sources: Record<string, { url: string }>;
     };
-    expect(style.sources.openmaptiles.url).toContain("localhost:3000");
+    expect(style.sources.openmaptiles!.url).toContain("localhost:3000");
   });
 
   it("uses pmtiles:// protocol when no port", () => {
@@ -42,7 +42,7 @@ describe("buildMapStyle", () => {
     }) as {
       sources: Record<string, { url: string }>;
     };
-    expect(style.sources.openmaptiles.url).toContain("pmtiles://");
+    expect(style.sources.openmaptiles!.url).toContain("pmtiles://");
   });
 });
 

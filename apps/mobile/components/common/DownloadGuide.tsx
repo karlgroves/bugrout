@@ -11,7 +11,7 @@ import { StyleSheet, View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocation } from "@/hooks/useLocation";
-import { findRegionForPoint, DEFAULT_REGIONS } from "@/constants/regions";
+import { findRegionForPoint } from "@/constants/regions";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
 interface DownloadGuideProps {

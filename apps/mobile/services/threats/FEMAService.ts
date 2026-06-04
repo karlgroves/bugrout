@@ -22,10 +22,6 @@ interface FloodFeature {
   geometry: GeoJSONPolygon | GeoJSONMultiPolygon;
 }
 
-interface FloodFeatureCollection {
-  type: "FeatureCollection";
-  features: FloodFeature[];
-}
 
 /** High-risk flood zones (A and V zones) */
 const HIGH_RISK_ZONES = new Set(["A", "AE", "AH", "AO", "AR", "V", "VE"]);

@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BugroutMap } from "@/components/map/BugroutMap";
@@ -30,7 +30,6 @@ import type { LatLng } from "@bugrout/shared";
 import { colors, spacing } from "@/constants/theme";
 
 export default function NavigationScreen() {
-  const { routeId } = useLocalSearchParams<{ routeId: string }>();
   const router = useRouter();
   const { activeRoute, hasDeviated, clearRoute, setStatus } = useRouteStore();
   const battery = useBattery();
@@ -121,7 +120,7 @@ export default function NavigationScreen() {
     if (!position) return;
 
     const dest = activeRoute
-      ? activeRoute.coordinates[activeRoute.coordinates.length - 1]
+      ? (activeRoute.coordinates[activeRoute.coordinates.length - 1] ?? null)
       : null;
     if (!dest) return;
 
@@ -150,7 +149,7 @@ export default function NavigationScreen() {
     }
 
     const dest = activeRoute
-      ? activeRoute.coordinates[activeRoute.coordinates.length - 1]
+      ? (activeRoute.coordinates[activeRoute.coordinates.length - 1] ?? null)
       : null;
 
     const message = composeEmergencyMessage(

@@ -65,6 +65,9 @@ export default {
       }
 
       const [, regionId, type] = tileMatch;
+      if (!regionId || !type) {
+        return new Response("Not Found", { status: 404, headers });
+      }
       return getTilePackage(request, env, regionId, type, headers);
     }
 
@@ -125,7 +128,7 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   const bArr = new Uint8Array(bSign);
   let result = 0;
   for (let i = 0; i < aArr.length; i++) {
-    result |= aArr[i] ^ bArr[i];
+    result |= (aArr[i] ?? 0) ^ (bArr[i] ?? 0);
   }
   return result === 0;
 }
@@ -237,7 +240,7 @@ async function getTilePackage(
 
 function parseRange(header: string): { offset: number; length?: number } {
   const match = header.match(/bytes=(\d+)-(\d*)/);
-  if (!match) {
+  if (!match || match[1] === undefined) {
     return { offset: 0 };
   }
   const offset = parseInt(match[1], 10);

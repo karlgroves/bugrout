@@ -9,7 +9,7 @@ import { StyleSheet, View, Pressable, Text } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { ResourceType } from "@bugrout/shared";
 import { useResourceStore } from "@/stores/useResourceStore";
-import { colors, spacing, touchTarget } from "@/constants/theme";
+import { colors, spacing } from "@/constants/theme";
 
 const FILTERS: Array<{
   type: ResourceType;

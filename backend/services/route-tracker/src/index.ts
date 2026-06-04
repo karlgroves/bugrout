@@ -28,7 +28,7 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const redis = new Redis(REDIS_URL);
 
 const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-  const clientIp = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
+  const clientIp = req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim()
     ?? req.socket.remoteAddress
     ?? "unknown";
 
@@ -83,7 +83,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       return;
     }
 
-    let parsed: { edgeIds?: unknown; regionId?: unknown };
+    let parsed: unknown;
     try {
       parsed = JSON.parse(body);
     } catch {
@@ -152,7 +152,9 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
       if (keys.length > 0) {
         const values = await redis.mget(keys);
         for (let i = 0; i < keys.length; i++) {
-          const edgeId = keys[i].replace(`density:${regionId}:`, "");
+          const key = keys[i];
+          if (key === undefined) continue;
+          const edgeId = key.replace(`density:${regionId}:`, "");
           edges[edgeId] = parseInt(values[i] ?? "0", 10);
         }
       }

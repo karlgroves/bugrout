@@ -30,8 +30,6 @@ import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
-import { formatDistance } from "@/utils/geo";
-import { useSettingsStore } from "@/stores/useSettingsStore";
 import {
   getRecentDestinations,
   addRecentDestination,
@@ -53,7 +51,6 @@ export default function DestinationScreen() {
   const params = useLocalSearchParams<{ pinLat?: string; pinLng?: string }>();
   const isOnline = useConnectivityStore((s) => s.isOnline);
   const { scenarios } = useScenarioStore();
-  const { units } = useSettingsStore();
   const { position, getPosition, error: locationError } = useLocation(false);
   const { calculateRoute, calculateRouteWithStops } = useRoute();
   const [query, setQuery] = useState("");
@@ -438,7 +435,7 @@ function buildShortName(
   address: Record<string, string | undefined> | undefined,
   fallback: string,
 ): string {
-  if (!address) return fallback.split(",")[0];
+  if (!address) return fallback.split(",")[0] ?? fallback;
 
   const parts: string[] = [];
   if (address.house_number && address.road) {
@@ -451,7 +448,7 @@ function buildShortName(
   if (city) parts.push(city);
   if (address.state) parts.push(address.state);
 
-  return parts.length > 0 ? parts.join(", ") : fallback.split(",")[0];
+  return parts.length > 0 ? parts.join(", ") : (fallback.split(",")[0] ?? fallback);
 }
 
 /** Build the heterogeneous list data. */

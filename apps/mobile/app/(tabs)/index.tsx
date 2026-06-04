@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,17 +20,15 @@ import { ScenarioChips } from "@/components/map/ScenarioChips";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { DownloadGuide } from "@/components/common/DownloadGuide";
 import { useLocation } from "@/hooks/useLocation";
-import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { useDataSync } from "@/hooks/useDataSync";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { useMapStore } from "@/stores/useMapStore";
 import { isRegionStale } from "@/services/tiles/TileManager";
-import { colors, fab, spacing, typography } from "@/constants/theme";
+import { colors, fab, spacing } from "@/constants/theme";
 
 export default function MapScreen() {
   const router = useRouter();
   const { position } = useLocation(true);
-  const isOnline = useOfflineStatus();
   useDataSync(); // Background threat/resource refresh
   const { activeRoute, status } = useRouteStore();
   const { tilesLoaded, activeRegion } = useMapStore();

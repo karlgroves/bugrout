@@ -57,8 +57,8 @@ describe("parseFloodFeatures", () => {
       },
     ];
     const result = parseFloodFeatures(featuresWithSubtype, "ca");
-    expect(result[0].description).toContain("BFE: 12 ft");
-    expect(result[0].description).toContain("Coastal");
+    expect(result[0]!.description).toContain("BFE: 12 ft");
+    expect(result[0]!.description).toContain("Coastal");
   });
 
   it("sets source to fema and expiresAt to null", () => {

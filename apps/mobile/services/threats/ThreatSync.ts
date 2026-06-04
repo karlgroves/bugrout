@@ -119,7 +119,7 @@ export async function loadCachedThreats(): Promise<void> {
  * Check if any active threats intersect a bounding box.
  * Used to determine if threat overlays should be prominently displayed.
  */
-export function hasActiveThreatsInRegion(bbox: BBox): boolean {
+export function hasActiveThreatsInRegion(_bbox: BBox): boolean {
   const threats = useThreatStore.getState().threatZones;
   // Simplified check: any non-expired threat exists
   return threats.some(

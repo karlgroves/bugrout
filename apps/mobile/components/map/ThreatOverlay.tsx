@@ -13,13 +13,15 @@ import type { ThreatZone } from "@bugrout/shared";
 import { useThreatStore } from "@/stores/useThreatStore";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 
+const THREAT_FALLBACK_COLOR = {
+  fill: colors.threatWeather,
+  border: colors.threatWeatherBorder,
+};
+
 const THREAT_COLORS: Record<string, { fill: string; border: string }> = {
   wildfire: { fill: colors.threatFire, border: colors.threatFireBorder },
   flood: { fill: colors.threatFlood, border: colors.threatFloodBorder },
-  weather: {
-    fill: colors.threatWeather,
-    border: colors.threatWeatherBorder,
-  },
+  weather: THREAT_FALLBACK_COLOR,
 };
 
 export function ThreatOverlay() {
@@ -47,7 +49,7 @@ export function ThreatOverlay() {
   return (
     <>
       {Object.entries(threatsByType).map(([type, threats]) => {
-        const style = THREAT_COLORS[type] ?? THREAT_COLORS.weather;
+        const style = THREAT_COLORS[type] ?? THREAT_FALLBACK_COLOR;
         const geojson = threatsToFeatureCollection(threats);
 
         return (
@@ -142,8 +144,8 @@ function groupThreats(
 ): Record<string, ThreatZone[]> {
   const groups: Record<string, ThreatZone[]> = {};
   for (const t of threats) {
-    if (!groups[t.type]) groups[t.type] = [];
-    groups[t.type].push(t);
+    const group = groups[t.type] ?? (groups[t.type] = []);
+    group.push(t);
   }
   return groups;
 }

@@ -57,9 +57,9 @@ export async function bootstrap(): Promise<BootstrapResult> {
   const hasDownloadedTiles = regions.length > 0;
   useMapStore.getState().setTilesLoaded(hasDownloadedTiles);
 
-  if (hasDownloadedTiles) {
+  const activeRegion = regions[0];
+  if (hasDownloadedTiles && activeRegion) {
     // Set the first region as active by default
-    const activeRegion = regions[0];
     useMapStore.getState().setActiveRegion(activeRegion);
     setRegionContext(activeRegion.id);
 

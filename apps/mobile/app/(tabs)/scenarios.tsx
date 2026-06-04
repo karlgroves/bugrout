@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Scenario } from "@bugrout/shared";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 import { getScenarios } from "@/db/queries/scenarios";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";

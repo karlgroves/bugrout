@@ -74,32 +74,38 @@ async function fetchRedCrossShelters(
       SHELTER_STATUS?: string;
     }>;
 
-    return data
-      .filter(
-        (s) =>
-          s.LATITUDE &&
-          s.LONGITUDE &&
-          s.LATITUDE >= bbox.south &&
-          s.LATITUDE <= bbox.north &&
-          s.LONGITUDE >= bbox.west &&
-          s.LONGITUDE <= bbox.east &&
-          s.SHELTER_STATUS === "OPEN",
-      )
-      .map((s) => ({
-        id: `redcross-${s.SHELTER_NAME}-${s.LATITUDE}`,
-        type: "shelter" as const,
-        name: s.SHELTER_NAME ?? "Red Cross Shelter",
-        lat: s.LATITUDE!,
-        lng: s.LONGITUDE!,
-        address: [s.ADDRESS, s.CITY, s.STATE].filter(Boolean).join(", "),
-        metadata: {
-          status: s.SHELTER_STATUS,
-          organization: "Red Cross",
+    return data.flatMap((s) => {
+      const lat = s.LATITUDE;
+      const lng = s.LONGITUDE;
+      if (
+        lat === undefined ||
+        lng === undefined ||
+        lat < bbox.south ||
+        lat > bbox.north ||
+        lng < bbox.west ||
+        lng > bbox.east ||
+        s.SHELTER_STATUS !== "OPEN"
+      ) {
+        return [];
+      }
+      return [
+        {
+          id: `redcross-${s.SHELTER_NAME}-${lat}`,
+          type: "shelter" as const,
+          name: s.SHELTER_NAME ?? "Red Cross Shelter",
+          lat,
+          lng,
+          address: [s.ADDRESS, s.CITY, s.STATE].filter(Boolean).join(", "),
+          metadata: {
+            status: s.SHELTER_STATUS,
+            organization: "Red Cross",
+          },
+          source: "redcross" as const,
+          fetchedAt: Date.now(),
+          regionId,
         },
-        source: "redcross" as const,
-        fetchedAt: Date.now(),
-        regionId,
-      }));
+      ];
+    });
   } catch {
     return [];
   }
@@ -113,8 +119,8 @@ async function fetchRedCrossShelters(
  * This is a best-effort integration.
  */
 async function fetchOpen211Shelters(
-  bbox: BBox,
-  regionId: string,
+  _bbox: BBox,
+  _regionId: string,
 ): Promise<ResourcePoint[]> {
   // Open211 doesn't have a single national endpoint — each state/region
   // has its own provider. For MVP, we'll use the taxonomy search approach.

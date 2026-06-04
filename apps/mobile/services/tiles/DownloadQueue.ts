@@ -13,7 +13,7 @@ import {
 
 type QueueItem = {
   region: Region;
-  onProgress?: (progress: DownloadProgress) => void;
+  onProgress?: ((progress: DownloadProgress) => void) | undefined;
   resolve: (value: void) => void;
   reject: (error: Error) => void;
 };
@@ -74,6 +74,10 @@ async function processQueue(): Promise<void> {
 
   isProcessing = true;
   const item = queue[0];
+  if (!item) {
+    isProcessing = false;
+    return;
+  }
 
   try {
     await downloadRegion(item.region, item.onProgress);

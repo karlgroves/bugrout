@@ -9,17 +9,17 @@ import type { LatLng } from "@bugrout/shared";
 // Re-implement sampleRoute for testing (it's a private function)
 function sampleRoute(coordinates: LatLng[], intervalMeters: number): LatLng[] {
   if (coordinates.length === 0) return [];
-  const samples: LatLng[] = [coordinates[0]];
+  const samples: LatLng[] = [coordinates[0]!];
   let accumulated = 0;
   for (let i = 1; i < coordinates.length; i++) {
-    const dist = haversineDistance(coordinates[i - 1], coordinates[i]);
+    const dist = haversineDistance(coordinates[i - 1]!, coordinates[i]!);
     accumulated += dist;
     if (accumulated >= intervalMeters) {
-      samples.push(coordinates[i]);
+      samples.push(coordinates[i]!);
       accumulated = 0;
     }
   }
-  const last = coordinates[coordinates.length - 1];
+  const last = coordinates[coordinates.length - 1]!;
   if (samples[samples.length - 1] !== last) {
     samples.push(last);
   }

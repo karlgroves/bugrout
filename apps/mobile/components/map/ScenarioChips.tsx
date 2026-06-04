@@ -10,7 +10,7 @@ import { useState, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import type { Scenario, LatLng } from "@bugrout/shared";
+import type { Scenario } from "@bugrout/shared";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { calculateSmartRoute } from "@/services/routing/RouteEngine";

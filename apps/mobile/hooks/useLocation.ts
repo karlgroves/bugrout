@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { LatLng } from "@bugrout/shared";
 import {
   startTracking,
   stopTracking,

@@ -57,8 +57,9 @@ function createMockDatabase(): SQLiteDatabase {
         /CREATE TABLE IF NOT EXISTS (\w+)/g,
       );
       for (const match of createMatches) {
-        if (!tables.has(match[1])) {
-          tables.set(match[1], []);
+        const tableName = match[1];
+        if (tableName && !tables.has(tableName)) {
+          tables.set(tableName, []);
         }
       }
     },
@@ -68,22 +69,28 @@ function createMockDatabase(): SQLiteDatabase {
       const insertMatch = sql.match(
         /INSERT OR REPLACE INTO (\w+)\s*\(([^)]+)\)\s*VALUES/i,
       );
-      if (insertMatch) {
-        const table = insertMatch[1];
-        const cols = insertMatch[2].split(",").map((c) => c.trim());
+      const table = insertMatch?.[1];
+      const colsRaw = insertMatch?.[2];
+      if (insertMatch && table && colsRaw) {
+        const cols = colsRaw.split(",").map((c) => c.trim());
         const row: Record<string, unknown> = {};
         cols.forEach((col, i) => {
           row[col] = params[i];
         });
 
-        if (!tables.has(table)) tables.set(table, []);
-        const rows = tables.get(table)!;
+        let rows = tables.get(table);
+        if (!rows) {
+          rows = [];
+          tables.set(table, rows);
+        }
 
         // Replace existing row with same first column (assumed PK)
         const pkCol = cols[0];
-        const idx = rows.findIndex(
-          (r) => (r as Record<string, unknown>)[pkCol] === params[0],
-        );
+        const idx = pkCol
+          ? rows.findIndex(
+              (r) => (r as Record<string, unknown>)[pkCol] === params[0],
+            )
+          : -1;
         if (idx >= 0) {
           rows[idx] = row;
         } else {
@@ -95,13 +102,15 @@ function createMockDatabase(): SQLiteDatabase {
 
       // Basic DELETE support
       const deleteMatch = sql.match(/DELETE FROM (\w+)/i);
-      if (deleteMatch) {
-        const table = deleteMatch[1];
-        if (tables.has(table)) {
+      const deleteTable = deleteMatch?.[1];
+      if (deleteTable) {
+        const table = deleteTable;
+        const existingRows = tables.get(table);
+        if (existingRows) {
           const whereMatch = sql.match(/WHERE (\w+)\s*=\s*\?/i);
-          if (whereMatch && params.length > 0) {
-            const col = whereMatch[1];
-            const rows = tables.get(table)!;
+          const col = whereMatch?.[1];
+          if (col && params.length > 0) {
+            const rows = existingRows;
             const before = rows.length;
             tables.set(
               table,
@@ -121,14 +130,14 @@ function createMockDatabase(): SQLiteDatabase {
 
     async getAllAsync<T>(sql: string, ...params: unknown[]): Promise<T[]> {
       const match = sql.match(/FROM (\w+)/i);
-      if (!match) return [];
-      const table = match[1];
+      const table = match?.[1];
+      if (!table) return [];
       const rows = (tables.get(table) ?? []) as T[];
 
       // Basic WHERE filtering
       const whereMatch = sql.match(/WHERE (\w+)\s*=\s*\?/i);
-      if (whereMatch && params.length > 0) {
-        const col = whereMatch[1];
+      const col = whereMatch?.[1];
+      if (col && params.length > 0) {
         return rows.filter(
           (r) => (r as Record<string, unknown>)[col] === params[0],
         );
@@ -136,7 +145,7 @@ function createMockDatabase(): SQLiteDatabase {
 
       // Basic LIMIT
       const limitMatch = sql.match(/LIMIT (\d+)/i);
-      if (limitMatch) {
+      if (limitMatch?.[1]) {
         return rows.slice(0, parseInt(limitMatch[1], 10));
       }
 

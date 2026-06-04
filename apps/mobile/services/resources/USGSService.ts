@@ -86,15 +86,17 @@ function parseUSGSRdb(
   // Find header line (first non-comment, non-empty line)
   let headerIndex = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (!lines[i].startsWith("#") && lines[i].trim().length > 0) {
+    const line = lines[i];
+    if (line && !line.startsWith("#") && line.trim().length > 0) {
       headerIndex = i;
       break;
     }
   }
 
-  if (headerIndex === -1) return [];
+  const headerLine = headerIndex === -1 ? undefined : lines[headerIndex];
+  if (!headerLine) return [];
 
-  const headers = lines[headerIndex].split("\t");
+  const headers = headerLine.split("\t");
   const siteNoIdx = headers.indexOf("site_no");
   const nameIdx = headers.indexOf("station_nm");
   const latIdx = headers.indexOf("dec_lat_va");
@@ -105,16 +107,26 @@ function parseUSGSRdb(
 
   // Skip the format line (after header) and process data lines
   for (let i = headerIndex + 2; i < lines.length; i++) {
-    const fields = lines[i].split("\t");
+    const line = lines[i];
+    if (line === undefined) continue;
+    const fields = line.split("\t");
     if (fields.length <= Math.max(siteNoIdx, latIdx, lngIdx)) continue;
 
-    const lat = parseFloat(fields[latIdx]);
-    const lng = parseFloat(fields[lngIdx]);
+    const latRaw = fields[latIdx];
+    const lngRaw = fields[lngIdx];
+    const siteNo = fields[siteNoIdx];
+    if (latRaw === undefined || lngRaw === undefined || siteNo === undefined) {
+      continue;
+    }
+
+    const lat = parseFloat(latRaw);
+    const lng = parseFloat(lngRaw);
     if (isNaN(lat) || isNaN(lng)) continue;
 
-    const siteNo = fields[siteNoIdx];
-    const name = nameIdx >= 0 ? fields[nameIdx] : `USGS ${siteNo}`;
-    const siteType = typeIdx >= 0 ? fields[typeIdx] : "unknown";
+    const name =
+      nameIdx >= 0 ? (fields[nameIdx] ?? `USGS ${siteNo}`) : `USGS ${siteNo}`;
+    const siteType =
+      typeIdx >= 0 ? (fields[typeIdx] ?? "unknown") : "unknown";
 
     resources.push({
       id: `usgs-${siteNo}`,

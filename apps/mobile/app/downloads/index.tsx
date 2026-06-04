@@ -9,7 +9,7 @@ import { useState } from "react";
 import { StyleSheet, View, Text, Pressable, FlatList, Alert } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import type { Region, DownloadedRegion } from "@bugrout/shared";
-import { getCountyGroups, type CountyGroup } from "@/constants/counties";
+import { getCountyGroups } from "@/constants/counties";
 import { useTileManager } from "@/hooks/useTileManager";
 import { isRegionStale, isExpoGo } from "@/services/tiles/TileManager";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";

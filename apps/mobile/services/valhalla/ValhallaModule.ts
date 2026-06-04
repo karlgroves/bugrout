@@ -203,8 +203,8 @@ function buildValhallaRequest(
  */
 function parseValhallaResponse(
   response: ValhallaRouteResponse,
-  origin: LatLng,
-  destination: LatLng,
+  _origin: LatLng,
+  _destination: LatLng,
 ): Route {
   const trip = response.trip;
 
@@ -402,7 +402,7 @@ function buildMockRoute(origin: LatLng, destination: LatLng): Route {
       streetName: "Mock Route",
       distance: distance / 2,
       duration: duration / 2,
-      position: coordinates[Math.floor(numPoints / 2)],
+      position: coordinates[Math.floor(numPoints / 2)] ?? origin,
       bearingAfter: 0,
     },
     {

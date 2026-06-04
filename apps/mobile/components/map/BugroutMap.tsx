@@ -20,28 +20,24 @@ MapLibreGL.setAccessToken(null);
 
 interface BugroutMapProps {
   /** Current user position */
-  userLocation?: LatLng | null;
+  userLocation?: LatLng | null | undefined;
   /** User heading in degrees */
-  heading?: number;
+  heading?: number | undefined;
   /** Route polyline coordinates to display */
-  routeCoordinates?: LatLng[];
+  routeCoordinates?: LatLng[] | undefined;
   /** Whether to follow user location */
-  followUser?: boolean;
+  followUser?: boolean | undefined;
   /** Callback when user taps on the map */
-  onMapPress?: (coordinate: LatLng) => void;
+  onMapPress?: ((coordinate: LatLng) => void) | undefined;
   /** Callback when map region changes */
-  onRegionChange?: (bbox: {
-    west: number;
-    south: number;
-    east: number;
-    north: number;
-  }) => void;
+  onRegionChange?:
+    | ((bbox: { west: number; south: number; east: number; north: number }) => void)
+    | undefined;
   children?: React.ReactNode;
 }
 
 export function BugroutMap({
   userLocation,
-  heading = 0,
   routeCoordinates,
   followUser = false,
   onMapPress,
@@ -112,9 +108,9 @@ export function BugroutMap({
             zoomLevel: 10,
           }}
           followUserLocation={followUser}
-          followUserMode={
-            followUser ? MapLibreGL.UserTrackingMode.FollowWithHeading : undefined
-          }
+          {...(followUser
+            ? { followUserMode: MapLibreGL.UserTrackingMode.FollowWithHeading }
+            : {})}
         />
 
         {/* User location indicator */}

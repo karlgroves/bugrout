@@ -14,9 +14,6 @@ import { upsertThreatZones } from "@/db/queries/threats";
 const NWS_BASE = "https://api.weather.gov";
 const CACHE_TTL_MS = 3600000; // 1 hour
 
-/** NWS severity levels ordered by urgency */
-const SEVERITY_ORDER = ["extreme", "severe", "moderate", "minor", "unknown"];
-
 /**
  * Fetch active NWS alerts for a geographic area.
  * Uses area (state code) for broad queries, or point for localized queries.
@@ -112,21 +109,25 @@ function parseNWSResponse(data: {
     geometry: ThreatZone["geometry"] | null;
   }>;
 }): ThreatZone[] {
-  return data.features
-    .filter((f) => f.geometry !== null)
-    .map((f) => ({
-      id: f.properties.id,
-      type: classifyNWSEvent(f.properties.event),
-      severity: mapSeverity(f.properties.severity),
-      geometry: f.geometry!,
-      headline: f.properties.headline ?? f.properties.event,
-      description: truncateDescription(f.properties.description ?? ""),
-      source: "nws" as const,
-      fetchedAt: Date.now(),
-      expiresAt: f.properties.expires
-        ? new Date(f.properties.expires).getTime()
-        : null,
-    }));
+  return data.features.flatMap((f) => {
+    const geometry = f.geometry;
+    if (geometry === null) return [];
+    return [
+      {
+        id: f.properties.id,
+        type: classifyNWSEvent(f.properties.event),
+        severity: mapSeverity(f.properties.severity),
+        geometry,
+        headline: f.properties.headline ?? f.properties.event,
+        description: truncateDescription(f.properties.description ?? ""),
+        source: "nws" as const,
+        fetchedAt: Date.now(),
+        expiresAt: f.properties.expires
+          ? new Date(f.properties.expires).getTime()
+          : null,
+      },
+    ];
+  });
 }
 
 /**
@@ -187,6 +188,8 @@ function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
   // Check if any coordinate falls within the bbox
   return coords.some(
     ([lng, lat]) =>
+      lng !== undefined &&
+      lat !== undefined &&
       lat >= bbox.south &&
       lat <= bbox.north &&
       lng >= bbox.west &&
@@ -198,10 +201,10 @@ function extractCoordinates(
   geometry: ThreatZone["geometry"],
 ): number[][] {
   if (geometry.type === "Polygon") {
-    return geometry.coordinates[0];
+    return geometry.coordinates[0] ?? [];
   }
   if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.flatMap((poly) => poly[0]);
+    return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
   }
   return [];
 }

@@ -39,8 +39,10 @@ export async function getScenarios(): Promise<Scenario[]> {
     id: row.id,
     name: row.name,
     destination: { lat: row.destination_lat, lng: row.destination_lng },
-    avoidZones: JSON.parse(row.avoid_zones ?? "[]"),
-    resourceStops: JSON.parse(row.resource_stops ?? "[]"),
+    avoidZones: JSON.parse(row.avoid_zones ?? "[]") as Scenario["avoidZones"],
+    resourceStops: JSON.parse(
+      row.resource_stops ?? "[]",
+    ) as Scenario["resourceStops"],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));

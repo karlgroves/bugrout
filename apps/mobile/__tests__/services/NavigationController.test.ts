@@ -78,16 +78,16 @@ describe("getAllManeuvers", () => {
   it("flattens maneuvers from all legs", () => {
     const maneuvers = getAllManeuvers(testRoute);
     expect(maneuvers).toHaveLength(4);
-    expect(maneuvers[0].type).toBe("depart");
-    expect(maneuvers[1].type).toBe("turn-right");
-    expect(maneuvers[2].type).toBe("continue");
-    expect(maneuvers[3].type).toBe("arrive");
+    expect(maneuvers[0]!.type).toBe("depart");
+    expect(maneuvers[1]!.type).toBe("turn-right");
+    expect(maneuvers[2]!.type).toBe("continue");
+    expect(maneuvers[3]!.type).toBe("arrive");
   });
 
   it("preserves maneuver order across legs", () => {
     const maneuvers = getAllManeuvers(testRoute);
-    expect(maneuvers[0].instruction).toBe("Head north on Main St");
-    expect(maneuvers[3].instruction).toBe("You have arrived");
+    expect(maneuvers[0]!.instruction).toBe("Head north on Main St");
+    expect(maneuvers[3]!.instruction).toBe("You have arrived");
   });
 });
 
@@ -99,7 +99,7 @@ describe("route structure", () => {
 
   it("has coordinates matching maneuver positions", () => {
     expect(testRoute.coordinates[0]).toEqual(
-      testRoute.legs[0].maneuvers[0].position,
+      testRoute.legs[0]!.maneuvers[0]!.position,
     );
   });
 
