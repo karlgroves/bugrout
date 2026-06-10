@@ -48,9 +48,10 @@ code gets no exemptions. Remove the disable when the item is resolved.
 
 - jscpd threshold is ratcheted to **1.5%** (current duplication: 1.44%, ~20
   clones; issue #1 targets 1%). Biggest contributors: onboarding step views,
-  legal screens' shared layout, ResourceMarkers/ThreatOverlay layer blocks, and
-  CORS/header handling duplicated across the three Cloudflare Workers (extract a
-  shared worker util package). Lower the threshold as clones are removed.
+  legal screens' shared layout, and ResourceMarkers/ThreatOverlay layer blocks.
+  Lower the threshold as clones are removed. (CORS/header handling — formerly
+  duplicated across the three Cloudflare Workers — now lives in
+  `@bugrout/worker-utils`.)
 
 - `security/detect-object-injection`: ~40 **warnings** (rule is warn-level by
   design, per issue #1). Mostly validated dynamic-key access. Review
