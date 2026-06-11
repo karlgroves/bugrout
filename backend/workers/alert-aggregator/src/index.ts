@@ -6,6 +6,8 @@
  * Stores in KV for fast edge retrieval by the mobile app.
  */
 
+import { SECURITY_HEADERS, buildCorsHeaders } from "@bugrout/worker-utils";
+
 /**
  * Cloudflare Worker bindings available to this aggregator.
  */
@@ -58,18 +60,14 @@ interface USFSPerimetersResponse {
   }[];
 }
 
-const SECURITY_HEADERS: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "Strict-Transport-Security": "max-age=31536000",
-  "X-Frame-Options": "DENY",
-};
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") ?? "";
 
-    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS);
+    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS, {
+      methods: "GET, OPTIONS",
+    });
     const headers = { ...corsHeaders, ...SECURITY_HEADERS };
 
     if (request.method === "OPTIONS") {
@@ -166,27 +164,6 @@ export default {
     });
   },
 };
-
-/**
- * Build CORS headers, allowing only origins present in the configured allowlist.
- */
-function buildCorsHeaders(
-  origin: string,
-  allowedOrigins?: string,
-): Record<string, string> {
-  const allowed = allowedOrigins
-    ? allowedOrigins.split(",").map((o) => o.trim())
-    : [];
-
-  // Fail closed: if no origins configured, deny cross-origin requests
-  const allowOrigin =
-    allowed.length > 0 && allowed.includes(origin) ? origin : "";
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-  };
-}
 
 /**
  * Fetch active NWS weather alerts and normalize them into ThreatZones.

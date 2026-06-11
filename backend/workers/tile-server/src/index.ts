@@ -12,6 +12,8 @@
  * - Configurable CORS origins
  */
 
+import { SECURITY_HEADERS, buildCorsHeaders } from "@bugrout/worker-utils";
+
 /**
  * Cloudflare Worker bindings available to the tile-server worker.
  */
@@ -21,18 +23,16 @@ interface Env {
   ALLOWED_ORIGINS?: string; // Comma-separated allowed origins
 }
 
-const SECURITY_HEADERS: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "Strict-Transport-Security": "max-age=31536000",
-  "X-Frame-Options": "DENY",
-};
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") ?? "";
 
-    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS);
+    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS, {
+      methods: "GET, HEAD, OPTIONS",
+      allowHeaders: "Range, If-None-Match, Authorization",
+      exposeHeaders: "Content-Range, Accept-Ranges, Content-Length, ETag",
+    });
     const headers = { ...corsHeaders, ...SECURITY_HEADERS };
 
     if (request.method === "OPTIONS") {
@@ -91,30 +91,6 @@ async function handleTileRequest(
     return new Response("Not Found", { status: 404, headers });
   }
   return getTilePackage(request, env, { regionId, type }, headers);
-}
-
-/**
- * Build CORS headers, allowing only origins present in the configured allowlist.
- */
-function buildCorsHeaders(
-  origin: string,
-  allowedOrigins?: string,
-): Record<string, string> {
-  const allowed = allowedOrigins
-    ? allowedOrigins.split(",").map((o) => o.trim())
-    : [];
-
-  // Fail closed: if no origins configured, deny cross-origin requests
-  const allowOrigin =
-    allowed.length > 0 && allowed.includes(origin) ? origin : "";
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-    "Access-Control-Allow-Headers": "Range, If-None-Match, Authorization",
-    "Access-Control-Expose-Headers":
-      "Content-Range, Accept-Ranges, Content-Length, ETag",
-  };
 }
 
 /**

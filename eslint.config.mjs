@@ -410,6 +410,9 @@ export default tseslint.config(
       "max-nested-callbacks": ["error", 5],
       "sonarjs/no-duplicate-string": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
+      // node:test's test()/describe() return promises the runner awaits itself;
+      // jest's globals are void-typed so this is a no-op for jest suites.
+      "@typescript-eslint/no-floating-promises": "off",
       "@typescript-eslint/unbound-method": "off",
       "jsdoc/require-jsdoc": "off",
       "no-secrets/no-secrets": "off",

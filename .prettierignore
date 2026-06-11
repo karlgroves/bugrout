@@ -41,3 +41,6 @@ reports/
 .DS_Store
 CHANGELOG.md
 LICENSE
+
+# Local tool state (gitignored, machine-specific)
+.claude/
