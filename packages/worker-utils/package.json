@@ -6,9 +6,12 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "test": "node --import tsx --test src/*.test.ts"
   },
   "devDependencies": {
+    "@types/node": "^22.19.17",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3"
   }
 }
