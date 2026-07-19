@@ -58,7 +58,7 @@ jobs:
           out: "reports/dep-check"
           args: >-
             --suppression .dependency-check-suppressions.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dependency-check-report
           path: reports/dep-check

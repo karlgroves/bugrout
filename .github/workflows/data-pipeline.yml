@@ -58,7 +58,7 @@ jobs:
         run: ./build-region.sh ${{ matrix.state }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: package-${{ matrix.state }}
           path: data-pipeline/output/${{ matrix.state }}/package/
