@@ -73,4 +73,7 @@ to pin the specific transitive dependency via a bounded `pnpm` override.
 **Known gap:** nothing in CI currently validates that the app boots. Until an
 EAS build or Detox run on a simulator is part of the pipeline, "green CI" means
 "the JavaScript type-checks and the unit tests pass" and must not be read as
-"the app works." This is the reason the policy above is conservative.
+"the app works." This is the reason the policy above is conservative, and it is
+tracked in issue #30. Should that gap close — `expo-doctor` in CI would alone
+have caught every PR listed above — the ignore list is worth revisiting, since
+its main justification is the absence of an automated compatibility signal.
