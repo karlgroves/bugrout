@@ -12,11 +12,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "bugrout",
   userInterfaceStyle: "dark",
   newArchEnabled: true,
-  splash: {
-    image: "./assets/images/splash-icon.png",
-    resizeMode: "contain",
-    backgroundColor: "#1a1a1a",
-  },
+  // NOTE: the top-level `splash` key is the pre-SDK-50 form and is ignored as of
+  // SDK 54 — splash is owned by the expo-splash-screen plugin below. Leaving the
+  // image here meant prebuild emitted a reference to drawable/splashscreen_logo
+  // without ever generating it, so :app:processDebugResources failed to link.
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.bugrout.app",
@@ -64,6 +63,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-splash-screen",
       {
+        image: "./assets/images/splash-icon.png",
+        resizeMode: "contain",
         backgroundColor: "#1a1a1a",
       },
     ],
