@@ -5,6 +5,34 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # The Expo/React Native stack is version-locked to the Expo SDK. Every
+    # unimodule's native side is compiled against one SDK's runtime, and the
+    # pinned set lives in expo/bundledNativeModules.json. Upgrading any of them
+    # on its own is an ABI mismatch that CI cannot detect: peerDependencies are
+    # declared as "*", and format/lint/typecheck/Jest never touch native code,
+    # so such a PR goes green and fails on device instead. React Native is also
+    # 0.x, so a five-release jump (0.81 -> 0.86) registers as a "minor" bump and
+    # lands in the grouped PR below. Both traps produced merge-ready-looking PRs
+    # (#19, #20, #22, #25) that would have broken the app.
+    #
+    # These upgrades are done deliberately with `npx expo install --fix`, which
+    # moves the whole set together, in a dedicated SDK-upgrade PR validated
+    # against a real device build.
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "@react-native/*"
+      - dependency-name: "@react-native-community/*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-test-renderer"
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
+      - dependency-name: "jest-expo"
+      - dependency-name: "@maplibre/maplibre-react-native"
     groups:
       minor-and-patch:
         update-types:
