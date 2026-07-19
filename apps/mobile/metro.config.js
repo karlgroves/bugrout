@@ -6,14 +6,15 @@ const monorepoRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
-// Support pnpm monorepo — watch workspace packages
-config.watchFolders = [monorepoRoot];
+// Support pnpm monorepo — watch workspace packages.
+// expo/metro-config now discovers workspace packages itself, so append to its
+// defaults rather than replacing them: dropping Expo's entries breaks parts of
+// the module graph and is what `expo-doctor`'s Metro check flags.
+config.watchFolders = [...(config.watchFolders ?? []), monorepoRoot];
 
-// Resolve packages from both the app and monorepo root node_modules
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, "node_modules"),
-  path.resolve(monorepoRoot, "node_modules"),
-];
+// nodeModulesPaths is not set here: expo/metro-config already resolves from
+// <projectRoot>/node_modules then <monorepoRoot>/node_modules, which is exactly
+// what this app needs under pnpm.
 
 // On web, expo-sqlite's WASM bundling breaks Metro.
 // Replace native-only modules with empty stubs on web.

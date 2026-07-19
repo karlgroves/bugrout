@@ -59,6 +59,34 @@ emergency.
    `js-yaml` to 4.x (drops `safeLoad`), `uuid` to 14 (ESM-only, breaks
    `require('uuid')`), and `ws` to 8.x.
 
+5. **`expo-doctor` runs in CI** (`pnpm run doctor`, pinned as a devDependency of
+   `apps/mobile`), giving the pipeline its first automated signal for SDK and
+   native-module misalignment. Verified against the closed PRs: reinstalling
+   `expo-sqlite@56.0.5`, `expo-haptics@56.0.3` or `react-native@0.86.0` makes it
+   exit non-zero, where the previous gate reported green.
+
+### Deliberate deviations from the SDK 54 pin
+
+`expo-doctor` compares installed versions against the SDK's expected set, so any
+intentional divergence must be recorded or the gate becomes noise:
+
+- **`react-native-get-random-values` 2.0.0** (SDK 54 expects `~1.11.0`) —
+  **kept**, listed in `expo.install.exclude`. v1.x resolves the native module
+  through `NativeModules` (legacy bridge); v2.0.0 uses `TurboModuleRegistry`,
+  which is the correct path for this app (`newArchEnabled: true`). Its
+  `peerDependencies` declare `react-native: ">=0.81"`, satisfied by SDK 54's
+  0.81.5. The SDK pin simply predates the release. This package backs
+  `crypto.getRandomValues` for `uuid`, so it is on the critical path for every
+  generated scenario, contact and route ID.
+- **`@react-navigation/native`** was realigned from `^7.2.2` to Expo's `^7.1.8`.
+  Both carets resolve to the same installed version, so this is a declaration
+  change only.
+- **Metro config** no longer replaces `watchFolders`/`nodeModulesPaths`. Expo's
+  own config now discovers pnpm workspace packages, so the local overrides had
+  become redundant — `nodeModulesPaths` was byte-identical to the default, and
+  `watchFolders` now appends the monorepo root to Expo's list rather than
+  discarding it.
+
 ## Consequences
 
 **Accepted tradeoff:** Dependabot `ignore` conditions also suppress _security_
@@ -70,10 +98,19 @@ stack would not have been safely mergeable anyway. An advisory against an
 Expo/RN package is therefore handled as a prompt to schedule the SDK upgrade, or
 to pin the specific transitive dependency via a bounded `pnpm` override.
 
-**Known gap:** nothing in CI currently validates that the app boots. Until an
-EAS build or Detox run on a simulator is part of the pipeline, "green CI" means
-"the JavaScript type-checks and the unit tests pass" and must not be read as
-"the app works." This is the reason the policy above is conservative, and it is
-tracked in issue #30. Should that gap close — `expo-doctor` in CI would alone
-have caught every PR listed above — the ignore list is worth revisiting, since
-its main justification is the absence of an automated compatibility signal.
+**Remaining gap:** `expo-doctor` closes the _alignment_ hole, not the _boot_
+hole. It verifies that the declared dependency set matches the SDK; it does not
+compile native code or launch the app. A change that keeps versions aligned but
+still breaks at runtime remains invisible. Until an EAS build or a Detox
+simulator run is in the pipeline, "green CI" means "the JavaScript type-checks,
+the unit tests pass, and the dependency set is SDK-aligned" — still not "the app
+works." Tracked in issue #30.
+
+`expo-doctor` also runs in CI only, not in the `check` script used by the
+pre-push hook, because its React Native Directory check makes network calls and
+would make pushing fail offline. Contributors can run `pnpm run doctor` (or
+`pnpm run check:all`, which includes it) locally.
+
+Once boot validation exists, the Dependabot ignore list is worth revisiting: its
+main justification is the absence of an automated compatibility signal, and part
+of that justification has now been removed.
