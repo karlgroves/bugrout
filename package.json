@@ -7,6 +7,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "doctor": "pnpm --filter @bugrout/mobile run doctor",
     "clean": "turbo run clean",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -22,7 +23,7 @@
     "license:check": "node scripts/check-licenses.mjs",
     "license:report": "pnpm licenses list --prod --long > reports/licenses.txt || pnpm licenses list --prod",
     "check": "run-s format:check lint typecheck test markdownlint",
-    "check:all": "run-s check dupes links security security:semgrep license:check",
+    "check:all": "run-s check doctor dupes links security security:semgrep license:check",
     "ci": "pnpm run check:all",
     "ai:context": "node scripts/ai-context.js",
     "prepare": "husky"

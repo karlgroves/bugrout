@@ -42,6 +42,11 @@ jobs:
       - name: Test
         run: pnpm run test
 
+      # Catches Expo SDK / native-module mismatches, which typecheck and Jest
+      # cannot see: they only read JavaScript source. See issue #30 and ADR 0007.
+      - name: Expo SDK alignment (expo-doctor)
+        run: pnpm run doctor
+
       - name: Markdown lint
         run: pnpm run markdownlint
 
