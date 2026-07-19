@@ -16,7 +16,7 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
@@ -27,7 +27,7 @@ jobs:
     name: Semgrep (OWASP Top 10)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Semgrep
         run: pipx install semgrep
       - name: Scan
@@ -37,7 +37,7 @@ jobs:
     name: OSV-Scanner
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install OSV-Scanner
         run: |
           curl -sSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
@@ -49,7 +49,7 @@ jobs:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dependency-check/Dependency-Check_Action@main
         with:
           project: ${{ github.event.repository.name }}
