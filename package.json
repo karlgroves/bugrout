@@ -8,6 +8,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "doctor": "pnpm --filter @bugrout/mobile run doctor",
+    "bundle:check": "pnpm --filter @bugrout/mobile run bundle:check",
     "clean": "turbo run clean",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -47,6 +47,13 @@ jobs:
       - name: Expo SDK alignment (expo-doctor)
         run: pnpm run doctor
 
+      # Builds the real Metro bundle for both native platforms. Catches
+      # module-graph failures (bad imports, unresolvable packages, ESM/CJS
+      # mismatches) that typecheck cannot see because they are resolution
+      # errors, not type errors. Does not compile native code — see issue #30.
+      - name: Bundle check (Metro, iOS + Android)
+        run: pnpm run bundle:check
+
       - name: Markdown lint
         run: pnpm run markdownlint
 
