@@ -1,0 +1,79 @@
+name: E2E (Detox, Android)
+
+# NOT a PR gate yet. This workflow compiles native code and drives an emulator,
+# which is slow (~20-30 min) and historically flaky on hosted runners. It runs
+# on demand and weekly so it can be stabilised without blocking every PR. Once
+# it has proven reliable, promote it to a required check on pull_request and
+# update issue #30 / ADR 0007.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1" # Monday 05:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Detox smoke (Android emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      # The app uses the managed workflow, so android/ does not exist in git.
+      # Detox needs a real Gradle project, so generate it first.
+      - name: Prebuild native Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build debug APK + androidTest APK
+        working-directory: apps/mobile
+        run: pnpm run e2e:build
+
+      - name: Run Detox smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          avd-name: Pixel_6_API_33
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          working-directory: apps/mobile
+          script: pnpm run e2e:smoke -- --headless --record-logs all
+
+      - name: Upload Detox artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detox-artifacts
+          path: apps/mobile/artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
