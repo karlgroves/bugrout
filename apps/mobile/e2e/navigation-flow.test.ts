@@ -9,6 +9,29 @@
 
 import { by, device, element, expect } from "detox";
 
+// Temporary boot diagnostic (refs #30). Reads the hidden e2e-boot-diag marker
+// rendered by app/_layout.tsx and logs the bootstrap decision, so we can tell
+// whether onboarding is skipped because bootstrap threw (ok:false), because it
+// returned needsOnboarding:false, or because routing ignores the result. Does
+// not assert — purely diagnostic. Removed with the diagnostic scaffolding.
+describe("Boot diagnostic", () => {
+  beforeAll(async () => {
+    await device.launchApp({ newInstance: true, delete: true });
+  });
+
+  it("logs the bootstrap decision", async () => {
+    try {
+      const attrs = await element(by.id("e2e-boot-diag")).getAttributes();
+      console.log(
+        "E2E_BOOT_DIAG:",
+        "label" in attrs ? attrs.label : JSON.stringify(attrs),
+      );
+    } catch (err) {
+      console.log("E2E_BOOT_DIAG: marker not found —", String(err));
+    }
+  });
+});
+
 describe("Navigation Flow", () => {
   beforeAll(async () => {
     // delete: true reinstalls the app so this run starts from a genuine first

@@ -57,6 +57,11 @@ jobs:
       # Release embeds the bundle. Signed with the debug keystore by prebuild.
       - name: Build release APK + androidTest APK
         working-directory: apps/mobile
+        # EXPO_PUBLIC_E2E is inlined into the JS bundle at build time and enables
+        # the temporary boot diagnostic in app/_layout.tsx (refs #30). Remove once
+        # the onboarding-gating fix lands.
+        env:
+          EXPO_PUBLIC_E2E: "1"
         run: pnpm run e2e:build
 
       - name: Run Detox smoke test
