@@ -19,8 +19,13 @@ module.exports = {
     "android.debug": {
       type: "android.apk",
       binaryPath: "android/app/build/outputs/apk/debug/app-debug.apk",
+      // Scoped to :app deliberately. Unqualified `assembleAndroidTest` builds an
+      // androidTest APK for every autolinked Expo module too (~1100 Gradle tasks,
+      // ~22 min), and Detox only ever consumes the two :app artifacts named in
+      // binaryPath/testBinaryPath. The extra work is also where the build has
+      // flaked — :expo-dev-client:packageDebugAndroidTest.
       build:
-        "cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug",
+        "cd android && ./gradlew :app:assembleDebug :app:assembleAndroidTest -DtestBuildType=debug",
     },
   },
   devices: {
