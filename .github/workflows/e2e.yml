@@ -52,7 +52,10 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Build debug APK + androidTest APK
+      # Release, not debug: a debug build embeds expo-dev-client and boots into
+      # the dev-launcher waiting for Metro, so the JS bundle never loads on CI.
+      # Release embeds the bundle. Signed with the debug keystore by prebuild.
+      - name: Build release APK + androidTest APK
         working-directory: apps/mobile
         run: pnpm run e2e:build
 
