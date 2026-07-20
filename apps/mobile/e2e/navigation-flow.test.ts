@@ -11,7 +11,14 @@ import { by, device, element, expect } from "detox";
 
 describe("Navigation Flow", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    // delete: true reinstalls the app so this run starts from a genuine first
+    // launch. The CI emulator boots from a reused AVD snapshot and Detox's
+    // newInstance only restarts the process without clearing data, so
+    // disclaimer_accepted could survive from an earlier run and skip onboarding
+    // (observed in E2E run 8: the app booted straight to the tabs). Only the
+    // first launch deletes — the Offline Mode and Settings blocks below relaunch
+    // with the disclaimer already accepted, which is what those tests expect.
+    await device.launchApp({ newInstance: true, delete: true });
   });
 
   it("should show onboarding on first launch", async () => {
