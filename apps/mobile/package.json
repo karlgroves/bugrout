@@ -16,7 +16,7 @@
     "bundle:check": "pnpm run bundle:ios && pnpm run bundle:android",
     "e2e:build": "detox build --configuration android.emu.debug",
     "e2e:test": "detox test --configuration android.emu.debug",
-    "e2e:smoke": "detox test --configuration android.emu.debug e2e/navigation-flow.test.ts"
+    "e2e:smoke": "detox test --configuration android.emu.debug --record-logs all e2e/navigation-flow.test.ts"
   },
   "dependencies": {
     "@bugrout/shared": "workspace:*",
