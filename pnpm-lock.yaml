@@ -13,7 +13,7 @@ overrides:
   fast-uri@<=3.1.1: '>=3.1.2'
   js-yaml@>=3 <3.15.0: '>=3.15.0 <4'
   postcss@>=8 <8.5.10: '>=8.5.10'
-  shell-quote@<1.8.4: '>=1.8.4'
+  shell-quote@<1.9.0: '>=1.9.0 <2'
   undici@<6.27.0: '>=6.27.0 <7'
   uuid@<11.1.1: '>=11.1.1 <12'
   ws@>=6 <6.2.4: '>=6.2.4 <7'
@@ -6579,8 +6579,8 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
-  shell-quote@1.8.4:
-    resolution: {integrity: sha512-VsC6n6vz1ihYYyZZwX7YZSF5l5x36ca17OC+a69h94YqB7X6XLwf+5MOgynYir2SLFUbl8gIYvBo8K8RoNQ6bQ==}
+  shell-quote@1.10.0:
+    resolution: {integrity: sha512-w1aiOKwKuRgtwAReIIj89puqg+I7GvX4IbLrvmhXbzQsj1+Zwi4VO3+fa6ZF91TWSjIxoEkKnMeHcLEODK5ZXA==}
     engines: {node: '>= 0.4'}
 
   side-channel-list@1.0.1:
@@ -11214,7 +11214,7 @@ snapshots:
       sanitize-filename: 1.6.4
       semver: 7.8.5
       serialize-error: 8.1.0
-      shell-quote: 1.8.4
+      shell-quote: 1.10.0
       signal-exit: 3.0.7
       stream-json: 1.9.1
       strip-ansi: 6.0.1
@@ -14222,7 +14222,7 @@ snapshots:
       picomatch: 4.0.4
       pidtree: 0.6.0
       read-package-json-fast: 6.0.0
-      shell-quote: 1.8.4
+      shell-quote: 1.10.0
       which: 7.0.0
 
   npm-run-path@4.0.1:
@@ -14616,7 +14616,7 @@ snapshots:
 
   react-devtools-core@6.1.5:
     dependencies:
-      shell-quote: 1.8.4
+      shell-quote: 1.10.0
       ws: 7.5.13
     transitivePeerDependencies:
       - bufferutil
@@ -15124,7 +15124,7 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
-  shell-quote@1.8.4: {}
+  shell-quote@1.10.0: {}
 
   side-channel-list@1.0.1:
     dependencies:
