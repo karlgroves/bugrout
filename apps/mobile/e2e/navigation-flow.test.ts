@@ -7,7 +7,7 @@
  * This is the most critical flow in the app and MUST work reliably.
  */
 
-import { by, device, element, expect } from "detox";
+import { by, device, element, expect, waitFor } from "detox";
 
 describe("Navigation Flow", () => {
   beforeAll(async () => {
@@ -41,13 +41,18 @@ describe("Navigation Flow", () => {
 
   it("should open destination picker on FAB tap", async () => {
     await element(by.label("Bug Out — set evacuation destination")).tap();
-    await expect(element(by.label("Search for an address"))).toBeVisible();
+    // The picker presents as a modal; wait out the slide-in before asserting.
+    await waitFor(element(by.id("destination-search-input")))
+      .toBeVisible()
+      .withTimeout(10000);
   });
 
-  // Note: Full route calculation requires Valhalla running.
-  // This test verifies the UI flow only.
-  it("should show recent destinations section", async () => {
-    await expect(element(by.text("Recent Destinations"))).toBeVisible();
+  it("should accept a destination search query", async () => {
+    // Recent destinations only render after prior use, so a fresh-install smoke
+    // run has none — assert the picker's core interaction instead. Typing gates
+    // the clear-search control (query.length > 0), which needs no geocoding.
+    await element(by.id("destination-search-input")).typeText("Sacramento");
+    await expect(element(by.label("Clear search"))).toBeVisible();
   });
 });
 
