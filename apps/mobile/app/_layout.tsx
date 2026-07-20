@@ -5,9 +5,17 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
+import { View } from "react-native";
 import "react-native-reanimated";
 
 import { bootstrap, type BootstrapResult } from "@/services/AppBootstrap";
+
+// Temporary E2E diagnostic (refs #30). Only compiled in when EXPO_PUBLIC_E2E=1
+// (set by the e2e workflow build step), never in a shipped build. It surfaces
+// the boot decision — which is invisible in a release build because console.*
+// is stripped — so a Detox test can read why onboarding was or wasn't shown.
+// Removed once the fail-safe routing fix lands.
+const E2E_DIAGNOSTIC = process.env.EXPO_PUBLIC_E2E === "1";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -35,6 +43,7 @@ export default function RootLayout(): React.JSX.Element | null {
   const [loaded, error] = useFonts({});
   const [bootstrapped, setBootstrapped] = useState(false);
   const [bootResult, setBootResult] = useState<BootstrapResult | null>(null);
+  const [bootDiag, setBootDiag] = useState("pending");
 
   useEffect(() => {
     if (error) throw error;
@@ -47,11 +56,20 @@ export default function RootLayout(): React.JSX.Element | null {
     bootstrap()
       .then((result) => {
         setBootResult(result);
+        setBootDiag(
+          JSON.stringify({ ok: true, needsOnboarding: result.needsOnboarding }),
+        );
         setBootstrapped(true);
         void SplashScreen.hideAsync();
       })
       .catch((err: unknown) => {
         console.error("Bootstrap failed:", err);
+        setBootDiag(
+          JSON.stringify({
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
         // Still show the app even if bootstrap partially fails
         setBootstrapped(true);
         void SplashScreen.hideAsync();
@@ -129,6 +147,16 @@ export default function RootLayout(): React.JSX.Element | null {
         />
         <Stack.Screen name="+not-found" />
       </Stack>
+      {E2E_DIAGNOSTIC ? (
+        // eslint-disable-next-line react-native-a11y/has-accessibility-hint -- hidden non-interactive diagnostic marker read by Detox, not a user-facing control
+        <View
+          testID="e2e-boot-diag"
+          accessibilityLabel={bootDiag}
+          accessible
+          importantForAccessibility="no-hide-descendants"
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+        />
+      ) : null}
     </ThemeProvider>
   );
 }
