@@ -67,7 +67,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           working-directory: apps/mobile
-          script: pnpm run e2e:smoke -- --headless --record-logs all
+          script: pnpm run e2e:smoke
 
       - name: Upload Detox artifacts
         if: always()
