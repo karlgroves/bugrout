@@ -79,6 +79,7 @@ export default function DownloadsScreen(): React.JSX.Element {
 
   return (
     <FlatList
+      testID="downloads-screen"
       style={styles.container}
       ListHeaderComponent={
         <View>
