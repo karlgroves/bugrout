@@ -2,20 +2,12 @@
 import "react-native-get-random-values";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRootNavigationState, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { useEffect, useRef, useState } from "react";
 import "react-native-reanimated";
 
 import { bootstrap, type BootstrapResult } from "@/services/AppBootstrap";
-
-// Temporary E2E diagnostic (refs #30). Only compiled in when EXPO_PUBLIC_E2E=1
-// (set by the e2e workflow build step), never in a shipped build. It surfaces
-// the boot decision — which is invisible in a release build because console.*
-// is stripped — so a Detox test can read why onboarding was or wasn't shown.
-// Removed once the fail-safe routing fix lands.
-const E2E_DIAGNOSTIC = process.env.EXPO_PUBLIC_E2E === "1";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -43,7 +35,8 @@ export default function RootLayout(): React.JSX.Element | null {
   const [loaded, error] = useFonts({});
   const [bootstrapped, setBootstrapped] = useState(false);
   const [bootResult, setBootResult] = useState<BootstrapResult | null>(null);
-  const [bootDiag, setBootDiag] = useState("pending");
+  const router = useRouter();
+  const rootNavState = useRootNavigationState();
 
   useEffect(() => {
     if (error) throw error;
@@ -56,25 +49,44 @@ export default function RootLayout(): React.JSX.Element | null {
     bootstrap()
       .then((result) => {
         setBootResult(result);
-        setBootDiag(
-          JSON.stringify({ ok: true, needsOnboarding: result.needsOnboarding }),
-        );
         setBootstrapped(true);
-        void SplashScreen.hideAsync();
       })
       .catch((err: unknown) => {
         console.error("Bootstrap failed:", err);
-        setBootDiag(
-          JSON.stringify({
-            ok: false,
-            error: err instanceof Error ? err.message : String(err),
-          }),
-        );
-        // Still show the app even if bootstrap partially fails
+        // Still show the app even if bootstrap partially fails. bootResult stays
+        // null, and the redirect below treats that as needing onboarding so the
+        // legal disclaimer is never skipped on a bootstrap error.
         setBootstrapped(true);
-        void SplashScreen.hideAsync();
       });
   }, [loaded]);
+
+  // Gate onboarding by redirect, not by initialRouteName. unstable_settings
+  // fixes the anchor route to "(tabs)" for deep-link back behaviour, and it
+  // overrides the Stack's dynamic initialRouteName prop — so setting that prop
+  // to "onboarding/index" silently did nothing and the legal disclaimer was
+  // unreachable on first launch (confirmed via the boot diagnostic in #30:
+  // bootstrap returned needsOnboarding:true yet the app rendered the tabs).
+  // Default to onboarding when bootResult is null (bootstrap failed) — fail safe
+  // toward showing the disclaimer, never toward skipping it.
+  const needsOnboarding = bootResult?.needsOnboarding ?? true;
+  // useRootNavigationState() is typed as always-defined but actually returns
+  // undefined until the root navigator has mounted; the optional chain guards
+  // that real gap, which is the whole point of the readiness check.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime value is undefined pre-mount despite the type
+  const navReady = Boolean(rootNavState?.key);
+  const didInitialRoute = useRef(false);
+
+  useEffect(() => {
+    if (!bootstrapped || !navReady || didInitialRoute.current) return;
+    // Route once. needsOnboarding is derived from the initial bootResult and
+    // never flips back, so without this guard a later re-render could redirect
+    // the user to onboarding again right after they finished it.
+    didInitialRoute.current = true;
+    if (needsOnboarding) router.replace("/onboarding");
+    // Splash stays up until the routing decision is made, so first-launch users
+    // never see a flash of the map before the disclaimer.
+    void SplashScreen.hideAsync();
+  }, [bootstrapped, navReady, needsOnboarding, router]);
 
   if (!loaded || !bootstrapped) {
     return null;
@@ -82,11 +94,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
   return (
     <ThemeProvider value={bugroutDarkTheme}>
-      <Stack
-        initialRouteName={
-          bootResult?.needsOnboarding ? "onboarding/index" : "(tabs)"
-        }
-      >
+      <Stack initialRouteName="(tabs)">
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="navigation/[routeId]"
@@ -147,16 +155,6 @@ export default function RootLayout(): React.JSX.Element | null {
         />
         <Stack.Screen name="+not-found" />
       </Stack>
-      {E2E_DIAGNOSTIC ? (
-        // eslint-disable-next-line react-native-a11y/has-accessibility-hint -- hidden non-interactive diagnostic marker read by Detox, not a user-facing control
-        <View
-          testID="e2e-boot-diag"
-          accessibilityLabel={bootDiag}
-          accessible
-          importantForAccessibility="no-hide-descendants"
-          style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-        />
-      ) : null}
     </ThemeProvider>
   );
 }
