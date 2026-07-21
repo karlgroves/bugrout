@@ -40,6 +40,11 @@ describe("Navigation Flow", () => {
   });
 
   it("should open destination picker on FAB tap", async () => {
+    // On a fresh install (no tiles) the map opens with the "Download Offline
+    // Maps" guide overlaying the Bug Out FAB. Dismiss it first — its label is
+    // "Skip for now" (distinct from onboarding's "Skip location permission for
+    // now"), so it never collides with the earlier step.
+    await element(by.label("Skip for now")).tap();
     await element(by.label("Bug Out — set evacuation destination")).tap();
     // The picker presents as a modal; wait out the slide-in before asserting.
     await waitFor(element(by.id("destination-search-input")))
