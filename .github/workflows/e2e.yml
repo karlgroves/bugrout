@@ -37,7 +37,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # The app uses the managed workflow, so android/ does not exist in git.
       # Detox needs a real Gradle project, so generate it first.
