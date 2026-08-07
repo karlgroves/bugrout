@@ -47,15 +47,15 @@ code gets no exemptions. Remove the disable when the item is resolved.
 ## Other
 
 - jscpd threshold is at **1%** — issue #1's target, reached. Current
-  duplication: 0.55%, 10 clones. Headroom is ~0.45pp, and at ~18.3k analysed
-  lines a new 10-line clone costs ~0.11pp, so the gate tolerates roughly four
-  before it fires. Next contributors, in order: the `platform/location.ts`
-  self-duplication (21 lines), the map-screen / navigation-screen overlap (15
-  lines), and the scenarios/contacts list overlap (13 lines). The threshold
-  could go to 0.75 once one more lands.
+  duplication: 0.44%, 9 clones. Headroom is ~0.56pp, and at ~18.3k analysed
+  lines a new 10-line clone costs ~0.11pp, so the gate tolerates roughly five
+  before it fires. Next contributors, in order: the map-screen /
+  navigation-screen overlap (15 lines), the scenarios/contacts list overlap (13
+  lines), and `db/queries/regions.ts` self-duplication (10 lines). The threshold
+  could reasonably drop to 0.75 now.
 
   Note the percentage is only comparable within a jscpd major — v5 analyses a
-  smaller file set than v4, so the same source measures ~27% higher. The 0.55%
+  smaller file set than v4, so the same source measures ~27% higher. The 0.44%
   above is on jscpd 5. The threshold was briefly 2.0 while the v5 upgrade landed
   ahead of this cleanup, then 1.5.
 
@@ -75,6 +75,9 @@ code gets no exemptions. Remove the disable when the item is resolved.
   - The bottom-sheet detail card (modal, backdrop, card and close button,
     including its 44pt touch target), formerly duplicated between
     `ThreatOverlay` and `ResourceMarkers` → `components/map/MapDetailSheet.tsx`.
+  - The drifting mock GPS track, formerly duplicated between the web branch and
+    the Expo Go fallback of `platform/location.ts` → a `watchMockPosition`
+    helper in the same file, now covered by tests.
 
 - `security/detect-object-injection`: ~40 **warnings** (rule is warn-level by
   design, per issue #1). Mostly validated dynamic-key access. Review
