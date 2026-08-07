@@ -12,11 +12,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "bugrout",
   userInterfaceStyle: "dark",
   newArchEnabled: true,
-  splash: {
-    image: "./assets/images/splash-icon.png",
-    resizeMode: "contain",
-    backgroundColor: "#1a1a1a",
-  },
+  // NOTE: the top-level `splash` key is the pre-SDK-50 form and is ignored as of
+  // SDK 54 — splash is owned by the expo-splash-screen plugin below. Leaving the
+  // image here meant prebuild emitted a reference to drawable/splashscreen_logo
+  // without ever generating it, so :app:processDebugResources failed to link.
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.bugrout.app",
@@ -64,9 +63,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-splash-screen",
       {
+        image: "./assets/images/splash-icon.png",
+        resizeMode: "contain",
         backgroundColor: "#1a1a1a",
       },
     ],
+    // Wires Detox's native test harness into the prebuilt Android/iOS projects:
+    // the androidTest DetoxTest runner, testInstrumentationRunner, the
+    // com.wix:detox test dependency and a debug network-security-config allowing
+    // the app to reach Detox's local server. Without it `expo prebuild` produces
+    // a default (empty) androidTest APK, so the app launches but never opens the
+    // instrumentation WebSocket back to Detox and every test times out at
+    // launchApp(). Prebuild-time only; no effect on the shipped app.
+    "@config-plugins/detox",
     // Valhalla in-process routing (Approach A). Enable after building native
     // binaries (native-modules/valhalla/build-scripts) — see that dir's SPIKE.md.
     // ["./native-modules/valhalla/config-plugin", { approach: "native" }],

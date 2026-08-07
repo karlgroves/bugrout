@@ -98,13 +98,15 @@ stack would not have been safely mergeable anyway. An advisory against an
 Expo/RN package is therefore handled as a prompt to schedule the SDK upgrade, or
 to pin the specific transitive dependency via a bounded `pnpm` override.
 
-**Remaining gap:** `expo-doctor` closes the _alignment_ hole, not the _boot_
-hole. It verifies that the declared dependency set matches the SDK; it does not
-compile native code or launch the app. A change that keeps versions aligned but
-still breaks at runtime remains invisible. Until an EAS build or a Detox
-simulator run is in the pipeline, "green CI" means "the JavaScript type-checks,
-the unit tests pass, and the dependency set is SDK-aligned" — still not "the app
-works." Tracked in issue #30.
+**Remaining gap:** `expo-doctor` closes the _alignment_ hole. A Metro
+`bundle:check` (`expo export` for iOS and Android) was added alongside it and
+closes the _module-graph_ hole — unresolvable imports and ESM/CJS mismatches are
+resolution errors, not type errors, so `tsc` never sees them. Neither compiles
+native code or launches the app, so the _boot_ hole is still open; a Detox smoke
+test exists but runs as a non-gating workflow until it is proven stable. "Green
+CI" currently means "the JavaScript type-checks, the unit tests pass, the
+dependency set is SDK-aligned, and the bundle builds" — closer to, but still
+not, "the app works." Tracked in issue #30.
 
 `expo-doctor` also runs in CI only, not in the `check` script used by the
 pre-push hook, because its React Native Directory check makes network calls and

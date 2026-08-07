@@ -13,6 +13,7 @@ export function StatusIndicator(): React.JSX.Element {
   return (
     <View
       style={styles.container}
+      testID="status-indicator"
       accessibilityLabel={isOnline ? "Connected to internet" : "Offline mode"}
       accessibilityHint={
         isOnline

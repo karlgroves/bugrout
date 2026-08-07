@@ -19,8 +19,29 @@ module.exports = {
     "android.debug": {
       type: "android.apk",
       binaryPath: "android/app/build/outputs/apk/debug/app-debug.apk",
+      // Scoped to :app deliberately. Unqualified `assembleAndroidTest` builds an
+      // androidTest APK for every autolinked Expo module too (~1100 Gradle tasks,
+      // ~22 min), and Detox only ever consumes the two :app artifacts named in
+      // binaryPath/testBinaryPath. The extra work is also where the build has
+      // flaked — :expo-dev-client:packageDebugAndroidTest.
       build:
-        "cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug",
+        "cd android && ./gradlew :app:assembleDebug :app:assembleAndroidTest -DtestBuildType=debug",
+    },
+    "android.release": {
+      type: "android.apk",
+      binaryPath: "android/app/build/outputs/apk/release/app-release.apk",
+      testBinaryPath:
+        "android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk",
+      // CI uses the release variant, not debug. A debug build embeds
+      // expo-dev-client, which boots into the dev-launcher and waits for a Metro
+      // server that does not exist on a CI runner — the JS bundle never loads and
+      // Detox times out waiting for the app to become "ready" (confirmed from the
+      // device logcat: DevLauncherActivity RESUMED, MainActivity never rendered).
+      // Release embeds the JS bundle and bypasses the launcher. expo prebuild
+      // already signs release with the debug keystore, so no signing setup is
+      // needed. Same :app scoping as the debug variant.
+      build:
+        "cd android && ./gradlew :app:assembleRelease :app:assembleReleaseAndroidTest -DtestBuildType=release",
     },
   },
   devices: {
@@ -45,6 +66,10 @@ module.exports = {
     "android.emu.debug": {
       device: "emulator",
       app: "android.debug",
+    },
+    "android.emu.release": {
+      device: "emulator",
+      app: "android.release",
     },
   },
 };

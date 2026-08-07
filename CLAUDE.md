@@ -59,8 +59,18 @@ cd apps/mobile && npx expo start --web
 # Run a single test file
 cd apps/mobile && npx jest __tests__/utils/geo.test.ts
 
-# Run E2E tests (requires device/simulator)
-cd apps/mobile && npx detox test --configuration ios.sim.debug
+# Build the Metro bundle for both native platforms (CI gate; no native toolchain)
+pnpm run bundle:check
+
+# Check the dependency set matches the installed Expo SDK (CI gate)
+pnpm run doctor
+
+# Run E2E tests. Requires a native build first: the app uses the managed
+# workflow, so android/ and ios/ are generated, not committed.
+cd apps/mobile
+npx expo prebuild --platform android --no-install
+pnpm run e2e:build   # gradle assembleDebug + assembleAndroidTest
+pnpm run e2e:smoke   # launch + map screen, against a Pixel_6_API_33 AVD
 
 # Run a specific backend worker locally
 cd backend/workers/tile-server && pnpm dev

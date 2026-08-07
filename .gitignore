@@ -57,3 +57,6 @@ data-pipeline/data/sources/
 
 # Secrets / local credentials (never commit)
 cloudflare_token
+
+# Expo bundle-check output (CI gate artifact)
+.expo-export/
