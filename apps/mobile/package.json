@@ -57,7 +57,7 @@
     "@config-plugins/detox": "11.0.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/jest": "29.5.14",
-    "@types/node": "^22.19.17",
+    "@types/node": "^26.1.2",
     "@types/react": "~19.1.17",
     "@types/uuid": "^10.0.0",
     "detox": "20.51.4",
