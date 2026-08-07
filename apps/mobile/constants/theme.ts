@@ -101,6 +101,41 @@ const touchTarget = {
   minWidth: 44,
 } as const;
 
+// Shared action-button surfaces. The onboarding walkthrough and the
+// first-launch download guide render the same primary-CTA + skip pair; keeping
+// the surfaces here is what stops the two copies drifting apart.
+export /**
+ *
+ */
+const buttons = {
+  primary: {
+    flexDirection: "row" as const,
+    gap: spacing.sm,
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    minHeight: touchTarget.minHeight,
+    marginTop: spacing.xl,
+    alignSelf: "stretch" as const,
+  },
+  primaryText: {
+    fontSize: 16,
+    fontWeight: "700" as const,
+    color: colors.background,
+  },
+  skip: {
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  skipText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+} as const;
+
 // FAB (Bug Out button) — oversized for emergency use
 export /**
  *

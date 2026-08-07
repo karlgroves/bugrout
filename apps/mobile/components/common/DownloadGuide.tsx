@@ -11,8 +11,9 @@ import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
 
+import { FeatureRow } from "@/components/common/FeatureRow";
 import { findRegionForPoint } from "@/constants/regions";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { buttons, colors, spacing, typography } from "@/constants/theme";
 import { useLocation } from "@/hooks/useLocation";
 
 /**
@@ -100,29 +101,6 @@ export function DownloadGuide({
   );
 }
 
-/**
- * Single icon-and-label row used inside the download guide feature list.
- */
-function FeatureRow({
-  icon,
-  text,
-}: {
-  icon: string;
-  text: string;
-}): React.JSX.Element {
-  return (
-    <View style={styles.featureRow}>
-      <FontAwesome
-        name={icon as React.ComponentProps<typeof FontAwesome>["name"]}
-        size={16}
-        color={colors.accent}
-        style={styles.featureIcon}
-      />
-      <Text style={styles.featureText}>{text}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -174,43 +152,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     gap: spacing.sm,
   },
-  featureRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  featureIcon: {
-    width: 24,
-    textAlign: "center",
-  },
-  featureText: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  downloadButton: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: touchTarget.minHeight,
-    marginTop: spacing.xl,
-    alignSelf: "stretch",
-  },
-  downloadText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.background,
-  },
-  skipButton: {
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  skipText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
+  downloadButton: buttons.primary,
+  downloadText: buttons.primaryText,
+  skipButton: buttons.skip,
+  skipText: buttons.skipText,
 });
