@@ -49,6 +49,22 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/jest"
         update-types: ["version-update:semver-major"]
+      # TypeScript is pinned by the Expo SDK too: SDK 54 expects `~5.9.2`, so
+      # expo-doctor's "packages match versions required by installed Expo SDK"
+      # check fails on anything at or above 5.10. PR #32 (6.0.3) was green on
+      # lint, typecheck, test and bundle after two tsconfig `types` additions,
+      # and still could not pass that gate without adding typescript to
+      # `expo.install.exclude` — permanently silencing SDK drift detection for
+      # the compiler in exchange for an early major we get no benefit from.
+      #
+      # Major AND minor: `~5.9.2` allows patch only, so 5.10 would break the
+      # doctor gate exactly like 6.0 does. Patch updates still flow through the
+      # grouped PR. TypeScript rides along with the SDK upgrade instead, via
+      # `npx expo install --fix`.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
     groups:
       minor-and-patch:
         update-types:
