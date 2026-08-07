@@ -65,6 +65,18 @@ updates:
         update-types:
           - "version-update:semver-major"
           - "version-update:semver-minor"
+      # @types/node's major tracks the Node major, and we pin Node 22 in three
+      # places: .nvmrc, engines (>=22.0.0) and route-tracker's Dockerfile
+      # (node:22-slim). Types ahead of the runtime are invisible to CI —
+      # @types/node 26 declares node:ffi and node:quic, both of which throw
+      # ERR_UNKNOWN_BUILTIN_MODULE on Node 22, so importing one would
+      # typecheck, lint and pass CI, then crash in production. PR #60.
+      #
+      # Major only: 22.x updates still flow through the grouped PR. When the
+      # repo moves to a newer Node, @types/node moves in that same PR, where
+      # runtime and types change together and can be validated together.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types:
