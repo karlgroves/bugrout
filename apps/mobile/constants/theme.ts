@@ -134,6 +134,34 @@ const buttons = {
     ...typography.caption,
     color: colors.textMuted,
   },
+  // Dashed-outline "add another" affordance, used at the end of the scenarios
+  // and emergency-contacts lists.
+  addOutline: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderStyle: "dashed" as const,
+    padding: spacing.md,
+    minHeight: touchTarget.minHeight,
+    marginTop: spacing.md,
+  },
+} as const;
+
+// Placement for the always-visible online/offline indicator. The map screen and
+// the navigation screen pin it to the same spot so it does not appear to jump
+// when navigation starts — the spec requires it be visible at all times.
+export /**
+ *
+ */
+const statusIndicator = {
+  position: "absolute" as const,
+  top: 60,
+  right: spacing.md,
+  zIndex: 10,
 } as const;
 
 // FAB (Bug Out button) — oversized for emergency use

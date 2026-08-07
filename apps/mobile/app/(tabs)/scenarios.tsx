@@ -4,7 +4,13 @@ import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
 
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import {
+  buttons,
+  colors,
+  spacing,
+  typography,
+  touchTarget,
+} from "@/constants/theme";
 import { getScenarios } from "@/db/queries/scenarios";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
@@ -170,19 +176,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
     marginTop: spacing.xs,
   },
-  addButtonOutline: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderStyle: "dashed",
-    padding: spacing.md,
-    minHeight: touchTarget.minHeight,
-    marginTop: spacing.md,
-  },
+  addButtonOutline: buttons.addOutline,
   addOutlineText: {
     ...typography.body,
     color: colors.accent,

@@ -47,18 +47,30 @@ code gets no exemptions. Remove the disable when the item is resolved.
 ## Other
 
 - jscpd threshold is at **0.75%**, ratcheted below issue #1's 1% target once the
-  extractions below cleared enough room. Current duplication: 0.44%, 9 clones.
-  Headroom is ~0.31pp, and at ~18.3k analysed lines a new 10-line clone costs
-  ~0.11pp, so the gate tolerates roughly two or three before it fires —
-  deliberately about the same slack the 1.5 threshold had before the jscpd 5
-  upgrade changed the measurement basis. Next contributors, in order: the
-  map-screen / navigation-screen overlap (15 lines), the scenarios/contacts list
-  overlap (13 lines), and `db/queries/regions.ts` self-duplication (10 lines).
-  Ratchet again after the next one lands, not before — a gate with under ~0.2pp
-  of slack starts firing on unrelated changes.
+  extractions below cleared enough room. Current duplication: 0.25%, 6 clones.
+  Headroom is ~0.51pp, and at ~18.3k analysed lines a new 10-line clone costs
+  ~0.11pp, so the gate now tolerates roughly four before it fires. **The
+  threshold could drop to 0.5** on that basis (leaving ~0.25pp, about two
+  clones); below that the slack goes under ~0.2pp and the gate starts firing on
+  changes unrelated to any quality regression.
+
+  What remains is mostly not worth chasing, and the ratchet should stop rather
+  than force bad extractions:
+  - `destination/index.tsx` self-duplication (2 × 10 lines) — three
+    near-identical list-row renderers (search results, scenarios, recents).
+    Genuine, but the file is already the largest screen in the tree at 622 lines
+    and is queued above for decomposition; fold this into that work rather than
+    doing it twice.
+  - `LocationTracker.ts` self-duplication (10 lines) — foreground and background
+    watcher setup. Worth extracting when either grows.
+  - `RouteEngine` / `WaypointInsertion` (8 lines) — corridor-distance maths.
+    Small enough that a shared helper may cost more indirection than it saves.
+  - `README.md` / `spec.md` and `tech-debt.md` self-overlap — prose. Excluding
+    markdown needs an `ignore` entry, since the `format` allowlist in
+    `.jscpd.json` has never been honoured by jscpd (v4 or v5).
 
   Note the percentage is only comparable within a jscpd major — v5 analyses a
-  smaller file set than v4, so the same source measures ~27% higher. The 0.44%
+  smaller file set than v4, so the same source measures ~27% higher. The 0.25%
   above is on jscpd 5. The threshold went 2.0 (while the v5 upgrade landed ahead
   of this cleanup) → 1.5 → 1.0 → 0.75 as the extractions below removed clones.
 
@@ -81,6 +93,13 @@ code gets no exemptions. Remove the disable when the item is resolved.
   - The drifting mock GPS track, formerly duplicated between the web branch and
     the Expo Go fallback of `platform/location.ts` → a `watchMockPosition`
     helper in the same file, now covered by tests.
+  - The `downloaded_regions` row shape and its row→domain mapper, formerly
+    written twice in `db/queries/regions.ts` → a `DownloadedRegionRow` type and
+    `toDownloadedRegion` in the same file.
+  - The dashed-outline "add another" button shared by the scenarios and
+    emergency-contacts lists → `buttons.addOutline` in `constants/theme.ts`.
+  - The online/offline indicator's placement, shared by the map and navigation
+    screens → `statusIndicator` in `constants/theme.ts`.
 
 - `security/detect-object-injection`: ~40 **warnings** (rule is warn-level by
   design, per issue #1). Mostly validated dynamic-key access. Review

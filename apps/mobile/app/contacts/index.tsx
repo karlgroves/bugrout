@@ -18,7 +18,13 @@ import {
 } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import {
+  buttons,
+  colors,
+  spacing,
+  typography,
+  touchTarget,
+} from "@/constants/theme";
 import {
   getEmergencyContacts,
   upsertEmergencyContact,
@@ -288,19 +294,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.background,
   },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderStyle: "dashed",
-    padding: spacing.md,
-    minHeight: touchTarget.minHeight,
-    marginTop: spacing.md,
-  },
+  addButton: buttons.addOutline,
   addButtonText: {
     ...typography.body,
     color: colors.accent,

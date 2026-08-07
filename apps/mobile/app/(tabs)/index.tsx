@@ -19,7 +19,7 @@ import { ResourceFilterBar } from "@/components/map/ResourceFilterBar";
 import { ResourceMarkers } from "@/components/map/ResourceMarkers";
 import { ScenarioChips } from "@/components/map/ScenarioChips";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
-import { colors, fab, spacing } from "@/constants/theme";
+import { colors, fab, spacing, statusIndicator } from "@/constants/theme";
 import { useDataSync } from "@/hooks/useDataSync";
 import { useLocation } from "@/hooks/useLocation";
 import * as Haptics from "@/platform/haptics";
@@ -167,12 +167,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  statusBar: {
-    position: "absolute",
-    top: 60,
-    right: spacing.md,
-    zIndex: 10,
-  },
+  statusBar: statusIndicator,
   tileBanner: {
     position: "absolute",
     top: 60,
