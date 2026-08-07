@@ -2,7 +2,7 @@
  * Geographic utility functions.
  */
 
-import type { LatLng, BBox } from "@bugrout/shared";
+import type { LatLng, BBox, ThreatZone } from "@bugrout/shared";
 
 const EARTH_RADIUS_METERS = 6371000;
 
@@ -46,6 +46,63 @@ export function expandBBox(bbox: BBox, meters: number): BBox {
     west: bbox.west - lngDelta,
     east: bbox.east + lngDelta,
   };
+}
+
+/**
+ * Flatten a threat geometry into its outer-ring coordinate pairs.
+ *
+ * For a Polygon this is the outer ring; for a MultiPolygon it is every
+ * constituent polygon's outer ring, concatenated. Holes are ignored — the
+ * callers use these rings for containment and overlap tests where treating a
+ * hole as solid is the conservative (fail-safe) answer for a threat zone.
+ *
+ * @param geometry - The threat zone's GeoJSON geometry.
+ * @returns Coordinate pairs as `[lng, lat]`.
+ */
+export function extractRingCoordinates(
+  geometry: ThreatZone["geometry"],
+): number[][] {
+  if (geometry.type === "Polygon") {
+    return geometry.coordinates[0] ?? [];
+  }
+  return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
+}
+
+/**
+ * Ray-casting point-in-polygon test.
+ *
+ * @param point - The test point as `[lng, lat]`.
+ * @param polygon - A closed ring of `[lng, lat]` pairs.
+ * @returns `true` when the point lies inside the ring.
+ */
+export function pointInPolygon(
+  point: [number, number],
+  polygon: number[][],
+): boolean {
+  let inside = false;
+  const [px, py] = point;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const pi = polygon[i];
+    const pj = polygon[j];
+    if (!pi || !pj) continue;
+    const xi = pi[0],
+      yi = pi[1];
+    const xj = pj[0],
+      yj = pj[1];
+    if (
+      xi === undefined ||
+      yi === undefined ||
+      xj === undefined ||
+      yj === undefined
+    ) {
+      continue;
+    }
+
+    const intersect =
+      yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
 }
 
 /**

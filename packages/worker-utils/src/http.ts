@@ -33,6 +33,68 @@ export interface CorsPolicy {
 }
 
 /**
+ * The subset of a `Request` this module needs.
+ *
+ * Declared structurally rather than as the platform `Request` so this package
+ * stays free of `@cloudflare/workers-types` — both the Workers `Request` and
+ * Node's satisfy it, which also keeps these helpers testable under
+ * `node --test`.
+ */
+export interface CorsRequestLike {
+  /** Absolute request URL. */
+  url: string;
+  /** HTTP method, used to detect a CORS preflight. */
+  method: string;
+  /** Request headers; only `Origin` is read. */
+  headers: { get(name: string): string | null };
+}
+
+/**
+ * Per-request values every BugRout worker derives before dispatching a route.
+ */
+export interface WorkerRequestContext {
+  /** The parsed request URL. */
+  url: URL;
+  /** CORS + security headers to attach to every response from this request. */
+  headers: Record<string, string>;
+  /** True when this is a CORS preflight and the worker should reply immediately. */
+  isPreflight: boolean;
+}
+
+/**
+ * Derive the per-request URL, response headers and preflight flag shared by
+ * every worker's `fetch` entry point.
+ *
+ * Centralizing this keeps one invariant in one place: every response carries
+ * both the resolved CORS headers and {@link SECURITY_HEADERS}. A worker that
+ * built these inline could silently omit the security headers on some path.
+ *
+ * Deliberately does not construct the preflight `Response` — that would pull a
+ * platform-specific global into this package. Callers do
+ * `if (isPreflight) return new Response(null, { headers })`.
+ *
+ * @param request - The incoming request.
+ * @param allowedOrigins - Comma-separated allowlist from the worker's env.
+ * @param policy - The worker's CORS policy.
+ * @returns The parsed URL, merged response headers, and whether this is a preflight.
+ */
+export function initWorkerRequest(
+  request: CorsRequestLike,
+  allowedOrigins: string | undefined,
+  policy: CorsPolicy,
+): WorkerRequestContext {
+  const origin = request.headers.get("Origin") ?? "";
+  return {
+    url: new URL(request.url),
+    headers: {
+      ...buildCorsHeaders(origin, allowedOrigins, policy),
+      ...SECURITY_HEADERS,
+    },
+    isPreflight: request.method === "OPTIONS",
+  };
+}
+
+/**
  * Build CORS response headers for a request, allowing only origins present in
  * the configured allowlist.
  *

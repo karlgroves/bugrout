@@ -1,2 +1,2 @@
-export { SECURITY_HEADERS, buildCorsHeaders } from "./http";
-export type { CorsPolicy } from "./http";
+export { SECURITY_HEADERS, buildCorsHeaders, initWorkerRequest } from "./http";
+export type { CorsPolicy, CorsRequestLike, WorkerRequestContext } from "./http";

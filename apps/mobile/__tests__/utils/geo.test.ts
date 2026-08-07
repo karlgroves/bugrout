@@ -2,9 +2,13 @@ import {
   haversineDistance,
   pointInBBox,
   expandBBox,
+  extractRingCoordinates,
+  pointInPolygon,
   formatDistance,
   formatDuration,
 } from "@/utils/geo";
+
+import type { ThreatZone } from "@bugrout/shared";
 
 describe("haversineDistance", () => {
   it("returns 0 for same point", () => {
@@ -55,6 +59,157 @@ describe("expandBBox", () => {
     expect(expanded.north).toBeGreaterThan(bbox.north);
     expect(expanded.west).toBeLessThan(bbox.west);
     expect(expanded.east).toBeGreaterThan(bbox.east);
+  });
+});
+
+describe("extractRingCoordinates", () => {
+  it("returns the outer ring of a Polygon", () => {
+    const geometry: ThreatZone["geometry"] = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [0, 0],
+          [2, 0],
+          [2, 2],
+          [0, 2],
+          [0, 0],
+        ],
+      ],
+    };
+    expect(extractRingCoordinates(geometry)).toEqual([
+      [0, 0],
+      [2, 0],
+      [2, 2],
+      [0, 2],
+      [0, 0],
+    ]);
+  });
+
+  it("ignores interior holes, keeping only the outer ring", () => {
+    const geometry: ThreatZone["geometry"] = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [0, 0],
+          [4, 0],
+          [4, 4],
+          [0, 0],
+        ],
+        [
+          [1, 1],
+          [2, 1],
+          [2, 2],
+          [1, 1],
+        ],
+      ],
+    };
+    expect(extractRingCoordinates(geometry)).toEqual([
+      [0, 0],
+      [4, 0],
+      [4, 4],
+      [0, 0],
+    ]);
+  });
+
+  it("concatenates each polygon's outer ring for a MultiPolygon", () => {
+    const geometry: ThreatZone["geometry"] = {
+      type: "MultiPolygon",
+      coordinates: [
+        [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+        [
+          [
+            [5, 5],
+            [6, 5],
+            [6, 6],
+            [5, 5],
+          ],
+        ],
+      ],
+    };
+    expect(extractRingCoordinates(geometry)).toEqual([
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 0],
+      [5, 5],
+      [6, 5],
+      [6, 6],
+      [5, 5],
+    ]);
+  });
+
+  it("returns an empty array for a Polygon with no rings", () => {
+    const geometry: ThreatZone["geometry"] = {
+      type: "Polygon",
+      coordinates: [],
+    };
+    expect(extractRingCoordinates(geometry)).toEqual([]);
+  });
+});
+
+describe("pointInPolygon", () => {
+  // Counter-clockwise unit square from (0,0) to (4,4)
+  const square: number[][] = [
+    [0, 0],
+    [4, 0],
+    [4, 4],
+    [0, 4],
+  ];
+
+  it("returns true for a point inside", () => {
+    expect(pointInPolygon([2, 2], square)).toBe(true);
+  });
+
+  it("returns false for a point outside", () => {
+    expect(pointInPolygon([5, 2], square)).toBe(false);
+  });
+
+  it("returns false for a point beyond every vertex", () => {
+    expect(pointInPolygon([-1, -1], square)).toBe(false);
+  });
+
+  it("handles a concave ring — the notch is outside", () => {
+    // C-shape: the gap between the arms must not count as inside.
+    const cShape: number[][] = [
+      [0, 0],
+      [4, 0],
+      [4, 1],
+      [1, 1],
+      [1, 3],
+      [4, 3],
+      [4, 4],
+      [0, 4],
+    ];
+    expect(pointInPolygon([2, 2], cShape)).toBe(false);
+    expect(pointInPolygon([0.5, 2], cShape)).toBe(true);
+  });
+
+  it("returns false for a degenerate ring with too few points", () => {
+    expect(
+      pointInPolygon(
+        [1, 1],
+        [
+          [0, 0],
+          [2, 2],
+        ],
+      ),
+    ).toBe(false);
+  });
+
+  it("returns false for an empty ring", () => {
+    expect(pointInPolygon([1, 1], [])).toBe(false);
+  });
+
+  it("skips malformed coordinate pairs instead of throwing", () => {
+    const ragged: number[][] = [[0, 0], [4, 0], [4], [0, 4]];
+    expect(() => pointInPolygon([2, 2], ragged)).not.toThrow();
   });
 });
 
