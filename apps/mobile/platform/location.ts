@@ -94,6 +94,38 @@ export async function requestBackgroundPermissionsAsync(): Promise<{
 }
 
 /**
+ * Emits a slowly drifting mock position once per second.
+ *
+ * Used on web and whenever expo-location cannot be required (Expo Go), so the
+ * navigation UI has a moving fix to render against without real GPS. Both
+ * fallback paths in {@link watchPositionAsync} share this, which is what keeps
+ * the web and Expo Go dev experiences identical.
+ */
+function watchMockPosition(
+  callback: (location: LocationResult) => void,
+): LocationSubscription {
+  let lat = MOCK_POSITION.coords.latitude;
+  const interval = setInterval(() => {
+    lat += 0.0001; // Drift north slowly
+    callback({
+      coords: {
+        latitude: lat,
+        longitude: MOCK_POSITION.coords.longitude,
+        speed: 13.4, // ~30 mph
+        accuracy: 10,
+      },
+      timestamp: Date.now(),
+    });
+  }, 1000);
+
+  return {
+    remove() {
+      clearInterval(interval);
+    },
+  };
+}
+
+/**
  * Subscribes to position updates, emitting a slowly drifting mock track when
  * expo-location is unavailable.
  */
@@ -102,51 +134,14 @@ export async function watchPositionAsync(
   callback: (location: LocationResult) => void,
 ): Promise<LocationSubscription> {
   if (Platform.OS === "web") {
-    // Mock: emit a position every second with slight drift
-    let lat = MOCK_POSITION.coords.latitude;
-    const interval = setInterval(() => {
-      lat += 0.0001; // Drift north slowly
-      callback({
-        coords: {
-          latitude: lat,
-          longitude: MOCK_POSITION.coords.longitude,
-          speed: 13.4, // ~30 mph
-          accuracy: 10,
-        },
-        timestamp: Date.now(),
-      });
-    }, 1000);
-    return {
-      remove() {
-        clearInterval(interval);
-      },
-    };
+    return watchMockPosition(callback);
   }
   try {
     const mod = EXPO_LOCATION;
     const Location = require(mod);
     return await Location.watchPositionAsync(options, callback);
   } catch {
-    // Mock: emit a position every second with slight drift
-    let lat = MOCK_POSITION.coords.latitude;
-    const interval = setInterval(() => {
-      lat += 0.0001; // Drift north slowly
-      callback({
-        coords: {
-          latitude: lat,
-          longitude: MOCK_POSITION.coords.longitude,
-          speed: 13.4, // ~30 mph
-          accuracy: 10,
-        },
-        timestamp: Date.now(),
-      });
-    }, 1000);
-
-    return {
-      remove() {
-        clearInterval(interval);
-      },
-    };
+    return watchMockPosition(callback);
   }
 }
 
