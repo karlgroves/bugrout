@@ -46,18 +46,21 @@ code gets no exemptions. Remove the disable when the item is resolved.
 
 ## Other
 
-- jscpd threshold is at **1%** — issue #1's target, reached. Current
-  duplication: 0.44%, 9 clones. Headroom is ~0.56pp, and at ~18.3k analysed
-  lines a new 10-line clone costs ~0.11pp, so the gate tolerates roughly five
-  before it fires. Next contributors, in order: the map-screen /
-  navigation-screen overlap (15 lines), the scenarios/contacts list overlap (13
-  lines), and `db/queries/regions.ts` self-duplication (10 lines). The threshold
-  could reasonably drop to 0.75 now.
+- jscpd threshold is at **0.75%**, ratcheted below issue #1's 1% target once the
+  extractions below cleared enough room. Current duplication: 0.44%, 9 clones.
+  Headroom is ~0.31pp, and at ~18.3k analysed lines a new 10-line clone costs
+  ~0.11pp, so the gate tolerates roughly two or three before it fires —
+  deliberately about the same slack the 1.5 threshold had before the jscpd 5
+  upgrade changed the measurement basis. Next contributors, in order: the
+  map-screen / navigation-screen overlap (15 lines), the scenarios/contacts list
+  overlap (13 lines), and `db/queries/regions.ts` self-duplication (10 lines).
+  Ratchet again after the next one lands, not before — a gate with under ~0.2pp
+  of slack starts firing on unrelated changes.
 
   Note the percentage is only comparable within a jscpd major — v5 analyses a
   smaller file set than v4, so the same source measures ~27% higher. The 0.44%
-  above is on jscpd 5. The threshold was briefly 2.0 while the v5 upgrade landed
-  ahead of this cleanup, then 1.5.
+  above is on jscpd 5. The threshold went 2.0 (while the v5 upgrade landed ahead
+  of this cleanup) → 1.5 → 1.0 → 0.75 as the extractions below removed clones.
 
   Already extracted:
   - CORS/security-header handling and the per-request worker preamble
