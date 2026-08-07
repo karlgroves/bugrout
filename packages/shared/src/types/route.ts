@@ -63,9 +63,4 @@ export interface Route {
  * Lifecycle state of an active or pending route.
  */
 export type RouteStatus =
-  | "idle"
-  | "calculating"
-  | "active"
-  | "rerouting"
-  | "completed"
-  | "error";
+  "idle" | "calculating" | "active" | "rerouting" | "completed" | "error";
