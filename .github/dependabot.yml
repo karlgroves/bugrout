@@ -49,6 +49,34 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/jest"
         update-types: ["version-update:semver-major"]
+      # TypeScript is pinned by the Expo SDK too: SDK 54 expects `~5.9.2`, so
+      # expo-doctor's "packages match versions required by installed Expo SDK"
+      # check fails on anything at or above 5.10. PR #32 (6.0.3) was green on
+      # lint, typecheck, test and bundle after two tsconfig `types` additions,
+      # and still could not pass that gate without adding typescript to
+      # `expo.install.exclude` — permanently silencing SDK drift detection for
+      # the compiler in exchange for an early major we get no benefit from.
+      #
+      # Major AND minor: `~5.9.2` allows patch only, so 5.10 would break the
+      # doctor gate exactly like 6.0 does. Patch updates still flow through the
+      # grouped PR. TypeScript rides along with the SDK upgrade instead, via
+      # `npx expo install --fix`.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # @types/node's major tracks the Node major, and we pin Node 22 in three
+      # places: .nvmrc, engines (>=22.0.0) and route-tracker's Dockerfile
+      # (node:22-slim). Types ahead of the runtime are invisible to CI —
+      # @types/node 26 declares node:ffi and node:quic, both of which throw
+      # ERR_UNKNOWN_BUILTIN_MODULE on Node 22, so importing one would
+      # typecheck, lint and pass CI, then crash in production. PR #60.
+      #
+      # Major only: 22.x updates still flow through the grouped PR. When the
+      # repo moves to a newer Node, @types/node moves in that same PR, where
+      # runtime and types change together and can be validated together.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types:
