@@ -9,9 +9,10 @@
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useState } from "react";
-import { StyleSheet, View, Text, Pressable, Modal } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { MapDetailSheet } from "@/components/map/MapDetailSheet";
+import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useResourceStore } from "@/stores/useResourceStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -130,94 +131,65 @@ export function ResourceMarkers({
       </MapLibreGL.ShapeSource>
 
       {/* Resource detail modal */}
-      <Modal
+      <MapDetailSheet
         visible={selectedResource !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        onClose={() => {
           setSelectedResource(null);
         }}
+        closeLabel="Close resource details"
+        closeHint="Dismisses this resource detail card and returns to the map"
       >
-        <View style={detailStyles.overlay}>
-          <View style={detailStyles.card}>
-            {selectedResource ? (
-              <>
-                <View style={detailStyles.header}>
-                  <FontAwesome
-                    name={
-                      (RESOURCE_ICONS[selectedResource.type]?.icon ??
-                        "question") as React.ComponentProps<
-                        typeof FontAwesome
-                      >["name"]
-                    }
-                    size={24}
-                    color={
-                      RESOURCE_ICONS[selectedResource.type]?.color ??
-                      colors.textMuted
-                    }
-                  />
-                  <View style={detailStyles.headerText}>
-                    <Text style={detailStyles.name}>
-                      {selectedResource.name}
-                    </Text>
-                    <Text style={detailStyles.type}>
-                      {selectedResource.type.charAt(0).toUpperCase() +
-                        selectedResource.type.slice(1)}
-                    </Text>
-                  </View>
-                </View>
+        {selectedResource ? (
+          <>
+            <View style={detailStyles.header}>
+              <FontAwesome
+                name={
+                  (RESOURCE_ICONS[selectedResource.type]?.icon ??
+                    "question") as React.ComponentProps<
+                    typeof FontAwesome
+                  >["name"]
+                }
+                size={24}
+                color={
+                  RESOURCE_ICONS[selectedResource.type]?.color ??
+                  colors.textMuted
+                }
+              />
+              <View style={detailStyles.headerText}>
+                <Text style={detailStyles.name}>{selectedResource.name}</Text>
+                <Text style={detailStyles.type}>
+                  {selectedResource.type.charAt(0).toUpperCase() +
+                    selectedResource.type.slice(1)}
+                </Text>
+              </View>
+            </View>
 
-                {selectedResource.address ? (
-                  <Text style={detailStyles.address}>
-                    {selectedResource.address}
-                  </Text>
-                ) : null}
-
-                {userLocation ? (
-                  <Text style={detailStyles.distance}>
-                    {formatDistance(
-                      haversineDistance(userLocation, {
-                        lat: selectedResource.lat,
-                        lng: selectedResource.lng,
-                      }),
-                      units,
-                    )}{" "}
-                    away
-                  </Text>
-                ) : null}
-
-                <Pressable
-                  style={detailStyles.closeButton}
-                  onPress={() => {
-                    setSelectedResource(null);
-                  }}
-                  accessibilityLabel="Close resource details"
-                  accessibilityHint="Dismisses this resource detail card and returns to the map"
-                  accessibilityRole="button"
-                >
-                  <Text style={detailStyles.closeText}>Close</Text>
-                </Pressable>
-              </>
+            {selectedResource.address ? (
+              <Text style={detailStyles.address}>
+                {selectedResource.address}
+              </Text>
             ) : null}
-          </View>
-        </View>
-      </Modal>
+
+            {userLocation ? (
+              <Text style={detailStyles.distance}>
+                {formatDistance(
+                  haversineDistance(userLocation, {
+                    lat: selectedResource.lat,
+                    lng: selectedResource.lng,
+                  }),
+                  units,
+                )}{" "}
+                away
+              </Text>
+            ) : null}
+          </>
+        ) : null}
+      </MapDetailSheet>
     </>
   );
 }
 
 const detailStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  card: {
-    backgroundColor: colors.surfaceElevated,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: spacing.lg,
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -244,18 +216,5 @@ const detailStyles = StyleSheet.create({
     color: colors.accent,
     fontWeight: "600",
     marginBottom: spacing.lg,
-  },
-  closeButton: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.md,
-    alignItems: "center",
-    minHeight: touchTarget.minHeight,
-    justifyContent: "center",
-  },
-  closeText: {
-    ...typography.body,
-    fontWeight: "600",
-    color: colors.textPrimary,
   },
 });
