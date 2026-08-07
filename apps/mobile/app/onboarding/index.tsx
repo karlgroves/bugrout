@@ -9,14 +9,15 @@
  * Minimal steps — user can skip download and do it later.
  */
 
-/* eslint-disable max-lines, max-lines-per-function -- pre-existing oversized onboarding screen rendering all three step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
+/* eslint-disable max-lines-per-function -- pre-existing oversized onboarding screen rendering all three step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { FeatureRow } from "@/components/common/FeatureRow";
+import { buttons, colors, spacing, typography } from "@/constants/theme";
 import { track, Events } from "@/platform/analytics";
 import { requestForegroundPermissionsAsync } from "@/platform/location";
 import { acceptDisclaimer } from "@/services/AppBootstrap";
@@ -155,10 +156,10 @@ export default function OnboardingScreen(): React.JSX.Element {
           </Text>
 
           <View style={styles.featureList}>
-            <FeatureItem icon="road" text="Offline turn-by-turn routing" />
-            <FeatureItem icon="fire" text="Wildfire & flood avoidance" />
-            <FeatureItem icon="tint" text="Fuel & water station finder" />
-            <FeatureItem
+            <FeatureRow icon="road" text="Offline turn-by-turn routing" />
+            <FeatureRow icon="fire" text="Wildfire & flood avoidance" />
+            <FeatureRow icon="tint" text="Fuel & water station finder" />
+            <FeatureRow
               icon="clock-o"
               text="3 taps from launch to navigation"
             />
@@ -181,26 +182,6 @@ export default function OnboardingScreen(): React.JSX.Element {
         </View>
       )}
     </SafeAreaView>
-  );
-}
-
-function FeatureItem({
-  icon,
-  text,
-}: {
-  icon: string;
-  text: string;
-}): React.JSX.Element {
-  return (
-    <View style={styles.featureRow}>
-      <FontAwesome
-        name={icon as React.ComponentProps<typeof FontAwesome>["name"]}
-        size={16}
-        color={colors.accent}
-        style={styles.featureIcon}
-      />
-      <Text style={styles.featureText}>{text}</Text>
-    </View>
   );
 }
 
@@ -293,48 +274,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     maxWidth: 280,
   },
-  primaryButton: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: touchTarget.minHeight,
-    marginTop: spacing.xl,
-    alignSelf: "stretch",
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.background,
-  },
-  skipButton: {
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-  },
-  skipText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
+  primaryButton: buttons.primary,
+  primaryButtonText: buttons.primaryText,
+  skipButton: buttons.skip,
+  skipText: buttons.skipText,
   featureList: {
     alignSelf: "stretch",
     marginTop: spacing.xl,
     gap: spacing.md,
-  },
-  featureRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  featureIcon: {
-    width: 24,
-    textAlign: "center",
-  },
-  featureText: {
-    ...typography.body,
-    color: colors.textPrimary,
   },
 });

@@ -46,21 +46,32 @@ code gets no exemptions. Remove the disable when the item is resolved.
 
 ## Other
 
-- jscpd threshold is ratcheted to **1.5%** (current duplication: 1.17%, 18
-  clones; issue #1 targets 1%). Biggest contributors: onboarding step views,
-  legal screens' shared layout, and ResourceMarkers/ThreatOverlay layer blocks.
-  Lower the threshold as clones are removed.
+- jscpd threshold is at **1%** — issue #1's target, reached. Current
+  duplication: 0.77%, 13 clones. Headroom is ~0.23pp, and at ~18.3k analysed
+  lines a new 10-line clone costs ~0.11pp, so the gate tolerates roughly two
+  before it fires. Next contributors, in order: the three
+  ResourceMarkers/ThreatOverlay layer blocks (43 lines total), the
+  `platform/location.ts` self-duplication (21 lines), and the map-screen /
+  navigation-screen overlap (15 lines).
 
   Note the percentage is only comparable within a jscpd major — v5 analyses a
-  smaller file set than v4, so the same source measures ~27% higher. The 1.17%
+  smaller file set than v4, so the same source measures ~27% higher. The 0.77%
   above is on jscpd 5. The threshold was briefly 2.0 while the v5 upgrade landed
-  ahead of this cleanup.
+  ahead of this cleanup, then 1.5.
 
-  Already extracted: CORS/security-header handling and the per-request worker
-  preamble (`initWorkerRequest`), formerly duplicated across the three
-  Cloudflare Workers, now live in `@bugrout/worker-utils`; `pointInPolygon` and
-  `extractRingCoordinates`, formerly duplicated across `AlertParser`,
-  `ThreatAvoidance` and `NWSService`, now live in `apps/mobile/utils/geo.ts`.
+  Already extracted:
+  - CORS/security-header handling and the per-request worker preamble
+    (`initWorkerRequest`), formerly duplicated across the three Cloudflare
+    Workers → `@bugrout/worker-utils`.
+  - `pointInPolygon` and `extractRingCoordinates`, formerly duplicated across
+    `AlertParser`, `ThreatAvoidance` and `NWSService` →
+    `apps/mobile/utils/geo.ts`.
+  - `FeatureRow`, formerly duplicated between the onboarding walkthrough and the
+    download guide → `components/common/FeatureRow.tsx`; the shared primary-CTA
+    and skip button surfaces → `buttons` in `constants/theme.ts`.
+  - The privacy-policy and terms-of-service screens, formerly byte-identical
+    apart from which constant they render →
+    `components/common/LegalDocument.tsx`.
 
 - `security/detect-object-injection`: ~40 **warnings** (rule is warn-level by
   design, per issue #1). Mostly validated dynamic-key access. Review
