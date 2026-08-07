@@ -8,9 +8,10 @@
  */
 
 import { useCallback, useState } from "react";
-import { StyleSheet, View, Text, Pressable, Modal } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { MapDetailSheet } from "@/components/map/MapDetailSheet";
+import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useThreatStore } from "@/stores/useThreatStore";
 
@@ -85,67 +86,50 @@ export function ThreatOverlay(): React.JSX.Element | null {
       })}
 
       {/* Threat detail modal */}
-      <Modal
+      <MapDetailSheet
         visible={selectedThreat !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        onClose={() => {
           setSelectedThreat(null);
         }}
+        closeLabel="Close threat details"
+        closeHint="Dismisses this threat detail card and returns to the map"
+        capHeight
       >
-        <View style={detailStyles.overlay}>
-          <View style={detailStyles.card}>
-            {selectedThreat ? (
-              <>
-                <View style={detailStyles.header}>
-                  <View
-                    style={[
-                      detailStyles.typeBadge,
-                      {
-                        backgroundColor:
-                          THREAT_COLORS[selectedThreat.type]?.border ??
-                          colors.warning,
-                      },
-                    ]}
-                  >
-                    <Text style={detailStyles.typeText}>
-                      {selectedThreat.type.toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={detailStyles.severity}>
-                    {selectedThreat.severity}
-                  </Text>
-                </View>
-
-                <Text style={detailStyles.headline}>
-                  {selectedThreat.headline}
+        {selectedThreat ? (
+          <>
+            <View style={detailStyles.header}>
+              <View
+                style={[
+                  detailStyles.typeBadge,
+                  {
+                    backgroundColor:
+                      THREAT_COLORS[selectedThreat.type]?.border ??
+                      colors.warning,
+                  },
+                ]}
+              >
+                <Text style={detailStyles.typeText}>
+                  {selectedThreat.type.toUpperCase()}
                 </Text>
+              </View>
+              <Text style={detailStyles.severity}>
+                {selectedThreat.severity}
+              </Text>
+            </View>
 
-                <Text style={detailStyles.description}>
-                  {selectedThreat.description}
-                </Text>
+            <Text style={detailStyles.headline}>{selectedThreat.headline}</Text>
 
-                <Text style={detailStyles.timestamp}>
-                  Source: {selectedThreat.source.toUpperCase()} — Last updated:{" "}
-                  {new Date(selectedThreat.fetchedAt).toLocaleString()}
-                </Text>
+            <Text style={detailStyles.description}>
+              {selectedThreat.description}
+            </Text>
 
-                <Pressable
-                  style={detailStyles.closeButton}
-                  onPress={() => {
-                    setSelectedThreat(null);
-                  }}
-                  accessibilityLabel="Close threat details"
-                  accessibilityHint="Dismisses this threat detail card and returns to the map"
-                  accessibilityRole="button"
-                >
-                  <Text style={detailStyles.closeText}>Close</Text>
-                </Pressable>
-              </>
-            ) : null}
-          </View>
-        </View>
-      </Modal>
+            <Text style={detailStyles.timestamp}>
+              Source: {selectedThreat.source.toUpperCase()} — Last updated:{" "}
+              {new Date(selectedThreat.fetchedAt).toLocaleString()}
+            </Text>
+          </>
+        ) : null}
+      </MapDetailSheet>
     </>
   );
 }
@@ -179,18 +163,6 @@ function threatsToFeatureCollection(threats: ThreatZone[]) {
 }
 
 const detailStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  card: {
-    backgroundColor: colors.surfaceElevated,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: spacing.lg,
-    maxHeight: "50%",
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -226,18 +198,5 @@ const detailStyles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginBottom: spacing.lg,
-  },
-  closeButton: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.md,
-    alignItems: "center",
-    minHeight: touchTarget.minHeight,
-    justifyContent: "center",
-  },
-  closeText: {
-    ...typography.body,
-    fontWeight: "600",
-    color: colors.textPrimary,
   },
 });
