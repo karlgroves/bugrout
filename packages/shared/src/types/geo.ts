@@ -44,9 +44,7 @@ export interface GeoJSONMultiPolygon {
  * Union of the GeoJSON geometry types used across the app.
  */
 export type GeoJSONGeometry =
-  | GeoJSONPoint
-  | GeoJSONPolygon
-  | GeoJSONMultiPolygon;
+  GeoJSONPoint | GeoJSONPolygon | GeoJSONMultiPolygon;
 
 /**
  * A GeoJSON Feature pairing a geometry with arbitrary properties.

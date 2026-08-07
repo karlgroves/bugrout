@@ -9,11 +9,7 @@ export type ThreatType = "wildfire" | "flood" | "weather";
  * Normalized severity level for a threat, highest to lowest.
  */
 export type ThreatSeverity =
-  | "extreme"
-  | "severe"
-  | "moderate"
-  | "minor"
-  | "unknown";
+  "extreme" | "severe" | "moderate" | "minor" | "unknown";
 
 /**
  * Upstream provider a threat zone was sourced from.
