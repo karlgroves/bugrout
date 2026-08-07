@@ -204,8 +204,14 @@ export default tseslint.config(
         "error",
         {
           cases: { kebabCase: true, camelCase: true, pascalCase: true },
-          // Acronym-prefixed services (NWSService, FEMAService, USGSService…)
-          ignore: [String.raw`^[A-Z]{2,}[A-Za-z]*\.`],
+          // `ignore` matches path segments. unicorn 65 started checking
+          // directory names too, and `__tests__` is Jest's fixed convention —
+          // renaming it would break the default testMatch.
+          ignore: [
+            // Acronym-prefixed services (NWSService, FEMAService, USGSService…)
+            String.raw`^[A-Z]{2,}[A-Za-z]*\.`,
+            String.raw`^__tests__$`,
+          ],
         },
       ],
       "unicorn/no-instanceof-builtins": "error",
