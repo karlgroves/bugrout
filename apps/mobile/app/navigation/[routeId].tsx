@@ -19,7 +19,7 @@ import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
 import { ManeuverCard } from "@/components/navigation/ManeuverCard";
 import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
-import { colors, spacing } from "@/constants/theme";
+import { colors, spacing, statusIndicator } from "@/constants/theme";
 import { getEmergencyContacts } from "@/db/queries/preferences";
 import { useBattery } from "@/hooks/useBattery";
 import * as NavController from "@/services/navigation/NavigationController";
@@ -245,10 +245,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   statusBar: {
-    position: "absolute",
-    top: 60,
-    right: spacing.md,
-    zIndex: 10,
+    ...statusIndicator,
+    // Navigation shows the advisory badge beside the indicator.
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
