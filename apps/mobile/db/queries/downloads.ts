@@ -8,11 +8,7 @@ import { getDatabase } from "../database";
  * Lifecycle status of a region tile download.
  */
 export type DownloadStatus =
-  | "pending"
-  | "downloading"
-  | "paused"
-  | "complete"
-  | "error";
+  "pending" | "downloading" | "paused" | "complete" | "error";
 
 /**
  * Persisted download progress record for a single region.
