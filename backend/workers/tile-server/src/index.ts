@@ -12,7 +12,7 @@
  * - Configurable CORS origins
  */
 
-import { SECURITY_HEADERS, buildCorsHeaders } from "@bugrout/worker-utils";
+import { initWorkerRequest } from "@bugrout/worker-utils";
 
 /**
  * Cloudflare Worker bindings available to the tile-server worker.
@@ -25,19 +25,17 @@ interface Env {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const origin = request.headers.get("Origin") ?? "";
+    const { url, headers, isPreflight } = initWorkerRequest(
+      request,
+      env.ALLOWED_ORIGINS,
+      {
+        methods: "GET, HEAD, OPTIONS",
+        allowHeaders: "Range, If-None-Match, Authorization",
+        exposeHeaders: "Content-Range, Accept-Ranges, Content-Length, ETag",
+      },
+    );
 
-    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS, {
-      methods: "GET, HEAD, OPTIONS",
-      allowHeaders: "Range, If-None-Match, Authorization",
-      exposeHeaders: "Content-Range, Accept-Ranges, Content-Length, ETag",
-    });
-    const headers = { ...corsHeaders, ...SECURITY_HEADERS };
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers });
-    }
+    if (isPreflight) return new Response(null, { headers });
 
     // Health check
     if (url.pathname === "/health") {

@@ -11,7 +11,7 @@
  * - CORS restricted to app origins
  */
 
-import { SECURITY_HEADERS, buildCorsHeaders } from "@bugrout/worker-utils";
+import { initWorkerRequest } from "@bugrout/worker-utils";
 
 /**
  * Cloudflare Worker bindings available to the crowd-signal worker.
@@ -40,19 +40,17 @@ const MAX_BODY_SIZE = 1024; // 1 KB max payload
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const origin = request.headers.get("Origin") ?? "";
+    const { url, headers, isPreflight } = initWorkerRequest(
+      request,
+      env.ALLOWED_ORIGINS,
+      {
+        methods: "GET, POST, OPTIONS",
+        allowHeaders: "Content-Type",
+        maxAge: 86400,
+      },
+    );
 
-    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS, {
-      methods: "GET, POST, OPTIONS",
-      allowHeaders: "Content-Type",
-      maxAge: 86400,
-    });
-    const headers = { ...corsHeaders, ...SECURITY_HEADERS };
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers });
-    }
+    if (isPreflight) return new Response(null, { headers });
 
     // POST /v1/signal — ingest telemetry
     if (request.method === "POST" && url.pathname === "/v1/signal") {

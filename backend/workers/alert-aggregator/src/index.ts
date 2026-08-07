@@ -6,7 +6,7 @@
  * Stores in KV for fast edge retrieval by the mobile app.
  */
 
-import { SECURITY_HEADERS, buildCorsHeaders } from "@bugrout/worker-utils";
+import { initWorkerRequest } from "@bugrout/worker-utils";
 
 /**
  * Cloudflare Worker bindings available to this aggregator.
@@ -62,17 +62,13 @@ interface USFSPerimetersResponse {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const origin = request.headers.get("Origin") ?? "";
+    const { url, headers, isPreflight } = initWorkerRequest(
+      request,
+      env.ALLOWED_ORIGINS,
+      { methods: "GET, OPTIONS" },
+    );
 
-    const corsHeaders = buildCorsHeaders(origin, env.ALLOWED_ORIGINS, {
-      methods: "GET, OPTIONS",
-    });
-    const headers = { ...corsHeaders, ...SECURITY_HEADERS };
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers });
-    }
+    if (isPreflight) return new Response(null, { headers });
 
     // GET /v1/alerts?bbox=west,south,east,north
     if (url.pathname === "/v1/alerts") {

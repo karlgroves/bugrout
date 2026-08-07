@@ -5,6 +5,8 @@
  * Checks if a route intersects any active threats.
  */
 
+import { pointInPolygon } from "../../utils/geo";
+
 import type { ThreatZone, GeoJSONPolygon, LatLng } from "@bugrout/shared";
 
 /**
@@ -48,34 +50,4 @@ export function routeIntersectsThreat(
   return routeCoordinates.some((coord) =>
     pointInPolygon([coord.lng, coord.lat], polygon),
   );
-}
-
-/**
- * Ray-casting point-in-polygon test for a [lng, lat] point against a ring.
- */
-function pointInPolygon(point: [number, number], polygon: number[][]): boolean {
-  let inside = false;
-  const [px, py] = point;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const pi = polygon[i];
-    const pj = polygon[j];
-    if (!pi || !pj) continue;
-    const xi = pi[0],
-      yi = pi[1];
-    const xj = pj[0],
-      yj = pj[1];
-    if (
-      xi === undefined ||
-      yi === undefined ||
-      xj === undefined ||
-      yj === undefined
-    ) {
-      continue;
-    }
-
-    const intersect =
-      yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
-    if (intersect) inside = !inside;
-  }
-  return inside;
 }

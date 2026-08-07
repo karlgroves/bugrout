@@ -9,6 +9,7 @@
  */
 
 import { upsertThreatZones } from "@/db/queries/threats";
+import { extractRingCoordinates } from "@/utils/geo";
 
 import type { ThreatZone, BBox } from "@bugrout/shared";
 
@@ -187,7 +188,7 @@ function mapSeverity(nwsSeverity: string | undefined): ThreatZone["severity"] {
  */
 function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
   // Extract all coordinates from the geometry
-  const coords = extractCoordinates(threat.geometry);
+  const coords = extractRingCoordinates(threat.geometry);
 
   // Check if any coordinate falls within the bbox
   return coords.some(
@@ -199,16 +200,6 @@ function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
       lng >= bbox.west &&
       lng <= bbox.east,
   );
-}
-
-/**
- * Flatten a threat geometry into a list of [lng, lat] coordinate pairs.
- */
-function extractCoordinates(geometry: ThreatZone["geometry"]): number[][] {
-  if (geometry.type === "Polygon") {
-    return geometry.coordinates[0] ?? [];
-  }
-  return geometry.coordinates.flatMap((poly) => poly[0] ?? []);
 }
 
 /**
