@@ -33,6 +33,22 @@ updates:
       - dependency-name: "@types/react-dom"
       - dependency-name: "jest-expo"
       - dependency-name: "@maplibre/maplibre-react-native"
+      # Jest's major is dictated by jest-expo, which is SDK-locked above.
+      # jest-expo depends on the Jest 29 packages directly (@jest/globals,
+      # jest-snapshot, babel-jest, jest-environment-jsdom, all ^29.2.1), so a
+      # Jest 30 runner calls into APIs the installed jest-mock does not have
+      # and every suite dies at load with
+      # "this._moduleMocker.clearMocksOnScope is not a function". PR #34 hit
+      # exactly this: 14 suites, 102 tests, 0 running. jest-expo 55.x still
+      # pins ^29.2.1, so this is not unblocked by the SDK 54 -> 55 upgrade —
+      # it needs upstream Expo to migrate jest-expo to Jest 30 first.
+      #
+      # Major only: patch and minor Jest updates still flow through the
+      # grouped PR below.
+      - dependency-name: "jest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/jest"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types:
