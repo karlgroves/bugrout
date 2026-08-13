@@ -55,13 +55,8 @@
     "eslint-import-resolver-typescript": "4.4.5",
     "eslint-plugin-expo": "1.1.0",
     "eslint-plugin-import-x": "4.17.1",
-<<<<<<< HEAD
     "eslint-plugin-jsdoc": "64.0.2",
-    "eslint-plugin-n": "18.2.2",
-=======
-    "eslint-plugin-jsdoc": "63.3.3",
     "eslint-plugin-n": "18.3.0",
->>>>>>> main
     "eslint-plugin-no-secrets": "2.3.3",
     "eslint-plugin-promise": "7.3.0",
     "eslint-plugin-react": "7.37.5",
