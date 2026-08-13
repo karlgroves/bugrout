@@ -1,8 +1,19 @@
 name: Data Pipeline
 
+# Manual only. The weekly cron was removed per the no-scheduled-Actions policy
+# in CLAUDE.md, which is explicit that this kind of work does not belong here at
+# all:
+#
+#   Genuinely periodic *product* work — batch jobs, data pipelines, report
+#   generation — does not belong in GitHub Actions at all. Run it on real
+#   infrastructure with its own scheduler, alerting, and retries.
+#
+# That applies squarely: this is a 3-hour OSM -> Valhalla/PMTiles build that
+# publishes to R2. It is a production data job, not a CI check, and Actions
+# gives it no alerting, no retry policy and no run history worth the name. It is
+# kept here as a `workflow_dispatch` entry point so tiles can still be rebuilt
+# on demand while it is rehomed. See issue #75.
 on:
-  schedule:
-    - cron: "0 6 * * 0" # Weekly on Sunday at 6am UTC
   workflow_dispatch:
     inputs:
       states:
@@ -68,7 +79,14 @@ jobs:
     name: Upload to Cloudflare R2
     runs-on: ubuntu-latest
     needs: build-regions
-    if: ${{ github.event.inputs.upload == 'true' || github.event_name == 'schedule' }}
+    # `|| github.event_name == 'schedule'` was dropped with the cron. With no
+    # schedule trigger the comparison can never be true, so leaving it in would
+    # be permanently dead code that reads like a live branch.
+    #
+    # Behaviour change worth knowing: the scheduled run used to publish to R2
+    # unattended. Publishing is now opt-in per run via the `upload` input, which
+    # is the safer default for a production data push anyway.
+    if: ${{ github.event.inputs.upload == 'true' }}
     steps:
       - uses: actions/checkout@v7
 

@@ -1,14 +1,23 @@
 name: E2E (Detox, Android)
 
 # NOT a PR gate yet. This workflow compiles native code and drives an emulator,
-# which is slow (~20-30 min) and historically flaky on hosted runners. It runs
-# on demand and weekly so it can be stabilised without blocking every PR. Once
-# it has proven reliable, promote it to a required check on pull_request and
-# update issue #30 / ADR 0007.
+# which is slow (~20-30 min) and historically flaky on hosted runners, and the
+# smoke suite is currently red (6 of 8, see issue #30). Gating PRs on it today
+# would block everything.
+#
+# The weekly cron is gone per the no-scheduled-Actions policy in CLAUDE.md. Its
+# purpose — a recurring signal on whether the app still boots — is preserved by
+# running on merge into an integration branch instead. That is the "full matrix
+# on merge to the default branch" shape the policy prescribes for E2E: still
+# recurring in practice, but attributable to a commit rather than to a clock.
+#
+# Promotion path unchanged: once the smoke suite is green and stable across
+# several runs, add `pull_request` and make it a required check. Update issue
+# #30 / ADR 0007 at that point.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 5 * * 1" # Monday 05:00 UTC
+  push:
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

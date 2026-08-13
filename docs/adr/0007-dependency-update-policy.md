@@ -91,12 +91,12 @@ intentional divergence must be recorded or the gate becomes noise:
 
 **Accepted tradeoff:** Dependabot `ignore` conditions also suppress _security_
 updates for the listed packages, which matters for a security-conscious project.
-Detection is unaffected — `pnpm audit --prod`, OSV-Scanner, CodeQL, Semgrep and
-OWASP Dependency-Check all still run and still fail the build on advisories in
-these dependencies. What is suppressed is only the automatic PR, which for this
-stack would not have been safely mergeable anyway. An advisory against an
-Expo/RN package is therefore handled as a prompt to schedule the SDK upgrade, or
-to pin the specific transitive dependency via a bounded `pnpm` override.
+Detection is unaffected — `pnpm audit --prod`, OSV-Scanner and Semgrep all still
+run and still fail the build on advisories in these dependencies. What is
+suppressed is only the automatic PR, which for this stack would not have been
+safely mergeable anyway. An advisory against an Expo/RN package is therefore
+handled as a prompt to schedule the SDK upgrade, or to pin the specific
+transitive dependency via a bounded `pnpm` override.
 
 **Remaining gap:** `expo-doctor` closes the _alignment_ hole. A Metro
 `bundle:check` (`expo export` for iOS and Android) was added alongside it and
