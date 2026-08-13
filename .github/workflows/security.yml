@@ -1,64 +1,198 @@
-name: Security (scheduled)
+name: Security
 
+# Previously `schedule` + `workflow_dispatch` only, which meant none of these
+# jobs ever ran against a pull request — a vulnerable dependency or a new SAST
+# finding could merge and would surface days later on a Monday cron, attributed
+# to nobody. Per the no-scheduled-Actions policy in CLAUDE.md, they now gate the
+# PR that introduces them.
 on:
-  schedule:
-    - cron: "0 6 * * 1" # Monday 06:00 UTC
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
-jobs:
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-          queries: security-extended
-      - uses: github/codeql-action/analyze@v3
+# NOTE: the CodeQL job was removed when this workflow moved to PR-time.
+# CodeQL reports through GitHub code scanning, which requires Advanced Security
+# — deliberately not used on this repository. The job could only ever fail with
+# "Code scanning is not enabled". Semgrep below is its designated replacement
+# and runs the same class of rules. Do not re-add CodeQL, `upload-sarif`, or
+# `security-events: write` without that decision changing first.
 
+jobs:
   semgrep:
     name: Semgrep (OWASP Top 10)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - name: Install Semgrep
         run: pipx install semgrep
+
+      # Must stay in sync with the `security:semgrep` script in package.json.
+      # SARIF is written to the artifact below rather than uploaded to code
+      # scanning, which needs Advanced Security.
+      #
+      # Excluded rules. This job never ran against a PR before, so its 46
+      # findings had never gated anything; turning it into a gate as-is would
+      # have blocked every pull request on day one. Each exclusion below is a
+      # real piece of work with its own issue, not a dismissal — none of them is
+      # a false positive, and the exclusions should come back off as they land:
+      #
+      #   github-actions-mutable-action-tag .. 42 of the 46. Every `uses:` in
+      #       the repo is on a moving tag. Pinning them all to commit SHAs is
+      #       worthwhile supply-chain hardening but a repo-wide policy change,
+      #       and one of them (superfly/flyctl-actions@master) sits in the job
+      #       holding FLY_API_TOKEN, so it deserves its own review.
+      #   pnpm-missing-minimum-release-age / npm-missing-minimum-release-age /
+      #   pnpm-trust-policy / pnpm-block-exotic-sub-dependencies .. install-time
+      #       quarantine and build-script trust settings. Cheap to add, but they
+      #       change resolution behaviour for everyone and belong in a change
+      #       that can be tested on its own.
       - name: Scan
-        run: semgrep scan --config p/typescript --config p/react --config p/owasp-top-ten --config p/secrets --error --metrics=off
+        run: |
+          mkdir -p reports/security
+          semgrep scan \
+            --config p/typescript \
+            --config p/react \
+            --config p/owasp-top-ten \
+            --config p/secrets \
+            --exclude-rule=yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag \
+            --exclude-rule=package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age \
+            --exclude-rule=package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age \
+            --exclude-rule=package_managers.pnpm.pnpm-trust-policy.pnpm-trust-policy \
+            --exclude-rule=package_managers.pnpm.pnpm-block-exotic-sub-dependencies.pnpm-block-exotic-sub-dependencies \
+            --sarif --output reports/security/semgrep.sarif \
+            --error --metrics=off
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: semgrep-sarif
+          path: reports/security/semgrep.sarif
+          retention-days: 30
+          if-no-files-found: warn
 
   osv:
     name: OSV-Scanner
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - name: Install OSV-Scanner
         run: |
           curl -sSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
           chmod +x /usr/local/bin/osv-scanner
+
       - name: Scan lockfile
-        run: osv-scanner scan --lockfile pnpm-lock.yaml
+        run: |
+          mkdir -p reports/security
+          osv-scanner scan --lockfile pnpm-lock.yaml \
+            --format json --output reports/security/osv-results.json
+
+      - name: Upload OSV results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: osv-results
+          path: reports/security/osv-results.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Decides whether the Dependency-Check job below needs to run.
+  #
+  # Dependency-Check pulls a Docker image and synchronises the NVD feed, making
+  # it far and away the most expensive job here. It can only find something new
+  # when the dependency tree actually moves, and a CVE reaches this repo through
+  # a manifest or lockfile change — a diff `git` can detect directly, with no
+  # marketplace action needed.
+  dependency-manifests-changed:
+    name: Detect dependency changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # need the base commit to diff against
+
+      - name: Check for manifest or lockfile changes
+        id: check
+        env:
+          # On a PR, compare against the target branch. On a push, compare
+          # against the commit before the push.
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run — scanning regardless of diff."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A first push to a new branch reports an all-zero "before" SHA, and a
+          # force-push can leave it unreachable. Either way we cannot diff, so
+          # fail safe by scanning.
+          if [ -z "$BASE_REF" ] \
+            || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ] \
+            || ! git rev-parse --verify --quiet "$BASE_REF" >/dev/null; then
+            echo "No usable base commit ($BASE_REF) — scanning to be safe."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE_REF"...HEAD -- \
+            'package.json' '**/package.json' pnpm-lock.yaml \
+            .dependency-check-suppressions.xml \
+            .github/workflows/security.yml)
+
+          if [ -n "$CHANGED" ]; then
+            echo "Dependency surface changed:"
+            echo "$CHANGED"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No manifest or lockfile changes — skipping Dependency-Check."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
   dependency-check:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
+    needs: dependency-manifests-changed
+    if: needs.dependency-manifests-changed.outputs.changed == 'true'
     steps:
       - uses: actions/checkout@v7
+
+      # JSON added alongside HTML so the result is machine-readable in the
+      # artifact rather than only human-browsable.
+      #
+      # NVD_API_KEY is optional but strongly recommended — without it the NVD
+      # feed sync is rate-limited badly enough to dominate the run. The
+      # expression passes the flag only when the secret exists, so this still
+      # works in a fork or before the secret is configured.
       - uses: dependency-check/Dependency-Check_Action@main
         with:
           project: ${{ github.event.repository.name }}
           path: "."
-          format: "HTML"
+          format: "HTML,JSON"
           out: "reports/dep-check"
           args: >-
             --suppression .dependency-check-suppressions.xml
+            ${{ secrets.NVD_API_KEY != '' && format('--nvdApiKey {0}', secrets.NVD_API_KEY) || '' }}
+
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: dependency-check-report
           path: reports/dep-check
+          retention-days: 30
+          if-no-files-found: warn

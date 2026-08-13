@@ -74,6 +74,12 @@ grandfathered violations live in [`docs/tech-debt.md`](docs/tech-debt.md).
 3. New code gets no lint exemptions; if you must grandfather something, add a
    justified `eslint-disable` and a `docs/tech-debt.md` entry.
 4. Significant decisions get an ADR (`docs/templates/adr-template.md`).
+5. Before bumping any dependency, read
+   [`docs/dependency-upgrade-policy.md`](docs/dependency-upgrade-policy.md).
+   There is no automated updater, and several packages — the whole Expo/React
+   Native set, `jest`, `typescript`, `@types/node` — will pass every CI check
+   while breaking the app if upgraded on their own. That document records which
+   ones and why.
 
 ## License
 
