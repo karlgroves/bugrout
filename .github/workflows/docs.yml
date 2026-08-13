@@ -1,9 +1,31 @@
-name: Docs (scheduled link check)
+name: Docs
 
+# Was `schedule` + `workflow_dispatch` only, so link rot was reported weekly to
+# nobody in particular and no PR could ever fail on a broken link it added.
+# Per the no-scheduled-Actions policy in CLAUDE.md:
+#
+#   - on a PR, check internal links only (`--offline`), path-filtered to
+#     Markdown, so a flaky third-party host can never fail an unrelated review;
+#   - on merge into an integration branch, run the full external check —
+#     event-driven, attributable to a commit, and off the PR's critical path.
 on:
-  schedule:
-    - cron: "0 7 * * 1" # Monday 07:00 UTC
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "**/*.md"
+      - lychee.toml
+      - .github/workflows/docs.yml
+  push:
+    branches: [main, develop]
+    paths:
+      - "**/*.md"
+      - lychee.toml
+      - .github/workflows/docs.yml
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -16,5 +38,9 @@ jobs:
       - uses: actions/checkout@v7
       - uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --config lychee.toml "./**/*.md"
+          args: >-
+            --no-progress
+            --config lychee.toml
+            ${{ github.event_name == 'pull_request' && '--offline' || '' }}
+            "./**/*.md"
           fail: true

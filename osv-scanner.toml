@@ -1,9 +1,46 @@
-# OSV-Scanner ignores. Each entry needs a reason and should be re-reviewed
-# when the dependency chain changes.
+# OSV-Scanner ignores.
+#
+# Every entry needs a reason, an exposure argument, and an `ignoreUntil` date.
+# An ignore with no expiry is a permanent suppression, which is how a finding
+# stops being looked at. Re-review on expiry or whenever the dependency chain
+# changes — whichever comes first.
+#
+# Only ignore an advisory that has **no fixed version**. If a fix exists, pin it
+# with a bounded `pnpm.overrides` entry in package.json instead; see
+# docs/dependency-upgrade-policy.md.
 
 [[IgnoredVulns]]
 id = "GHSA-w5hq-g745-h8pq"
+ignoreUntil = 2026-11-11
 reason = """uuid@7.0.3 is pinned by xcode@3.0.1 (Expo prebuild tooling). \
 Dev-time only — generates Xcode project object IDs, never ships in the app \
 and never handles untrusted input. Remove when @expo/config-plugins bumps \
 its xcode dependency. (uuid@11 in the app itself is patched.)"""
+
+# image-size: no fixed version exists. The advisories cover <=2.0.2 and 2.0.2 is
+# the newest release (first_patched = NONE), so no override or SDK bump reaches
+# a safe version. Every Metro version through the one Expo SDK 54 pins depends
+# on image-size ^1.0.2.
+#
+# Exposure: build-time only. image-size runs inside the Metro bundler to measure
+# local asset dimensions; it is not part of the shipped app bundle and never
+# processes a user-supplied or network-supplied image. The vulnerability is an
+# infinite loop on a malformed ICNS/JXL/HEIF file, so the worst case is a hung
+# local build against an image already in the repo.
+#
+# These two are also accepted for `pnpm audit` via pnpm.auditConfig.ignoreGhsas
+# in package.json — the two scanners have separate ignore mechanisms, so an
+# advisory has to be recorded in both places or the gates disagree.
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+ignoreUntil = 2026-11-11
+reason = """image-size ICNS parser infinite loop. No fixed version exists \
+(<=2.0.2, and 2.0.2 is the newest release). Build-time only: runs in the Metro \
+bundler, not in the shipped app, and only over assets already in the repo."""
+
+[[IgnoredVulns]]
+id = "GHSA-5p2g-fcmc-qvqq"
+ignoreUntil = 2026-11-11
+reason = """image-size JXL and HEIF parser infinite loops. Same package, same \
+unpatched range, same build-time-only exposure as GHSA-w3rx-r6r6-pgpr."""
