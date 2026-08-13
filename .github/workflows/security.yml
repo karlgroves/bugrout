@@ -107,92 +107,35 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # Decides whether the Dependency-Check job below needs to run.
+  # OWASP Dependency-Check is deliberately absent.
   #
-  # Dependency-Check pulls a Docker image and synchronises the NVD feed, making
-  # it far and away the most expensive job here. It can only find something new
-  # when the dependency tree actually moves, and a CVE reaches this repo through
-  # a manifest or lockfile change — a diff `git` can detect directly, with no
-  # marketplace action needed.
-  dependency-manifests-changed:
-    name: Detect dependency changes
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.check.outputs.changed }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # need the base commit to diff against
-
-      - name: Check for manifest or lockfile changes
-        id: check
-        env:
-          # On a PR, compare against the target branch. On a push, compare
-          # against the commit before the push.
-          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
-        run: |
-          set -euo pipefail
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual run — scanning regardless of diff."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # A first push to a new branch reports an all-zero "before" SHA, and a
-          # force-push can leave it unreachable. Either way we cannot diff, so
-          # fail safe by scanning.
-          if [ -z "$BASE_REF" ] \
-            || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ] \
-            || ! git rev-parse --verify --quiet "$BASE_REF" >/dev/null; then
-            echo "No usable base commit ($BASE_REF) — scanning to be safe."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          CHANGED=$(git diff --name-only "$BASE_REF"...HEAD -- \
-            'package.json' '**/package.json' pnpm-lock.yaml \
-            .dependency-check-suppressions.xml \
-            .github/workflows/security.yml)
-
-          if [ -n "$CHANGED" ]; then
-            echo "Dependency surface changed:"
-            echo "$CHANGED"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No manifest or lockfile changes — skipping Dependency-Check."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  dependency-check:
-    name: OWASP Dependency-Check
-    runs-on: ubuntu-latest
-    needs: dependency-manifests-changed
-    if: needs.dependency-manifests-changed.outputs.changed == 'true'
-    steps:
-      - uses: actions/checkout@v7
-
-      # JSON added alongside HTML so the result is machine-readable in the
-      # artifact rather than only human-browsable.
-      #
-      # NVD_API_KEY is optional but strongly recommended — without it the NVD
-      # feed sync is rate-limited badly enough to dominate the run. The
-      # expression passes the flag only when the secret exists, so this still
-      # works in a fork or before the secret is configured.
-      - uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: ${{ github.event.repository.name }}
-          path: "."
-          format: "HTML,JSON"
-          out: "reports/dep-check"
-          args: >-
-            --suppression .dependency-check-suppressions.xml
-            ${{ secrets.NVD_API_KEY != '' && format('--nvdApiKey {0}', secrets.NVD_API_KEY) || '' }}
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: dependency-check-report
-          path: reports/dep-check
-          retention-days: 30
-          if-no-files-found: warn
+  # It was moved onto the PR path here and failed on its first real run:
+  #
+  #     An invalid 'format' of 'HTML,JSON' was specified.
+  #
+  # The CLI takes repeated -f flags, not a comma-separated list, and the action
+  # forwards its `format` input verbatim. That alone is fixable, but three
+  # further defects are not:
+  #
+  #   1. The action passes `args` as a single argv element rather than
+  #      tokenising it, so `--suppression .dependency-check-suppressions.xml`
+  #      arrived as one option name and could never have applied. The
+  #      suppression file was silently inert.
+  #   2. No `--failOnCVSS` was set, and the CLI default is 11 on a 0-10 scale,
+  #      so the job could not fail on a vulnerability under any circumstances.
+  #      It was a report generator wearing a gate's name.
+  #   3. At `@main` the action hardcodes `--noupdate` over a
+  #      `FROM owasp/dependency-check-action:latest` base image — an unpinned
+  #      scanner reading a never-updated NVD database. Its only pinnable release
+  #      (1.1.0, 2021) exposes no `args` input at all.
+  #
+  # Nothing is lost by removing it. OSV-Scanner above queries the same CVE data
+  # against the lockfile, actually fails the build, and is green; `pnpm audit
+  # --prod --audit-level=high` gates the production tree; Semgrep covers SAST.
+  # Dependency-Check's own `--nodeAuditAnalyzer` mode was a wrapper around npm
+  # audit regardless.
+  #
+  # The `dependency-manifests-changed` job that gated it is removed with it — it
+  # existed only to keep this job's cost down. Same conclusion, same evidence, as
+  # karlgroves/openai-content-moderator#55. Do not re-add either without a
+  # scanner that can actually fail.

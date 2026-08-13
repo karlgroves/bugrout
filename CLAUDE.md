@@ -97,8 +97,8 @@ bash scripts/bootstrap.sh
   eslint-disables; new code gets no exemptions. Adaptation decisions from the
   org tooling baseline (issue #1) are ADRs in `docs/adr/`.
 - CI (`.github/workflows/ci.yml`) is a safety net re-running the same gates;
-  `security.yml` (CodeQL, semgrep, OSV, Dependency-Check) and `docs.yml`
-  (lychee) run weekly.
+  `security.yml` (Semgrep, OSV-Scanner) and `docs.yml` (lychee) run on every
+  pull request and push.
 
 ## Technical Stack
 
@@ -252,9 +252,9 @@ a pull request blocks the defect at the point of introduction.
   scheduled jobs, and remain enabled.
 - Every check a scheduled job would have performed runs as a step in the
   pull-request pipeline instead:
-  - Dependency vulnerability and freshness checks (`npm audit`, `npm outdated`,
-    OWASP Dependency-Check) run on `pull_request`.
-  - Static analysis (CodeQL and equivalents) runs on `pull_request`.
+  - Dependency vulnerability and freshness checks (`pnpm audit --prod`,
+    OSV-Scanner) run on `pull_request`.
+  - Static analysis (Semgrep) runs on `pull_request`.
   - Link checking, docs linting, and content checks run on `pull_request`,
     path-filtered to the files that can break them.
   - SBOM generation runs in the release/publish pipeline — an SBOM is a build

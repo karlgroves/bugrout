@@ -107,16 +107,15 @@ hand-reading the lockfile. Bound every override to a range.
 
 ## What runs in CI instead
 
-| Check                                  | Where          | Gating                     |
-| -------------------------------------- | -------------- | -------------------------- |
-| `pnpm audit --prod --audit-level=high` | `ci.yml`       | yes                        |
-| `expo-doctor` (SDK alignment)          | `ci.yml`       | yes                        |
-| `bundle:check` (Metro, iOS + Android)  | `ci.yml`       | yes                        |
-| Semgrep (OWASP Top 10)                 | `security.yml` | yes — now runs on PRs      |
-| OSV-Scanner                            | `security.yml` | yes — now runs on PRs      |
-| OWASP Dependency-Check                 | `security.yml` | yes, when manifests change |
-| License compliance                     | `ci.yml`       | yes                        |
-| Detox smoke (does the app boot?)       | `e2e.yml`      | no — see issue #30         |
+| Check                                  | Where          | Gating                |
+| -------------------------------------- | -------------- | --------------------- |
+| `pnpm audit --prod --audit-level=high` | `ci.yml`       | yes                   |
+| `expo-doctor` (SDK alignment)          | `ci.yml`       | yes                   |
+| `bundle:check` (Metro, iOS + Android)  | `ci.yml`       | yes                   |
+| Semgrep (OWASP Top 10)                 | `security.yml` | yes — now runs on PRs |
+| OSV-Scanner                            | `security.yml` | yes — now runs on PRs |
+| License compliance                     | `ci.yml`       | yes                   |
+| Detox smoke (does the app boot?)       | `e2e.yml`      | no — see issue #30    |
 
 `expo-doctor` and `bundle:check` are the two that specifically target the
 failure class above, and both are already gating.
