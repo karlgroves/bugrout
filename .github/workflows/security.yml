@@ -60,6 +60,7 @@ jobs:
         run: |
           mkdir -p reports/security
           semgrep scan \
+            --config .semgrep/rules \
             --config p/typescript \
             --config p/react \
             --config p/owasp-top-ten \
