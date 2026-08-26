@@ -119,3 +119,35 @@ hand-reading the lockfile. Bound every override to a range.
 
 `expo-doctor` and `bundle:check` are the two that specifically target the
 failure class above, and both are already gating.
+
+## Pinned scanner binaries
+
+`ci.yml` installs `gitleaks` by downloading a pinned release and verifying its
+SHA-256 before running it. A pinned URL on its own still trusts whatever bytes
+the CDN returns; the checksum is what makes the pin mean something.
+
+Two values have to move together when bumping it:
+
+```yaml
+GITLEAKS_VERSION: 8.30.1
+GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+```
+
+To get the new checksum, download the asset and hash it — do not copy a value
+from a release page you have not verified:
+
+```bash
+V=8.31.0
+A="gitleaks_${V}_linux_x64.tar.gz"
+curl -sSLf -O "https://github.com/gitleaks/gitleaks/releases/download/v${V}/${A}"
+shasum -a 256 "$A"
+```
+
+This fails closed: bump the version without the checksum and
+`sha256sum --check --strict` rejects the download before the binary runs. That
+is the intended behaviour — a mismatch is either a stale edit or a substituted
+artifact, and neither should proceed.
+
+Keep the pinned version in step with whatever developers run locally, so a local
+`pnpm run security:secrets` and the CI step cannot disagree about which rules
+exist.
