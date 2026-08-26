@@ -63,14 +63,15 @@ describe("Settings test ids", () => {
     useSettingsStore.setState({ units: "mi" });
     const miles = await render(<SettingsScreen />);
     expect(miles.getByTestId("settings-toggle-units")).toBeTruthy();
-    // Visible text rather than accessible name: labelling these switches is
-    // #100's change, on its own branch.
-    expect(miles.getByText("Units: Miles")).toBeTruthy();
+    // #105 moved the current unit out of the label and into the subtitle, so
+    // the value is asserted there. The point of this test is unchanged: the
+    // test id must not move when the value does.
+    expect(miles.getByText("Miles")).toBeTruthy();
 
     useSettingsStore.setState({ units: "km" });
     const km = await render(<SettingsScreen />);
     expect(km.getByTestId("settings-toggle-units")).toBeTruthy();
-    expect(km.getByText("Units: Kilometers")).toBeTruthy();
+    expect(km.getByText("Kilometers")).toBeTruthy();
   });
 
   it("does not resurrect either of the old derived ids", async () => {

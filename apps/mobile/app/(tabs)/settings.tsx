@@ -134,8 +134,14 @@ function NavRow({
    * every problem the display text has. "Crowd Signal (Anonymous)" produced a
    * trailing dash from the closing paren, and "Units: Miles" produced an id
    * that changed when the setting changed — so the Units row had no stable
-   * handle at all. A test id built from user-facing copy also breaks whenever
-   * that copy is reworded, which is a change nobody expects to break a test.
+   * handle at all.
+   *
+   * A test id built from user-facing copy also breaks whenever that copy is
+   * reworded, which is a change nobody expects to break a test. #105
+   * demonstrated exactly that while this was in review: it relabelled the
+   * Units row to "Distance units", which under derivation would have silently
+   * moved its id from `settings-toggle-units-miles` to
+   * `settings-toggle-distance-units`.
    */
   id: string;
   icon: React.ComponentProps<typeof FontAwesome>["name"];
