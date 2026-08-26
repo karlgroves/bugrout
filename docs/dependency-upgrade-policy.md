@@ -120,6 +120,52 @@ hand-reading the lockfile. Bound every override to a range.
 `expo-doctor` and `bundle:check` are the two that specifically target the
 failure class above, and both are already gating.
 
+## GitHub Actions are pinned to commit SHAs
+
+Every `uses:` across the seven workflows is pinned to a full 40-character commit
+SHA, with the human-readable version in a trailing comment:
+
+```yaml
+- uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+```
+
+A tag is mutable. Whoever controls the action's repository can repoint `v7` at
+any commit at any time, and every workflow here would pick it up on the next run
+with no diff, no review and no notification. A SHA cannot move.
+
+This is the same reasoning that governs everything above: the resolved artifact
+is what gets reviewed, not a range that resolves to something else later.
+
+### Updating a pinned action
+
+There is no automated updater — that is the intended consequence, consistent
+with the manual-upgrade posture the rest of this document describes. To move an
+action forward:
+
+1. Resolve the tag you want to its commit SHA:
+
+   ```bash
+   gh api repos/actions/checkout/commits/v7 --jq .sha
+   ```
+
+2. Confirm the SHA belongs to the tag you think it does, rather than trusting
+   the tag alone:
+
+   ```bash
+   git ls-remote --tags https://github.com/actions/checkout | grep <sha>
+   ```
+
+3. Replace the SHA **and** the trailing version comment together. A comment that
+   disagrees with its SHA is worse than no comment, because the next reader will
+   believe it.
+
+4. Read the upstream release notes for anything between the old SHA and the new
+   one. Pinning does not remove the need to know what changed; it removes the
+   possibility of not noticing that anything did.
+
+Do this in one pass across all workflows rather than trickling, so the pins stay
+internally consistent.
+
 ## Pinned scanner binaries
 
 `ci.yml` installs `gitleaks` by downloading a pinned release and verifying its
