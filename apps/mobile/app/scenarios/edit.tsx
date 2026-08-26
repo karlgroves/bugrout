@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   upsertScenario,
@@ -33,7 +34,7 @@ import { useScenarioStore } from "@/stores/useScenarioStore";
 import type { Scenario, ResourceStopPreference } from "@bugrout/shared";
 
 /** Editor for creating or updating an evacuation scenario and its resource stops. */
-export default function ScenarioEditScreen(): React.JSX.Element {
+function ScenarioEditScreen(): React.JSX.Element {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { scenarios, addScenario, updateScenario, deleteScenario } =
@@ -297,3 +298,5 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
 });
+
+export default withScreenTitle(ScenarioEditScreen, "Edit Scenario");

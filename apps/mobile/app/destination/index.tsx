@@ -28,6 +28,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   getRecentDestinations,
@@ -51,7 +52,7 @@ interface GeocodingResult {
 const SEARCH_DEBOUNCE_MS = 400;
 
 /** Destination picker offering scenarios, address search, and recent destinations. */
-export default function DestinationScreen(): React.JSX.Element {
+function DestinationScreen(): React.JSX.Element {
   const router = useRouter();
   const params = useLocalSearchParams<{ pinLat?: string; pinLng?: string }>();
   const { scenarios } = useScenarioStore();
@@ -635,3 +636,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
 });
+
+export default withScreenTitle(DestinationScreen, "Set Destination");

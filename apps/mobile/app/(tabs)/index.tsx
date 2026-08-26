@@ -14,6 +14,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DownloadGuide } from "@/components/common/DownloadGuide";
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { ResourceFilterBar } from "@/components/map/ResourceFilterBar";
@@ -29,7 +30,7 @@ import { isRegionStale } from "@/services/tiles/TileManager";
 import { useMapStore } from "@/stores/useMapStore";
 import { useRouteStore } from "@/stores/useRouteStore";
 
-export default function MapScreen(): React.JSX.Element {
+function MapScreen(): React.JSX.Element {
   const router = useRouter();
   const { position } = useLocation(true);
   useDataSync(); // Background threat/resource refresh
@@ -258,3 +259,5 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
 });
+
+export default withScreenTitle(MapScreen, "Map");

@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import {
   buttons,
   colors,
@@ -36,7 +37,7 @@ const MAX_CONTACTS = 5;
 
 /* eslint-disable max-lines-per-function -- pre-existing oversized contacts screen with inline list and add form; tracked in docs/tech-debt.md (decompose emergency contacts screen) */
 /** Manages up to 5 emergency contacts for one-tap SMS during evacuation. */
-export default function EmergencyContactsScreen(): React.JSX.Element {
+function EmergencyContactsScreen(): React.JSX.Element {
   const [contacts, setContacts] = useState<EmergencyContactRow[]>([]);
   const [editingName, setEditingName] = useState("");
   const [editingPhone, setEditingPhone] = useState("");
@@ -307,3 +308,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 });
+
+export default withScreenTitle(EmergencyContactsScreen, "Emergency Contacts");
