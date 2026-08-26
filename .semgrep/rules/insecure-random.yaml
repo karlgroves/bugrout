@@ -1,0 +1,73 @@
+# Local Semgrep rules for BugRout.
+#
+# Loaded via `--config .semgrep/rules` in BOTH the `security:semgrep` script in
+# package.json and the Semgrep job in .github/workflows/security.yml. Those two
+# invocations must stay in sync.
+
+rules:
+  - id: bugrout-no-insecure-random-token
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Math.random() is seeded and predictable, so any value derived from it is
+      correlatable. Do not use it to mint a token, uuid, nonce, secret, session
+      or device identifier — use secureRandomUUID() from @/platform/crypto,
+      which throws rather than silently degrading when no CSPRNG is available.
+      If this really is a throwaway non-security id, call unsafeRandomId()
+      instead, whose name says so at the call site. See #85.
+    metadata:
+      category: security
+      cwe: "CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"
+      owasp: "A02:2021 - Cryptographic Failures"
+      references:
+        - https://github.com/karlgroves/bugrout/issues/85
+      confidence: HIGH
+      impact: HIGH
+      likelihood: MEDIUM
+      technology: [react-native, expo]
+    patterns:
+      - pattern: Math.random(...)
+      - pattern-either:
+          - pattern-inside: |
+              function $NAME(...) { ... }
+          - pattern-inside: |
+              async function $NAME(...) { ... }
+          - pattern-inside: |
+              const $NAME = (...) => { ... }
+          - pattern-inside: |
+              const $NAME = function(...) { ... }
+          - pattern-inside: |
+              const $NAME = <... Math.random(...) ...>;
+          - pattern-inside: |
+              let $NAME = <... Math.random(...) ...>;
+          - pattern-inside: |
+              $NAME = <... Math.random(...) ...>;
+      # Three things worth knowing about this regex:
+      #
+      # 1. Semgrep anchors metavariable-regex at the START of the bound text, so
+      #    every alternative needs its own leading `.*`. Without it the rule
+      #    matches nothing and looks like a clean result — exactly the kind of
+      #    check-that-cannot-fail this repo is trying to stamp out.
+      # 2. The `(?i:...)` group keeps case-insensitivity off the `Id`/`ID`
+      #    suffix alternative, so ordinary names ending in "id" (isValid,
+      #    avoid, ...) are not swept up.
+      # 3. The leading negative lookahead exempts generators that have already
+      #    declared themselves — `unsafeRandomId()` in platform/crypto.ts is the
+      #    sanctioned non-security source. This is deliberately a naming
+      #    convention rather than a `nosemgrep` comment or a path exclusion:
+      #    the exemption then has to be visible at every call site, not just at
+      #    the definition.
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: (?!(?i:unsafe|insecure))(?:(?i:.*(token|uuid|guid|nonce|secret|session|apikey|api_key|identifier|salt).*)|.*(Id|ID)$|^id$|.*_id$)
+    paths:
+      include:
+        - "apps/**"
+        - "backend/**"
+        - "packages/**"
+        - "data-pipeline/**"
+      exclude:
+        - "**/__tests__/**"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+        - "**/e2e/**"
