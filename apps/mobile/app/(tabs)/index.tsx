@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
 import Animated, {
+  cancelAnimation,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -22,6 +23,7 @@ import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { colors, fab, spacing, statusIndicator } from "@/constants/theme";
 import { useDataSync } from "@/hooks/useDataSync";
 import { useLocation } from "@/hooks/useLocation";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import * as Haptics from "@/platform/haptics";
 import { isRegionStale } from "@/services/tiles/TileManager";
 import { useMapStore } from "@/stores/useMapStore";
@@ -38,9 +40,20 @@ export default function MapScreen(): React.JSX.Element {
 
   const isNavigating = status === "active" || status === "rerouting";
 
-  // FAB pulse animation
+  // FAB pulse animation.
+  //
+  // Suppressed entirely when the system asks for reduced motion. An unending
+  // pulse is a vestibular-accessibility problem (WCAG 2.3.3), and it is also
+  // why Espresso never sees an idle view hierarchy — every Detox assertion
+  // timed out on "not request layout" while this ran. See useReducedMotion.
+  const reducedMotion = useReducedMotion();
   const fabScale = useSharedValue(1);
   useEffect(() => {
+    if (reducedMotion) {
+      cancelAnimation(fabScale);
+      fabScale.value = 1;
+      return;
+    }
     fabScale.value = withRepeat(
       withSequence(
         withTiming(1.05, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
@@ -48,7 +61,10 @@ export default function MapScreen(): React.JSX.Element {
       ),
       -1, // infinite
     );
-  }, [fabScale]);
+    return () => {
+      cancelAnimation(fabScale);
+    };
+  }, [fabScale, reducedMotion]);
   const fabAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: fabScale.value }],
   }));

@@ -101,12 +101,27 @@ transitive dependency via a bounded `pnpm` override.
 **Remaining gap:** `expo-doctor` closes the _alignment_ hole. A Metro
 `bundle:check` (`expo export` for iOS and Android) was added alongside it and
 closes the _module-graph_ hole — unresolvable imports and ESM/CJS mismatches are
-resolution errors, not type errors, so `tsc` never sees them. Neither compiles
-native code or launches the app, so the _boot_ hole is still open; a Detox smoke
-test exists but runs as a non-gating workflow until it is proven stable. "Green
-CI" currently means "the JavaScript type-checks, the unit tests pass, the
-dependency set is SDK-aligned, and the bundle builds" — closer to, but still
-not, "the app works." Tracked in issue #30.
+resolution errors, not type errors, so `tsc` never sees them.
+
+Two further layers were added for issue #30:
+
+- **`__tests__/boot.test.ts`** runs the real `bootstrap()` against mocked native
+  modules on every pull request, in about a second. It executes the startup
+  orchestration — which `expo-doctor` and `bundle:check` never do — and pins the
+  onboarding decision, so a regression cannot let a first-launch user past the
+  legal disclaimer. It cannot catch a native crash or a missing `.so`.
+- **The Detox smoke suite now runs on pull requests** that touch dependency
+  manifests, native configuration, or the boot path, in addition to merges into
+  an integration branch. That path filter covers exactly the failure class this
+  ADR exists for: every one of the four unmergeable Expo PRs changed
+  `package.json` and the lockfile.
+
+Detox is still not a _required_ check, because the suite has been red since
+July. Issue #30 tracks the remainder.
+
+"Green CI" now means "the JavaScript type-checks, the unit tests pass, the
+dependency set is SDK-aligned, the bundle builds, and the startup sequence runs"
+— closer again to, but still not, "the app works on a device."
 
 `expo-doctor` also runs in CI only, not in the `check` script used by the
 pre-push hook, because its React Native Directory check makes network calls and
