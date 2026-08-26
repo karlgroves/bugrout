@@ -3,3 +3,38 @@ packages:
   - "packages/*"
   - "backend/workers/*"
   - "backend/services/*"
+
+# --- Install-time supply-chain hardening -------------------------------------
+#
+# Every setting below needs a pnpm that understands it, or it is decoration.
+# `packageManager` in package.json is pinned to 10.34.5 for exactly that reason:
+# on 10.11.0 these keys parse fine and do nothing. Verified empirically —
+# 10.11.0 resolved a package the age filter should have excluded; a pnpm that
+# honours the setting resolved the older version instead.
+#
+#   minimumReleaseAge   pnpm >= 10.16.0
+#   trustPolicy         pnpm >= 10.21.0
+#   blockExoticSubdeps  pnpm >= 10.26.0
+
+# Refuse to resolve any version published in the last seven days (in minutes).
+#
+# Most malicious-publish attacks are detected and unpublished within hours, so a
+# quarantine buys real protection for very little. The cost is occasionally not
+# being able to take the newest patch on the day an advisory breaks a build —
+# which `pnpm install --minimum-release-age 0` can override deliberately, in the
+# open, rather than by accident.
+#
+# This does not affect `--frozen-lockfile` installs: with every version already
+# pinned there is no resolution to filter. CI is unaffected.
+minimumReleaseAge: 10080
+
+# Never let a dependency update relax a security setting. Without this, a
+# package can ship a configuration that quietly downgrades the protections
+# above — which would make the rest of this block worth nothing.
+trustPolicy: no-downgrade
+
+# Sub-dependencies must come from the registry. A transitive dependency
+# resolved from a git URL, a tarball URL or a local path has never passed
+# through any of the checks this repository runs, and nothing in a lockfile
+# review makes that obvious.
+blockExoticSubdeps: true

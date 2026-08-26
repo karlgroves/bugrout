@@ -40,20 +40,20 @@ jobs:
       # SARIF is written to the artifact below rather than uploaded to code
       # scanning, which needs Advanced Security.
       #
-      # Excluded rules. This job never ran against a PR before, so its 46
-      # findings had never gated anything; turning it into a gate as-is would
-      # have blocked every pull request on day one. Each exclusion below is a
-      # real piece of work with its own issue, not a dismissal — none of them is
-      # a false positive, and the exclusions should come back off as they land.
+      # Rule selection is identical to the `security:semgrep` script in
+      # package.json; the two must stay in sync.
       #
-      # github-actions-mutable-action-tag is gone: every `uses:` in the repo is
-      # now pinned to a commit SHA (see docs/dependency-upgrade-policy.md).
+      # There are no --exclude-rule flags left. Every exclusion this job started
+      # with has been retired by the work it was deferring:
       #
-      #   pnpm-missing-minimum-release-age / npm-missing-minimum-release-age /
-      #   pnpm-trust-policy / pnpm-block-exotic-sub-dependencies .. install-time
-      #       quarantine and build-script trust settings. Cheap to add, but they
-      #       change resolution behaviour for everyone and belong in a change
-      #       that can be tested on its own.
+      #   github-actions-mutable-action-tag .. #79, every `uses:` is now pinned
+      #       to a commit SHA.
+      #   pnpm/npm-missing-minimum-release-age, pnpm-trust-policy,
+      #   pnpm-block-exotic-sub-dependencies .. #80, configured in
+      #       pnpm-workspace.yaml and .npmrc.
+      #
+      # SARIF is written into the artifact below rather than uploaded to code
+      # scanning, which needs Advanced Security.
       - name: Scan
         run: |
           mkdir -p reports/security
@@ -63,10 +63,6 @@ jobs:
             --config p/react \
             --config p/owasp-top-ten \
             --config p/secrets \
-            --exclude-rule=package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age \
-            --exclude-rule=package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age \
-            --exclude-rule=package_managers.pnpm.pnpm-trust-policy.pnpm-trust-policy \
-            --exclude-rule=package_managers.pnpm.pnpm-block-exotic-sub-dependencies.pnpm-block-exotic-sub-dependencies \
             --sarif --output reports/security/semgrep.sarif \
             --error --metrics=off
 
