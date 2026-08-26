@@ -82,6 +82,7 @@ export default tseslint.config(
             "packages/*/tsconfig.json",
             "backend/workers/*/tsconfig.json",
             "backend/services/route-tracker/tsconfig.json",
+            "security/tsconfig.json",
           ],
         }),
       ],

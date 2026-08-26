@@ -1,0 +1,4 @@
+{
+  "$comment": "Security exception register — see security/docs/security-exceptions.md. Empty is the correct state; every entry is a finding someone decided not to fix yet.",
+  "exceptions": []
+}

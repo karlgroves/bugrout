@@ -1,0 +1,44 @@
+# Single source of Semgrep rule selection.
+#
+# The ruleset used to be spelled out twice — once in the `security:semgrep`
+# script in package.json and once in the Scan step of
+# .github/workflows/security.yml — which meant a local run and a CI run could
+# disagree, silently, in whichever direction someone forgot to edit.
+#
+# Both now invoke `node security/scripts/semgrep.mjs`, which builds the command
+# from this file. There is nowhere left for the two to drift apart.
+#
+# This is not a Semgrep rules file. Semgrep cannot include registry packs from a
+# local YAML, so the selection lives here as data and the runner assembles the
+# argument list. `node security/scripts/semgrep.mjs --print` shows the result.
+
+# Rule sources, passed as --config.
+configs:
+  # Repository-local rules. Currently bugrout-no-insecure-random-token (#85),
+  # which forbids Math.random() in token/id paths.
+  - .semgrep/rules
+  - p/typescript
+  - p/react
+  - p/owasp-top-ten
+  - p/secrets
+
+# Rules excluded from the gate.
+#
+# There are none, and that is the point worth preserving. Every exclusion this
+# job started with has been retired by the work it was deferring:
+#
+#   github-actions-mutable-action-tag .. #79, every `uses:` is pinned to a
+#       commit SHA.
+#   pnpm/npm-missing-minimum-release-age, pnpm-trust-policy,
+#   pnpm-block-exotic-sub-dependencies .. #80, configured in
+#       pnpm-workspace.yaml and .npmrc.
+#
+# An exclusion added here is deferred work, not a dismissal, and belongs with a
+# reason and an issue number. A finding you have decided not to fix is an
+# exception instead — see security/docs/security-exceptions.md.
+excludeRules: []
+
+# Flags applied to every invocation.
+commonFlags:
+  - --error
+  - --metrics=off

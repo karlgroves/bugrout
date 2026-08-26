@@ -1,0 +1,21 @@
+# URL patterns excluded from every ZAP scan — §19's required list, plus this
+# project's own. Configurable: the DAST workflow reads this file.
+#
+# The required list first. None of these paths exists in BugRout — there is no
+# auth, no payment flow and no admin surface — but they are kept so that adding
+# one later cannot silently gain a destructive scan.
+.*/logout.*
+.*/delete.*
+.*/remove.*
+.*/payment.*
+.*/stripe.*
+.*/webhook.*
+.*/admin/destructive-action.*
+
+# Project-specific.
+#
+# POST /v1/assignment writes edge-density counters. A spider hammering it would
+# poison the routing signal the app uses to steer people away from congestion,
+# which in an evacuation is not a cosmetic problem. Its input validation is
+# covered by security/tests/input-validation.security.test.ts instead.
+.*/v1/assignment.*

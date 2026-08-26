@@ -1,0 +1,43 @@
+{
+  "secrets": {
+    "confirmed": "fail",
+    "suspected": "warn"
+  },
+  "sast": {
+    "critical": "fail",
+    "high": "fail",
+    "medium": "warn",
+    "low": "ignore"
+  },
+  "dependencies": {
+    "critical": "fail",
+    "high": "warn",
+    "medium": "warn",
+    "low": "ignore"
+  },
+  "containers": {
+    "critical": "fail",
+    "high": "warn",
+    "medium": "warn",
+    "low": "ignore"
+  },
+  "iac": {
+    "critical": "fail",
+    "high": "fail",
+    "medium": "warn",
+    "low": "ignore"
+  },
+  "dast": {
+    "critical": "fail",
+    "high": "fail",
+    "medium": "warn",
+    "low": "ignore"
+  },
+  "headers": {
+    "missing_hsts": "fail_in_production",
+    "missing_csp": "warn",
+    "missing_x_content_type_options": "fail",
+    "missing_referrer_policy": "warn",
+    "missing_permissions_policy": "warn"
+  }
+}
