@@ -31,6 +31,7 @@ export default function SettingsScreen(): React.JSX.Element {
     <ScrollView style={styles.container}>
       {/* Navigation rows */}
       <NavRow
+        id="offline-maps"
         icon="download"
         label="Offline Maps"
         hint="Opens the offline map download manager"
@@ -39,6 +40,7 @@ export default function SettingsScreen(): React.JSX.Element {
         }}
       />
       <NavRow
+        id="emergency-contacts"
         icon="phone"
         label="Emergency Contacts"
         hint="Opens the emergency contacts manager"
@@ -59,6 +61,7 @@ export default function SettingsScreen(): React.JSX.Element {
         states which way the switch runs.
       */}
       <ToggleRow
+        id="units"
         icon="exchange"
         label="Distance units"
         subtitle={units === "mi" ? "Miles" : "Kilometers"}
@@ -69,6 +72,7 @@ export default function SettingsScreen(): React.JSX.Element {
         }}
       />
       <ToggleRow
+        id="voice-navigation"
         icon="volume-up"
         label="Voice Navigation"
         hint="Speaks turn-by-turn directions aloud during navigation"
@@ -76,6 +80,7 @@ export default function SettingsScreen(): React.JSX.Element {
         onToggle={setVoiceEnabled}
       />
       <ToggleRow
+        id="crowd-signal"
         icon="wifi"
         label="Crowd Signal (Anonymous)"
         subtitle="Help other evacuees by sharing anonymous speed data"
@@ -84,6 +89,7 @@ export default function SettingsScreen(): React.JSX.Element {
         onToggle={setCrowdSignalOptIn}
       />
       <ToggleRow
+        id="battery-optimization"
         icon="battery-full"
         label="Battery Optimization"
         subtitle="Reduce GPS frequency on straight segments"
@@ -96,6 +102,7 @@ export default function SettingsScreen(): React.JSX.Element {
       <Text style={styles.sectionTitle}>About</Text>
 
       <NavRow
+        id="legal"
         icon="file-text-o"
         label="Legal & Disclaimers"
         hint="Opens the legal disclaimers, privacy policy, and terms of service"
@@ -114,11 +121,23 @@ export default function SettingsScreen(): React.JSX.Element {
 }
 
 function NavRow({
+  id,
   icon,
   label,
   hint,
   onPress,
 }: {
+  /**
+   * Stable identifier for the test id.
+   *
+   * Explicit rather than derived from `label`, because a derived id inherits
+   * every problem the display text has. "Crowd Signal (Anonymous)" produced a
+   * trailing dash from the closing paren, and "Units: Miles" produced an id
+   * that changed when the setting changed — so the Units row had no stable
+   * handle at all. A test id built from user-facing copy also breaks whenever
+   * that copy is reworded, which is a change nobody expects to break a test.
+   */
+  id: string;
   icon: React.ComponentProps<typeof FontAwesome>["name"];
   label: string;
   hint: string;
@@ -126,7 +145,7 @@ function NavRow({
 }): React.JSX.Element {
   return (
     <Pressable
-      testID={`settings-row-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+      testID={`settings-row-${id}`}
       style={styles.row}
       onPress={onPress}
       accessibilityLabel={label}
@@ -146,6 +165,7 @@ function NavRow({
 }
 
 function ToggleRow({
+  id,
   icon,
   label,
   subtitle,
@@ -153,6 +173,8 @@ function ToggleRow({
   value,
   onToggle,
 }: {
+  /** Stable identifier for the test id. See {@link NavRow}. */
+  id: string;
   icon: React.ComponentProps<typeof FontAwesome>["name"];
   label: string;
   subtitle?: string;
@@ -169,10 +191,7 @@ function ToggleRow({
   onToggle: (value: boolean) => void;
 }): React.JSX.Element {
   return (
-    <View
-      testID={`settings-toggle-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-      style={styles.row}
-    >
+    <View testID={`settings-toggle-${id}`} style={styles.row}>
       <FontAwesome
         name={icon}
         size={20}
