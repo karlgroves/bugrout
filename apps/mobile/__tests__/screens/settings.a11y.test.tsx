@@ -14,6 +14,7 @@
 import { render } from "@testing-library/react-native";
 
 import SettingsScreen from "@/app/(tabs)/settings";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 jest.mock("expo-router", () => ({
   useRouter: () => ({ push: jest.fn() }),
@@ -24,7 +25,7 @@ describe("Settings — every control is named", () => {
     const { getByLabelText } = await render(<SettingsScreen />);
 
     for (const name of [
-      "Units: Miles",
+      "Distance units",
       "Voice Navigation",
       "Crowd Signal (Anonymous)",
       "Battery Optimization",
@@ -46,7 +47,7 @@ describe("Settings — every control is named", () => {
     const { getByLabelText } = await render(<SettingsScreen />);
 
     for (const name of [
-      "Units: Miles",
+      "Distance units",
       "Voice Navigation",
       "Crowd Signal (Anonymous)",
       "Battery Optimization",
@@ -64,6 +65,34 @@ describe("Settings — every control is named", () => {
 
     const crowd = getByLabelText("Crowd Signal (Anonymous)");
     expect(crowd.props.accessibilityLabel).toBe("Crowd Signal (Anonymous)");
+  });
+
+  it("keeps the Units name stable and non-contradictory in both states", async () => {
+    // It used to read "Units: Miles", which announced as
+    // "Units: Miles, switch, off" — heard as *miles is turned off*. The name
+    // must not carry the value the switch is selecting between.
+    for (const units of ["mi", "km"] as const) {
+      useSettingsStore.setState({ units });
+      const { getByLabelText, queryByLabelText } = await render(
+        <SettingsScreen />,
+      );
+
+      expect(getByLabelText("Distance units")).toBeTruthy();
+      expect(queryByLabelText("Units: Miles")).toBeNull();
+      expect(queryByLabelText("Units: Kilometers")).toBeNull();
+    }
+    useSettingsStore.setState({ units: "mi" });
+  });
+
+  it("shows the current unit as information, not as part of the name", async () => {
+    useSettingsStore.setState({ units: "km" });
+    const { getByText, getByLabelText } = await render(<SettingsScreen />);
+
+    expect(getByText("Kilometers")).toBeTruthy();
+    expect(getByLabelText("Distance units").props.accessibilityHint).toBe(
+      "On for kilometers, off for miles",
+    );
+    useSettingsStore.setState({ units: "mi" });
   });
 
   it("names every navigation row too", async () => {

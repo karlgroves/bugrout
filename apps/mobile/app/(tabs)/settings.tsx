@@ -50,10 +50,19 @@ export default function SettingsScreen(): React.JSX.Element {
       {/* Toggle rows */}
       <Text style={styles.sectionTitle}>Preferences</Text>
 
+      {/*
+        The label deliberately does NOT carry the current value. It used to
+        read "Units: Miles", which as an accessible name announced
+        "Units: Miles, switch, off" — heard as *miles is turned off*, the
+        opposite of what it means. The value moves to the subtitle, where it
+        is information rather than part of the control's name, and the hint
+        states which way the switch runs.
+      */}
       <ToggleRow
         icon="exchange"
-        label={`Units: ${units === "mi" ? "Miles" : "Kilometers"}`}
-        hint="Switches distances between miles and kilometers"
+        label="Distance units"
+        subtitle={units === "mi" ? "Miles" : "Kilometers"}
+        hint="On for kilometers, off for miles"
         value={units === "km"}
         onToggle={(v) => {
           setUnits(v ? "km" : "mi");
