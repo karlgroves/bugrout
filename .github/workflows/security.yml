@@ -31,7 +31,7 @@ jobs:
     name: Semgrep (OWASP Top 10)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Semgrep
         run: pipx install semgrep
@@ -44,13 +44,11 @@ jobs:
       # findings had never gated anything; turning it into a gate as-is would
       # have blocked every pull request on day one. Each exclusion below is a
       # real piece of work with its own issue, not a dismissal — none of them is
-      # a false positive, and the exclusions should come back off as they land:
+      # a false positive, and the exclusions should come back off as they land.
       #
-      #   github-actions-mutable-action-tag .. 42 of the 46. Every `uses:` in
-      #       the repo is on a moving tag. Pinning them all to commit SHAs is
-      #       worthwhile supply-chain hardening but a repo-wide policy change,
-      #       and one of them (superfly/flyctl-actions@master) sits in the job
-      #       holding FLY_API_TOKEN, so it deserves its own review.
+      # github-actions-mutable-action-tag is gone: every `uses:` in the repo is
+      # now pinned to a commit SHA (see docs/dependency-upgrade-policy.md).
+      #
       #   pnpm-missing-minimum-release-age / npm-missing-minimum-release-age /
       #   pnpm-trust-policy / pnpm-block-exotic-sub-dependencies .. install-time
       #       quarantine and build-script trust settings. Cheap to add, but they
@@ -65,7 +63,6 @@ jobs:
             --config p/react \
             --config p/owasp-top-ten \
             --config p/secrets \
-            --exclude-rule=yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag \
             --exclude-rule=package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age \
             --exclude-rule=package_managers.pnpm.pnpm-missing-minimum-release-age.pnpm-minimum-release-age \
             --exclude-rule=package_managers.pnpm.pnpm-trust-policy.pnpm-trust-policy \
@@ -75,7 +72,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: semgrep-sarif
           path: reports/security/semgrep.sarif
@@ -86,7 +83,7 @@ jobs:
     name: OSV-Scanner
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install OSV-Scanner
         run: |
@@ -101,7 +98,7 @@ jobs:
 
       - name: Upload OSV results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: osv-results
           path: reports/security/osv-results.json
