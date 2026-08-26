@@ -60,3 +60,6 @@ cloudflare_token
 
 # Expo bundle-check output (CI gate artifact)
 .expo-export/
+
+# Scanner and licence reports (build outputs, uploaded as CI artifacts)
+reports/

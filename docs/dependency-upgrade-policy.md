@@ -116,6 +116,10 @@ hand-reading the lockfile. Bound every override to a range.
 | OSV-Scanner                            | `security.yml` | yes — now runs on PRs |
 | License compliance                     | `ci.yml`       | yes                   |
 | Detox smoke (does the app boot?)       | `e2e.yml`      | no — see issue #30    |
+| Trivy filesystem scan                  | `security.yml` | yes                   |
+| Hadolint (both Dockerfiles)            | `security.yml` | yes                   |
+| Checkov + `trivy config` (IaC)         | `security.yml` | yes                   |
+| `trivy image` (route-tracker)          | deploy         | yes — blocks the ship |
 
 `expo-doctor` and `bundle:check` are the two that specifically target the
 failure class above, and both are already gating.
@@ -253,3 +257,31 @@ pnpm install --minimum-release-age 0
 That is one command, in one shell, visible in the transcript — as opposed to
 editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
 tends not to get put back.
+
+## Two known-vulnerable transitive packages
+
+`pnpm audit --prod` reports two HIGH advisories and both are ignored via
+`pnpm.auditConfig.ignoreGhsas` in `package.json`. That list previously held two
+opaque identifiers and no reason, which is the kind of entry nobody can safely
+remove later. For the record:
+
+| GHSA                  | CVE            | Package            |
+| --------------------- | -------------- | ------------------ |
+| `GHSA-w3rx-r6r6-pgpr` | CVE-2025-71330 | `image-size@1.2.1` |
+| `GHSA-5p2g-fcmc-qvqq` | CVE-2025-71329 | `image-size@1.2.1` |
+
+Both are denial-of-service via crafted image buffers, in the ICNS and JXL/HEIF
+parsers. `image-size` reaches the tree only through `metro` — the bundler — via
+`@expo/vector-icons → expo-font → expo → @expo/cli`. It runs at build time on
+images in this repository, never in the shipped app and never on input from a
+user. **There is no fixed version published.**
+
+`trivy fs` reports the same two, which is why the gating command passes
+`--ignore-unfixed`: a finding with no fix available cannot be acted on, and a
+gate that fails on it teaches people to stop reading the gate. The non-gating
+`security:fs:report` run records them at full severity in the build artifact, so
+they are ignored in one specific sense — not blocking a merge — and not in any
+other.
+
+Both entries come out the moment `image-size` publishes a fix and Metro takes
+it. `--ignore-unfixed` makes that automatic: CI goes red on its own.
