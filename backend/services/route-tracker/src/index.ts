@@ -14,6 +14,7 @@ import {
   type ServerResponse,
 } from "node:http";
 
+import { SECURITY_HEADERS } from "@bugrout/worker-utils";
 import Redis from "ioredis";
 
 const EDGE_TTL = 7200; // 2 hours
@@ -47,14 +48,16 @@ async function handleRequest(
 ): Promise<void> {
   const clientIp = resolveClientIp(req);
 
+  // Headers first: the rate-limit short-circuit below returns before route
+  // dispatch, and previously did so before any security header was set.
+  setStandardHeaders(req, res);
+
   // Rate limiting
   if (isRateLimited(clientIp)) {
     res.writeHead(429, JSON_CONTENT_TYPE);
     res.end(JSON.stringify({ error: "Rate limited" }));
     return;
   }
-
-  setStandardHeaders(req, res);
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
@@ -116,6 +119,11 @@ function resolveClientIp(req: IncomingMessage): string {
 
 /**
  * Apply CORS and security headers to the response.
+ *
+ * The security headers come from {@link SECURITY_HEADERS} in
+ * `@bugrout/worker-utils` — the same table the three Workers apply. This
+ * service used to hand-roll two of them, which meant the shared constant could
+ * be extended without route-tracker ever picking the change up.
  */
 function setStandardHeaders(req: IncomingMessage, res: ServerResponse): void {
   // CORS — only allow configured origins (or none in production)
@@ -129,8 +137,10 @@ function setStandardHeaders(req: IncomingMessage, res: ServerResponse): void {
   res.setHeader("Access-Control-Allow-Origin", corsOrigin);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("Strict-Transport-Security", "max-age=31536000");
+
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(name, value);
+  }
 }
 
 /**

@@ -266,6 +266,9 @@ importers:
 
   backend/services/route-tracker:
     dependencies:
+      '@bugrout/worker-utils':
+        specifier: workspace:*
+        version: link:../../../packages/worker-utils
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
@@ -276,6 +279,9 @@ importers:
       '@types/node':
         specifier: ^22.19.17
         version: 22.20.1
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       tsx:
         specifier: ^4.21.0
         version: 4.23.9

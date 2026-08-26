@@ -6,13 +6,41 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, test } from "node:test";
 
-import { SECURITY_HEADERS, buildCorsHeaders, initWorkerRequest } from "./http";
+import {
+  REQUIRED_SECURITY_HEADER_NAMES,
+  SECURITY_HEADERS,
+  buildCorsHeaders,
+  initWorkerRequest,
+} from "./http";
 
 import type { CorsRequestLike } from "./http";
 
 const POLICY = { methods: "GET, OPTIONS" } as const;
+
+/**
+ * Assert that a response header map carries every required security header
+ * with the exact value from the shared table.
+ *
+ * Checking the whole set rather than a remembered subset is the point: the
+ * previous spot-check named three headers, so extending SECURITY_HEADERS to
+ * eight would not have failed a single test.
+ */
+function assertAllSecurityHeaders(
+  headers: Record<string, string>,
+  label: string,
+): void {
+  for (const name of REQUIRED_SECURITY_HEADER_NAMES) {
+    assert.equal(
+      headers[name],
+      SECURITY_HEADERS[name],
+      `${label}: missing or wrong ${name}`,
+    );
+  }
+}
 
 /**
  * Minimal stand-in for a platform Request, matching {@link CorsRequestLike}.
@@ -133,9 +161,7 @@ describe("initWorkerRequest", () => {
       undefined,
       POLICY,
     );
-    assert.equal(headers["X-Content-Type-Options"], "nosniff");
-    assert.equal(headers["Strict-Transport-Security"], "max-age=31536000");
-    assert.equal(headers["X-Frame-Options"], "DENY");
+    assertAllSecurityHeaders(headers, "plain GET");
   });
 
   test("fails closed when no allowlist is configured", () => {
@@ -201,7 +227,7 @@ describe("initWorkerRequest", () => {
       POLICY,
     );
     assert.equal(headers["Access-Control-Allow-Origin"], "");
-    assert.equal(headers["X-Frame-Options"], "DENY");
+    assertAllSecurityHeaders(headers, "denied preflight");
   });
 
   test("passes optional policy directives through", () => {
@@ -220,13 +246,86 @@ describe("initWorkerRequest", () => {
   });
 });
 
-describe("SECURITY_HEADERS", () => {
-  test("contains the baseline hardening headers", () => {
-    assert.equal(SECURITY_HEADERS["X-Content-Type-Options"], "nosniff");
-    assert.equal(
-      SECURITY_HEADERS["Strict-Transport-Security"],
-      "max-age=31536000",
+describe("SECURITY_HEADERS — the required set", () => {
+  test("carries every header the baseline requires", () => {
+    assert.deepEqual([...REQUIRED_SECURITY_HEADER_NAMES].sort(), [
+      "Content-Security-Policy",
+      "Cross-Origin-Opener-Policy",
+      "Cross-Origin-Resource-Policy",
+      "Permissions-Policy",
+      "Referrer-Policy",
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "X-Frame-Options",
+    ]);
+  });
+
+  test("HSTS covers subdomains and is preload-eligible", () => {
+    const hsts = SECURITY_HEADERS["Strict-Transport-Security"] ?? "";
+    assert.match(hsts, /max-age=31536000/);
+    assert.match(hsts, /includeSubDomains/);
+    assert.match(hsts, /preload/);
+  });
+
+  test("CSP denies both subresources and framing", () => {
+    const csp = SECURITY_HEADERS["Content-Security-Policy"] ?? "";
+    assert.match(csp, /default-src 'none'/);
+    assert.match(csp, /frame-ancestors 'none'/);
+  });
+
+  test("no header value is empty", () => {
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+      assert.notEqual(value, "", `${name} must not be empty`);
+    }
+  });
+});
+
+/*
+ * route-tracker is a `node:http` service, not a Worker, so it cannot go through
+ * initWorkerRequest — it spreads SECURITY_HEADERS onto its own responses. That
+ * makes it the one backend a unit test of this module cannot reach, and it is
+ * exactly where the drift happened: it hand-rolled two of the headers and never
+ * imported the shared table, so extending SECURITY_HEADERS silently left it
+ * behind.
+ *
+ * This is a source-level guard rather than a behavioural one. Asserting on real
+ * responses means starting the service, which needs Redis; endpoint-level
+ * security regression tests are issue #87. What this catches is the specific
+ * regression that already occurred once: a backend setting a required header by
+ * hand instead of importing it.
+ */
+describe("route-tracker does not hand-roll the shared headers", () => {
+  const source = readFileSync(
+    path.join(
+      import.meta.dirname,
+      "../../../backend/services/route-tracker/src/index.ts",
+    ),
+    "utf8",
+  );
+
+  test("imports SECURITY_HEADERS from this package", () => {
+    assert.match(
+      source,
+      /import\s*\{[^}]*\bSECURITY_HEADERS\b[^}]*\}\s*from\s*"@bugrout\/worker-utils"/,
     );
-    assert.equal(SECURITY_HEADERS["X-Frame-Options"], "DENY");
+  });
+
+  test("spreads the table rather than naming headers individually", () => {
+    for (const name of REQUIRED_SECURITY_HEADER_NAMES) {
+      assert.ok(
+        !source.includes(`setHeader("${name}"`),
+        `route-tracker hand-rolls ${name}; spread SECURITY_HEADERS instead`,
+      );
+    }
+  });
+
+  test("sets the standard headers before the rate-limit short-circuit", () => {
+    const headersAt = source.indexOf("setStandardHeaders(req, res)");
+    const rateLimitAt = source.indexOf("if (isRateLimited(clientIp))");
+    assert.ok(headersAt > 0 && rateLimitAt > 0, "both call sites must exist");
+    assert.ok(
+      headersAt < rateLimitAt,
+      "a 429 must still carry the security headers",
+    );
   });
 });

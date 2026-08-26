@@ -19,6 +19,13 @@ on:
   push:
     branches: [main, develop]
 
+# Least privilege: no job here writes to the repository, publishes packages,
+# or posts to the API. `contents: read` is all that is needed to check the code
+# out. Deliberately no `security-events: write` anywhere in this repository —
+# SARIF stays inside the build artifact.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
