@@ -121,9 +121,25 @@ export function scrubEvent(
 
 /**
  * Initialize Sentry crash reporting.
- * Call once during app bootstrap.
+ *
+ * Call once during app bootstrap, **after** settings have been loaded — the
+ * opt-in has to be read from storage before this can be decided.
+ *
+ * The bundled privacy policy says crash reports are sent only with the user's
+ * consent. Until now the only gate was whether a DSN had been provisioned, so
+ * the consent the policy described did not exist: the moment a DSN was
+ * configured, Sentry would have initialised for every user with automatic
+ * session tracking on.
+ *
+ * Both conditions are required, and the opt-in defaults to off.
+ *
+ * @param optIn - Whether the user has agreed to send crash reports.
  */
-export function initCrashReporting(): void {
+export function initCrashReporting(optIn: boolean): void {
+  if (!optIn) {
+    // No consent — nothing is initialised, so nothing can be sent.
+    return;
+  }
   if (SENTRY_DSN === "YOUR_SENTRY_DSN") {
     // DSN not configured — skip initialization
     return;
