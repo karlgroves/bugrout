@@ -303,7 +303,18 @@ export default function DestinationScreen(): React.JSX.Element {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           if (item._type === "header") {
-            return <Text style={styles.sectionTitle}>{item.label}</Text>;
+            // aria-level 2 so these nest under the screen title rather than
+            // becoming a second h1: react-native-web maps a bare
+            // accessibilityRole="header" to <h1>.
+            return (
+              <Text
+                style={styles.sectionTitle}
+                accessibilityRole="header"
+                aria-level={2}
+              >
+                {item.label}
+              </Text>
+            );
           }
 
           if (item._type === "search") {
@@ -320,6 +331,11 @@ export default function DestinationScreen(): React.JSX.Element {
                   );
                 }}
                 accessibilityRole="button"
+                accessibilityLabel={`Use destination: ${item.shortName}`}
+                accessibilityHint={item.displayName}
+                accessibilityState={{
+                  selected: isSelected(item.lat, item.lng),
+                }}
                 testID={`search-result-${item.lat}`}
               >
                 <View style={styles.resultContent}>
@@ -354,6 +370,15 @@ export default function DestinationScreen(): React.JSX.Element {
                   setSelectedScenario(scenario ?? null);
                 }}
                 accessibilityRole="button"
+                accessibilityLabel={`Use scenario: ${item.name}`}
+                accessibilityHint={
+                  hasStops
+                    ? "Routes via your configured fuel and water stops"
+                    : "Routes directly to this scenario's destination"
+                }
+                accessibilityState={{
+                  selected: isSelected(item.lat, item.lng),
+                }}
               >
                 <View style={styles.resultContent}>
                   <Text style={styles.resultText}>
@@ -388,6 +413,9 @@ export default function DestinationScreen(): React.JSX.Element {
                 selectDestination({ lat: item.lat, lng: item.lng }, item.label);
               }}
               accessibilityRole="button"
+              accessibilityLabel={`Use recent destination: ${item.label}`}
+              accessibilityHint="Sets this previously used destination"
+              accessibilityState={{ selected: isSelected(item.lat, item.lng) }}
             >
               <View style={styles.resultContent}>
                 <Text style={styles.resultText}>
