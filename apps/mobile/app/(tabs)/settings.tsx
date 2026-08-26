@@ -50,9 +50,19 @@ export default function SettingsScreen(): React.JSX.Element {
       {/* Toggle rows */}
       <Text style={styles.sectionTitle}>Preferences</Text>
 
+      {/*
+        The label deliberately does NOT carry the current value. It used to
+        read "Units: Miles", which as an accessible name announced
+        "Units: Miles, switch, off" — heard as *miles is turned off*, the
+        opposite of what it means. The value moves to the subtitle, where it
+        is information rather than part of the control's name, and the hint
+        states which way the switch runs.
+      */}
       <ToggleRow
         icon="exchange"
-        label={`Units: ${units === "mi" ? "Miles" : "Kilometers"}`}
+        label="Distance units"
+        subtitle={units === "mi" ? "Miles" : "Kilometers"}
+        hint="On for kilometers, off for miles"
         value={units === "km"}
         onToggle={(v) => {
           setUnits(v ? "km" : "mi");
@@ -61,6 +71,7 @@ export default function SettingsScreen(): React.JSX.Element {
       <ToggleRow
         icon="volume-up"
         label="Voice Navigation"
+        hint="Speaks turn-by-turn directions aloud during navigation"
         value={voiceEnabled}
         onToggle={setVoiceEnabled}
       />
@@ -68,6 +79,7 @@ export default function SettingsScreen(): React.JSX.Element {
         icon="wifi"
         label="Crowd Signal (Anonymous)"
         subtitle="Help other evacuees by sharing anonymous speed data"
+        hint="Shares anonymous speed and heading data to warn other evacuees about congestion"
         value={crowdSignalOptIn}
         onToggle={setCrowdSignalOptIn}
       />
@@ -75,6 +87,7 @@ export default function SettingsScreen(): React.JSX.Element {
         icon="battery-full"
         label="Battery Optimization"
         subtitle="Reduce GPS frequency on straight segments"
+        hint="Reduces how often location is sampled on straight roads to save battery"
         value={batteryOptimization}
         onToggle={setBatteryOptimization}
       />
@@ -136,12 +149,22 @@ function ToggleRow({
   icon,
   label,
   subtitle,
+  hint,
   value,
   onToggle,
 }: {
   icon: React.ComponentProps<typeof FontAwesome>["name"];
   label: string;
   subtitle?: string;
+  /**
+   * What the toggle does, announced after its name.
+   *
+   * Required rather than optional: `subtitle` is decorative text that only
+   * some rows have, and a control that states its name but not its effect
+   * leaves a screen reader user to guess what "Battery Optimization, switch,
+   * on" is going to do to their route.
+   */
+  hint: string;
   value: boolean;
   onToggle: (value: boolean) => void;
 }): React.JSX.Element {
@@ -163,6 +186,12 @@ function ToggleRow({
       <Switch
         value={value}
         onValueChange={onToggle}
+        // The visible label lives in a sibling View and is never associated
+        // with this control, so without an explicit label the switch has no
+        // accessible name at all — four of them announced only as "switch,
+        // on". Matches how NavRow above already labels itself.
+        accessibilityLabel={label}
+        accessibilityHint={hint}
         trackColor={{ false: colors.border, true: colors.accentMuted }}
         thumbColor={value ? colors.accent : colors.textMuted}
       />
