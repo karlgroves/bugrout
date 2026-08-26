@@ -140,9 +140,16 @@ describe("CrowdSignal — CSPRNG unavailable", () => {
     await mod.sendSignal(POSITION, 12.34, 91);
     expect(mod.isCrowdSignalDisabled()).toBe(true);
 
+    // Asserting "no request was sent" alone would NOT pin the latch: the mint
+    // throws on every call, so nothing is sent whether the latch exists or
+    // not, and the assertion passes either way. What the latch actually
+    // changes is that later calls stop re-attempting — so count the attempts.
+    const attemptsAfterFirst = mockGetPreference.mock.calls.length;
+
     await mod.sendSignal(POSITION, 13, 92);
     await mod.sendSignal(POSITION, 14, 93);
 
+    expect(mockGetPreference.mock.calls.length).toBe(attemptsAfterFirst);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
