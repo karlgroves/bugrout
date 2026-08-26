@@ -42,33 +42,51 @@ jobs:
       deploy: ${{ steps.decide.outputs.deploy }}
       sha: ${{ steps.decide.outputs.sha }}
     steps:
-      - name: Resolve the commit under consideration
+      # Every `${{ }}` below goes through `env:`. REQUESTED_REF in particular is
+      # operator-supplied text on a job that deploys production, which is
+      # exactly what Semgrep's run-shell-injection rule exists for.
+      - name: Choose which ref to check out
         id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_REF: ${{ inputs.ref }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            # Honour the ref the operator asked for. This input was previously
+            # declared and never read, so a manual deploy shipped the default
+            # branch whatever was typed into it.
+            echo "ref=${REQUESTED_REF:-main}" >> "$GITHUB_OUTPUT"
             echo "manual=true" >> "$GITHUB_OUTPUT"
           else
-            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "ref=$RUN_HEAD_SHA" >> "$GITHUB_OUTPUT"
             echo "manual=false" >> "$GITHUB_OUTPUT"
           fi
 
       # Deploying the default branch's tip when CI passed on an older commit
-      # would deploy code that was never checked. Everything below pins the
-      # exact SHA CI ran against.
-      - uses: actions/checkout@v7
+      # would deploy code that was never checked. checkout resolves the ref
+      # (branch, tag or SHA); the next step reads back what it actually landed
+      # on, and everything downstream pins that concrete SHA.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.resolve.outputs.sha }}
+          ref: ${{ steps.resolve.outputs.ref }}
           fetch-depth: 2
+
+      - name: Read back the resolved commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Require CI to have succeeded
         if: steps.resolve.outputs.manual == 'false'
+        env:
+          CI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RESOLVED_SHA: ${{ steps.commit.outputs.sha }}
         run: |
           set -euo pipefail
-          conclusion="${{ github.event.workflow_run.conclusion }}"
+          conclusion="$CI_CONCLUSION"
           if [ "$conclusion" != "success" ]; then
-            echo "::error::CI concluded '$conclusion' for ${{ steps.resolve.outputs.sha }} — not deploying."
+            echo "::error::CI concluded '$conclusion' for $RESOLVED_SHA — not deploying."
             exit 1
           fi
 
@@ -76,7 +94,8 @@ jobs:
         if: steps.resolve.outputs.manual == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ steps.resolve.outputs.sha }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           # Security runs on the same push event, so it may still be in flight
@@ -84,10 +103,10 @@ jobs:
           deadline=$(( SECONDS + 1200 ))
           while [ "$SECONDS" -lt "$deadline" ]; do
             status=$(gh api \
-              "repos/${{ github.repository }}/actions/workflows/security.yml/runs?head_sha=$SHA&per_page=1" \
+              "repos/$REPO/actions/workflows/security.yml/runs?head_sha=$SHA&per_page=1" \
               --jq '.workflow_runs[0].status // "missing"')
             conclusion=$(gh api \
-              "repos/${{ github.repository }}/actions/workflows/security.yml/runs?head_sha=$SHA&per_page=1" \
+              "repos/$REPO/actions/workflows/security.yml/runs?head_sha=$SHA&per_page=1" \
               --jq '.workflow_runs[0].conclusion // ""')
             case "$status" in
               completed)
@@ -115,11 +134,14 @@ jobs:
       # trigger had is re-derived here rather than silently dropped.
       - name: Decide whether backend/ actually changed
         id: decide
+        env:
+          RESOLVED_SHA: ${{ steps.commit.outputs.sha }}
+          MANUAL: ${{ steps.resolve.outputs.manual }}
         run: |
           set -euo pipefail
-          sha="${{ steps.resolve.outputs.sha }}"
+          sha="$RESOLVED_SHA"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          if [ "${{ steps.resolve.outputs.manual }}" = "true" ]; then
+          if [ "$MANUAL" = "true" ]; then
             echo "Manual dispatch — deploying regardless of changed paths."
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
