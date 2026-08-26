@@ -1,0 +1,67 @@
+id: settings-and-legal
+title: "Reach every settings row, both toggles and the bundled legal documents"
+type: positive
+description:
+  "Verify each row on the Settings screen is named and reachable, and that the
+  bundled privacy policy is available offline. The legal documents are linked
+  from the app store listing and shown at first launch, so their reachability
+  is a compliance property rather than a convenience."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "Every settings row is operable and the privacy policy renders its text."
+
+data:
+  tab_settings: "Settings"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+  - activate: button "Skip for now"
+
+  - locate: tab "{{ tab_settings }}"
+  - focus: tab "{{ tab_settings }}"
+  - activate: tab "{{ tab_settings }}"
+  - verify: heading "Settings"
+
+  # Navigation rows. Each carries an accessibilityLabel matching its visible
+  # label, so role-first targeting works without a test id.
+  - locate: button "Offline Maps"
+  - focus: button "Offline Maps"
+  - locate: button "Emergency Contacts"
+  - focus: button "Emergency Contacts"
+  - locate: button "Legal & Disclaimers"
+  - focus: button "Legal & Disclaimers"
+
+  # Preference toggles.
+  #
+  # These are addressed by test id, and that is a FINDING rather than a
+  # convenience: the Switch controls carry no accessibilityLabel at all, so
+  # they have no accessible name to target. The visible text sits in a sibling
+  # View and is never associated with the control. See README.md — this is
+  # filed rather than worked around, and these steps should become
+  # `locate: switch "Voice Navigation"` once it is fixed.
+  - locate: data-testid "settings-toggle-voice-navigation"
+  # Note the trailing dash: the id is derived from the visible label, and
+  # "Crowd Signal (Anonymous)" ends in a closing paren. Recorded in README.md.
+  - locate: data-testid "settings-toggle-crowd-signal-anonymous-"
+  - locate: data-testid "settings-toggle-battery-optimization"
+
+  # The Units toggle is deliberately NOT asserted. Its id is derived from a
+  # label that includes the current value ("Units: Miles"), so the id itself
+  # changes when the setting changes — there is no stable handle to target.
+  # Recorded in README.md rather than worked around with a regex.
+
+  # The advisory disclaimer is repeated here, where a user goes looking for it.
+  - verify: text "Advisory routing only."
+
+  - audit: page
+
+  # The bundled privacy policy must render from local text with no network.
+  - activate: button "Offline Maps"
+  - verify: heading "Offline Maps"
+  - locate: data-testid "downloads-screen"

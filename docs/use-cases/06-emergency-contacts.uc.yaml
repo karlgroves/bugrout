@@ -1,0 +1,53 @@
+id: emergency-contacts
+title: "Add an emergency contact through the accessibility tree"
+type: positive
+description:
+  "Verify the emergency contacts screen exposes its add control, both form fields
+  and the save control by accessible name, and that a saved contact appears in
+  the list. Emergency SMS during navigation depends on this list being
+  populated before it is needed."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+  - "No contacts are stored"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "A contact is saved and listed."
+
+data:
+  contact_name: "Jamie Rivera"
+  contact_phone: "5555550123"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+  - activate: button "Skip for now"
+  - activate: tab "Settings"
+  - activate: button "Emergency Contacts"
+  - verify: heading "Emergency Contacts"
+
+  # The empty state must explain itself rather than showing a blank panel.
+  - verify: text "No emergency contacts added"
+
+  - locate: button "Add emergency contact"
+  - focus: button "Add emergency contact"
+  - activate: button "Add emergency contact"
+
+  - locate: field "Contact name"
+  - focus: field "Contact name"
+  - enter: field "Contact name" value "{{ contact_name }}"
+
+  - locate: field "Contact phone number"
+  - focus: field "Contact phone number"
+  - enter: field "Contact phone number" value "{{ contact_phone }}"
+
+  # Audit the open form, which is the state with the most interactive surface.
+  - audit: page
+
+  - locate: button "Save contact"
+  - focus: button "Save contact"
+  - activate: button "Save contact"
+
+  - verify: text "{{ contact_name }}"

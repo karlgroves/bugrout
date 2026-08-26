@@ -1,0 +1,41 @@
+id: scenarios-empty-state
+title: "The scenarios tab explains itself when nothing is saved"
+type: negative
+description:
+  "Verify the saved-scenarios tab shows a named empty state with an operable
+  create control, rather than a blank screen. A scenario is what makes the
+  two-tap evacuation path possible, so the empty state is where a user learns
+  that path exists at all."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+  - "No scenarios are saved"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "The empty state is shown and the create control is reachable by keyboard."
+
+data:
+  tab_scenarios: "Scenarios"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+  - activate: button "Skip for now"
+
+  - locate: tab "{{ tab_scenarios }}"
+  - focus: tab "{{ tab_scenarios }}"
+  - activate: tab "{{ tab_scenarios }}"
+
+  - verify: text "No Scenarios Saved"
+
+  - locate: button "Create new evacuation scenario"
+  - focus: button "Create new evacuation scenario"
+
+  - audit: page
+
+  - activate: button "Create new evacuation scenario"
+  - locate: field "Scenario name"
+  - focus: field "Scenario name"
+  - locate: button "Save scenario"

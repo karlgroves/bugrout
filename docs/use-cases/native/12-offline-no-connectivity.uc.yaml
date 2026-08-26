@@ -1,0 +1,34 @@
+id: offline-no-connectivity
+title: "With no connectivity, the app says so and still operates"
+type: negative
+description:
+  "Verify the status indicator reports the offline state and that saved scenarios
+  and downloaded tiles remain usable without a connection. Offline-first is the
+  premise of the product, and the indicator is a stated UX constraint: it must
+  be visible at all times. Documented under native/ because forcing the offline
+  state needs device airplane mode — expo-network is stubbed on web and always
+  reports connected."
+
+preconditions:
+  - "The app is running on a device or emulator"
+  - "The device has no network connectivity"
+  - "Offline tiles are downloaded for the current region"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "The offline state is announced, and a saved scenario still produces a route."
+
+data: {}
+
+steps:
+  - locate: data-testid "status-indicator"
+  - verify: text "Offline"
+
+  # The two-tap path must survive loss of connectivity — that is the whole point.
+  - locate: 'button "Quick activate: Wildfire East"'
+  - focus: 'button "Quick activate: Wildfire East"'
+  - activate: 'button "Quick activate: Wildfire East"'
+
+  - locate: button "Start navigation on this route"
+
+  - audit: page

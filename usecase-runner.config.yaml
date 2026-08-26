@@ -1,0 +1,22 @@
+# @afixt/usecase-runner configuration (issue #81).
+#
+# Use cases live in docs/use-cases/. See docs/use-cases/README.md for the
+# layout, the web/native split, and the defects authoring them surfaced.
+#
+# The runner compiles to Playwright, so it drives the react-native-web build.
+# Build and serve it first:
+#
+#   pnpm run usecases:build
+#   pnpm run usecases:serve
+#
+# Then:
+#
+#   pnpm run usecases:validate
+#   pnpm run usecases:run
+#
+# 4599 matches the literal start_location in every use case — the DSL does not
+# template that field, so changing the port means editing the files.
+
+base_url: "http://localhost:4599"
+
+outdir: "./e2e/generated"

@@ -1,0 +1,72 @@
+id: map-screen-controls
+title: "Every control on the map screen is discoverable and operable"
+type: positive
+description:
+  "Verify the map screen exposes its offline-status indicator, tile-download
+  banner, resource filter toggles, scenario quick-chip and the Bug Out control
+  through the accessibility tree, and that each is keyboard-operable. The map
+  is the screen a frightened user lands on; a control they cannot find here is
+  a control that does not exist."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+  - "No offline tiles are downloaded, so the first-launch download guide appears"
+
+start_location: "http://localhost:4599/"
+
+expected_result:
+  "All map chrome is present and operable, and the Bug Out control opens the
+  destination picker."
+
+data:
+  accept_disclaimer: "Accept disclaimer and continue"
+  skip_location: "Skip location permission for now"
+  start_app: "Start using BugRout"
+  guide_skip: "Skip for now"
+  download_banner: "Download offline maps to navigate without a connection"
+  bug_out: "Bug Out — set evacuation destination"
+
+steps:
+  # Onboarding runs first in every web use case. The web build's database is an
+  # in-memory mock (platform/sqlite.ts), so a page load always starts from a
+  # first launch — see docs/use-cases/README.md.
+  - activate: button "{{ accept_disclaimer }}"
+  - activate: button "{{ skip_location }}"
+  - activate: button "{{ start_app }}"
+
+  # The first-launch download guide overlays the FAB and must be dismissed
+  # before it. Its label is "Skip for now", distinct from onboarding's
+  # "Skip location permission for now", so the two never collide.
+  - locate: button "{{ guide_skip }}"
+  - focus: button "{{ guide_skip }}"
+  - activate: button "{{ guide_skip }}"
+
+  # Online/offline status must be visible at all times (CLAUDE.md UX constraint).
+  - locate: data-testid "status-indicator"
+
+  # Stale/absent tiles are surfaced as an actionable banner, not a silent gap.
+  - locate: button "{{ download_banner }}"
+
+  # Resource filters. Each is a toggle whose label states the action it will
+  # perform, so the label changes with state.
+  - locate: button "Hide Fuel markers"
+  - focus: button "Hide Fuel markers"
+  - activate: button "Hide Fuel markers"
+  - verify: visible button "Show Fuel markers"
+
+  - locate: button "Hide Water markers"
+  - locate: button "Hide Shelter markers"
+
+  # The two-tap scenario path: a chip on the map goes straight to a route.
+  # The accessible name contains a colon, so the whole scalar is quoted at the
+  # YAML level — otherwise the parser reads it as a nested mapping.
+  - locate: 'button "Quick activate: Wildfire East"'
+
+  # Audit here rather than at the top: this is the assembled map screen with
+  # every overlay resolved, which is the state a user actually operates.
+  - audit: page
+
+  - locate: button "{{ bug_out }}"
+  - focus: button "{{ bug_out }}"
+  - activate: button "{{ bug_out }}"
+  - verify: heading "Set Destination"

@@ -1,0 +1,31 @@
+id: contact-limit-reached
+title: "At five contacts, the add control is replaced by a stated limit"
+type: negative
+description:
+  "Verify that reaching the five-contact maximum removes the add control and
+  states the limit in text, rather than silently discarding a sixth contact.
+  Documented under native/ because filling the list to five and having it
+  persist needs real SQLite; the web build uses an in-memory mock that resets
+  on reload."
+
+preconditions:
+  - "The app is running on a device or emulator"
+  - "Five emergency contacts are already stored"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "The limit is stated in text and no add control is offered."
+
+data: {}
+
+steps:
+  - activate: tab "Settings"
+  - activate: button "Emergency Contacts"
+  - verify: heading "Emergency Contacts"
+
+  # The limit must be stated, not merely enforced. A missing button with no
+  # explanation reads as a bug.
+  - verify: text "Maximum 5 contacts"
+  - verify: hidden button "Add emergency contact"
+
+  - audit: page

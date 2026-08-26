@@ -63,3 +63,9 @@ cloudflare_token
 
 # Scanner and licence reports (build outputs, uploaded as CI artifacts)
 reports/
+
+# Use-case runner: the web build it drives, and the Playwright specs it
+# compiles to. Build outputs; the .uc.yaml files are the source.
+.usecase-dist/
+e2e/generated/
+screenshots/
