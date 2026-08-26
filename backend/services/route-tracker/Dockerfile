@@ -1,16 +1,45 @@
+# Build context is the REPOSITORY ROOT, not this directory.
+#
+# route-tracker imports @bugrout/worker-utils (a workspace package), so the
+# build needs to see the workspace. `flyctl deploy` is invoked from the repo
+# root with --config/--dockerfile pointing here; see backend-deploy.yml.
+#
+# syntax=docker/dockerfile:1
+
 FROM node:22-slim AS builder
 WORKDIR /app
-COPY package.json ./
-RUN npm install
-COPY tsconfig.json ./
-COPY src/ ./src/
-RUN npx tsc
+ENV PNPM_HOME=/pnpm
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+# Manifests and the lockfile first, so the install layer caches on dependency
+# changes rather than on every source edit.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/worker-utils/package.json packages/worker-utils/
+COPY backend/services/route-tracker/package.json backend/services/route-tracker/
+
+# --frozen-lockfile: resolve exactly what the committed lockfile pins. The old
+# `npm install` with no lockfile in the context meant the deployed image's
+# dependency tree was whatever npm happened to resolve at build time — a tree
+# no scanner in this repo had ever audited.
+RUN pnpm install --frozen-lockfile --filter @bugrout/route-tracker...
+
+COPY tsconfig.base.json ./
+COPY packages/worker-utils/ packages/worker-utils/
+COPY backend/services/route-tracker/ backend/services/route-tracker/
+
+RUN pnpm --filter @bugrout/route-tracker run build
+
+# esbuild bundles the app and the workspace package into one file, leaving only
+# ioredis external — so the runtime image needs production deps only.
+RUN pnpm --filter @bugrout/route-tracker deploy --prod /prod
 
 FROM node:22-slim
 WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY package.json ./
+ENV NODE_ENV=production
+COPY --from=builder /prod/node_modules ./node_modules
+COPY --from=builder /app/backend/services/route-tracker/dist ./dist
+COPY --from=builder /app/backend/services/route-tracker/package.json ./
 EXPOSE 8080
 USER node
 

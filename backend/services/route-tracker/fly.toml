@@ -1,8 +1,10 @@
 app = "bugrout-route-tracker"
 primary_region = "iad"
 
+# The Dockerfile path is passed on the flyctl command line rather than set here,
+# because it is resolved relative to the build context — and the context is the
+# repository root, not this directory. See .github/workflows/backend-deploy.yml.
 [build]
-  dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8080

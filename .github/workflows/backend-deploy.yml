@@ -34,6 +34,13 @@ concurrency:
   group: backend-deploy
   cancel-in-progress: false
 
+# Least privilege: no job here writes to the repository, publishes packages,
+# or posts to the API. `contents: read` is all that is needed to check the code
+# out. Deliberately no `security-events: write` anywhere in this repository —
+# SARIF stays inside the build artifact.
+permissions:
+  contents: read
+
 jobs:
   gate:
     name: Verify checks passed
@@ -244,8 +251,15 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      # Context is the repository root: route-tracker imports the
+      # @bugrout/worker-utils workspace package, which a context scoped to the
+      # service directory could not see.
       - name: Deploy route-tracker
-        working-directory: backend/services/route-tracker
-        run: flyctl deploy --remote-only
+        run: |
+          flyctl deploy --remote-only \
+            --config backend/services/route-tracker/fly.toml \
+            --dockerfile backend/services/route-tracker/Dockerfile \
+            --ignorefile backend/services/route-tracker/.dockerignore \
+            .
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

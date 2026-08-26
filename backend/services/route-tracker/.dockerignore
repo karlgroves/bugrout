@@ -1,0 +1,29 @@
+# The build context is the repository root, so this list is what keeps a
+# multi-gigabyte monorepo out of the daemon — and, more importantly, keeps
+# local secrets and build output from being copied into an image layer.
+**/node_modules
+**/dist
+**/.turbo
+**/.expo
+**/coverage
+**/build
+.git
+.github
+reports
+*.log
+
+# Never into an image
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+
+# Not needed to build a Node service
+apps
+packages/elf-model
+data-pipeline
+docs
+e2e
+**/*.md

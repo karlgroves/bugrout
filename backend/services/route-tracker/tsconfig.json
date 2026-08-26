@@ -6,8 +6,11 @@
     "moduleResolution": "nodenext",
     // CommonJS emit (no "type": "module") — ESM import syntax would be rejected
     "verbatimModuleSyntax": false,
-    "outDir": "./dist",
-    "rootDir": "./src"
+    // Type-checking only. The deployable artifact is produced by esbuild, which
+    // bundles the TypeScript sources of `@bugrout/worker-utils` in directly.
+    // tsc could not: a `rootDir` of ./src rejects an import resolving to a file
+    // outside it, and that shared package publishes source rather than a build.
+    "noEmit": true
   },
   "include": ["src/**/*.ts"]
 }

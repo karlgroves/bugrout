@@ -1,21 +1,51 @@
 /*
- * Shared HTTP helpers for BugRout Cloudflare Workers.
+ * Shared HTTP helpers for the BugRout backends.
  *
  * CORS and security-header construction lived as near-identical copies in every
  * worker. Centralizing them here keeps the cross-origin policy and security
  * posture consistent and prevents the copies from drifting apart.
+ *
+ * Consumed by the three Cloudflare Workers *and* by the route-tracker Fly
+ * service. route-tracker speaks `node:http` rather than the Workers runtime, so
+ * it cannot use {@link initWorkerRequest}; it spreads {@link SECURITY_HEADERS}
+ * onto its own responses instead. A backend that hand-rolls these values
+ * instead of importing them is the exact drift this module exists to prevent,
+ * and `http.test.ts` asserts the full set rather than a remembered subset.
  */
 
 /**
- * Baseline security response headers applied by every BugRout worker.
+ * Baseline security response headers applied by every BugRout backend.
+ *
+ * These endpoints serve JSON and binary tiles to a mobile client. Nothing here
+ * is a document, so the policy is uniformly "this is not a web page": no
+ * subresources may load, nothing may frame it, and no browser feature is
+ * delegated to it.
+ *
+ * `frame-ancestors 'none'` is the modern control; `X-Frame-Options: DENY` is
+ * kept alongside it for user agents that predate CSP Level 2.
  */
 const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
   "X-Content-Type-Options": "nosniff",
-  "Strict-Transport-Security": "max-age=31536000",
   "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer",
+  "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
 };
 
-export { SECURITY_HEADERS };
+/**
+ * The header names every response from every BugRout backend must carry.
+ *
+ * Exported so tests can assert the full set on each response path rather than
+ * spot-checking whichever three someone remembered.
+ */
+const REQUIRED_SECURITY_HEADER_NAMES = Object.freeze(
+  Object.keys(SECURITY_HEADERS),
+);
+
+export { SECURITY_HEADERS, REQUIRED_SECURITY_HEADER_NAMES };
 
 /**
  * Per-worker CORS policy. Only `methods` is required; the optional directives

@@ -17,6 +17,13 @@ on:
         required: true
         default: "all"
 
+# Least privilege: no job here writes to the repository, publishes packages,
+# or posts to the API. `contents: read` is all that is needed to check the code
+# out. Deliberately no `security-events: write` anywhere in this repository —
+# SARIF stays inside the build artifact.
+permissions:
+  contents: read
+
 concurrency:
   group: eas-build-${{ github.ref }}
   cancel-in-progress: true
