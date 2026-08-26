@@ -155,3 +155,76 @@ describe("captureError", () => {
     expect(Sentry.setContext).not.toHaveBeenCalled();
   });
 });
+
+describe("initCrashReporting — the redaction is actually wired up", () => {
+  // These matter because scrubEvent's whole job is to catch events this module
+  // never sees — ones Sentry generates itself. Asserting the function works
+  // does not assert it is installed, and deleting `beforeSend: scrubEvent`
+  // from Sentry.init passed every other test in this file.
+  const ORIGINAL_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+
+  afterEach(() => {
+    if (ORIGINAL_DSN === undefined) delete process.env.EXPO_PUBLIC_SENTRY_DSN;
+    else process.env.EXPO_PUBLIC_SENTRY_DSN = ORIGINAL_DSN;
+    jest.resetModules();
+  });
+
+  /**
+   * Re-import the module with a DSN configured, so init actually runs.
+   *
+   * The DSN is read at module load, so it has to be set before the require.
+   *
+   * @returns The freshly loaded module and its Sentry mock.
+   */
+  function loadWithDsn(): {
+    init: jest.MockedFunction<(options: Record<string, unknown>) => void>;
+    initCrashReporting: (...args: never[]) => void;
+  } {
+    process.env.EXPO_PUBLIC_SENTRY_DSN = "https://public@example.ingest/1";
+    let loaded!: { initCrashReporting: (...args: never[]) => void };
+    let sentry!: {
+      init: jest.MockedFunction<(options: Record<string, unknown>) => void>;
+    };
+    jest.isolateModules(() => {
+      sentry = jest.requireMock("@/platform/sentry");
+      loaded = jest.requireActual("@/services/CrashReporting");
+    });
+    return { init: sentry.init, initCrashReporting: loaded.initCrashReporting };
+  }
+
+  it("installs a beforeSend hook", () => {
+    const { init, initCrashReporting } = loadWithDsn();
+    init.mockClear();
+
+    initCrashReporting();
+
+    expect(init).toHaveBeenCalledTimes(1);
+    const options = init.mock.calls[0]?.[0];
+    expect(typeof options?.beforeSend).toBe("function");
+  });
+
+  it("the installed hook is one that actually redacts", () => {
+    const { init, initCrashReporting } = loadWithDsn();
+    init.mockClear();
+
+    initCrashReporting();
+
+    const beforeSend = init.mock.calls[0]?.[0]?.beforeSend as (
+      e: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    const scrubbed = beforeSend({
+      contexts: { app_state: { destination: { lat: 37.77, lng: -122.41 } } },
+    });
+    expect(JSON.stringify(scrubbed)).not.toContain("37.77");
+    expect(JSON.stringify(scrubbed)).toContain("[redacted]");
+  });
+
+  it("turns off Sentry's default PII collection", () => {
+    const { init, initCrashReporting } = loadWithDsn();
+    init.mockClear();
+
+    initCrashReporting();
+
+    expect(init.mock.calls[0]?.[0]?.sendDefaultPii).toBe(false);
+  });
+});

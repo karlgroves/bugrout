@@ -25,6 +25,9 @@ on:
         required: false
         default: main
 
+# Least privilege: no job here writes to the repository, publishes packages, or
+# posts to the API. Deliberately no `security-events: write` anywhere in this
+# repository — SARIF stays inside the build artifact.
 permissions:
   contents: read
   # Needed to read the Security workflow's conclusion for this commit.
@@ -33,13 +36,6 @@ permissions:
 concurrency:
   group: backend-deploy
   cancel-in-progress: false
-
-# Least privilege: no job here writes to the repository, publishes packages,
-# or posts to the API. `contents: read` is all that is needed to check the code
-# out. Deliberately no `security-events: write` anywhere in this repository —
-# SARIF stays inside the build artifact.
-permissions:
-  contents: read
 
 jobs:
   gate:

@@ -30,14 +30,20 @@ COPY backend/services/route-tracker/ backend/services/route-tracker/
 
 RUN pnpm --filter @bugrout/route-tracker run build
 
-# esbuild bundles the app and the workspace package into one file, leaving only
-# ioredis external — so the runtime image needs production deps only.
-RUN pnpm --filter @bugrout/route-tracker deploy --prod /prod
+# esbuild bundles the app, the workspace package AND ioredis into one file, so
+# the runtime image needs no node_modules at all.
+#
+# This deliberately avoids `pnpm deploy`, which re-resolves the workspace rather
+# than reusing the frozen install above. Two things went wrong with it: pnpm 10
+# refuses it outright without inject-workspace-packages, and with --legacy it
+# re-resolved every root devDependency and was then blocked by the
+# trustPolicy: no-downgrade set in #80 — a supply-chain check firing on
+# eslint-plugin-import, which has nothing to do with this service's runtime.
+# Bundling sidesteps all of it and produces a smaller image.
 
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /prod/node_modules ./node_modules
 COPY --from=builder /app/backend/services/route-tracker/dist ./dist
 COPY --from=builder /app/backend/services/route-tracker/package.json ./
 EXPOSE 8080
