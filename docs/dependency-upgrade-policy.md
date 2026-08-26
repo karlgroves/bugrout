@@ -197,3 +197,59 @@ artifact, and neither should proceed.
 Keep the pinned version in step with whatever developers run locally, so a local
 `pnpm run security:secrets` and the CI step cannot disagree about which rules
 exist.
+
+## Install-time hardening
+
+Three settings in `pnpm-workspace.yaml`, plus one in `.npmrc`, constrain what
+`pnpm install` is willing to resolve in the first place. They sit upstream of
+everything else in this document: a version that never gets installed does not
+need to be reviewed.
+
+| Setting                     | Where                 | Effect                                           |
+| --------------------------- | --------------------- | ------------------------------------------------ |
+| `minimumReleaseAge: 10080`  | `pnpm-workspace.yaml` | Refuse versions published in the last 7 days     |
+| `trustPolicy: no-downgrade` | `pnpm-workspace.yaml` | A dependency cannot relax these settings         |
+| `blockExoticSubdeps: true`  | `pnpm-workspace.yaml` | Sub-dependencies must come from the registry     |
+| `min-release-age=7`         | `.npmrc`              | The same quarantine for a stray `npm` invocation |
+
+`pnpm.onlyBuiltDependencies` in `package.json` is unchanged — `esbuild`,
+`sharp`, `workerd` — and remains the build-script allowlist. `trustPolicy` is
+the complementary control: the allowlist says which packages may run scripts,
+the trust policy stops a package from changing that answer.
+
+### These require a pnpm that understands them
+
+`packageManager` is pinned to **pnpm 10.34.5** for this reason and no other. On
+the previously pinned 10.11.0 every key above parses without complaint and does
+nothing at all, which is worse than not setting them — it reads as protection in
+a diff while providing none.
+
+| Setting              | Minimum pnpm |
+| -------------------- | ------------ |
+| `minimumReleaseAge`  | 10.16.0      |
+| `trustPolicy`        | 10.21.0      |
+| `blockExoticSubdeps` | 10.26.0      |
+
+`min-release-age` in `.npmrc` needs npm 11.10; older npm ignores it. It is set
+regardless, because it costs nothing and takes effect when the toolchain catches
+up.
+
+### Effect on CI
+
+None. `minimumReleaseAge` filters _resolution_, and
+`pnpm install --frozen-lockfile` does not resolve — every version is already
+pinned. Verified against a clean `node_modules`: the install succeeds and the
+lockfile is byte-identical afterwards.
+
+### When the quarantine gets in the way
+
+Occasionally a fix you need is newer than seven days, usually the day an
+advisory lands. Take it deliberately rather than by weakening the setting:
+
+```bash
+pnpm install --minimum-release-age 0
+```
+
+That is one command, in one shell, visible in the transcript — as opposed to
+editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
+tends not to get put back.
