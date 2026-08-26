@@ -1,0 +1,20 @@
+{
+  // The security regression tests import handlers from four different
+  // workspaces, so they cannot live under any one workspace's tsconfig. This
+  // exists so typescript-eslint's project service can resolve them — without
+  // it, `eslint security/` fails with "was not found by the project service"
+  // and the files go unlinted, which the pre-push hook catches but the
+  // per-workspace `turbo run lint` does not.
+  //
+  // Type-checking only. These files are executed by `node --import tsx`.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "verbatimModuleSyntax": false,
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["tests/**/*.ts"]
+}

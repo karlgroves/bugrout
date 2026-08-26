@@ -25,6 +25,8 @@
     "**/dist/**",
     "**/build/**",
     "**/coverage/**",
+    // Scanner output, generated per run — a build artifact, not documentation.
+    "reports/**",
     "**/.expo/**",
     "CHANGELOG.md",
     ".github/PULL_REQUEST_TEMPLATE.md",

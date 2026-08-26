@@ -20,7 +20,18 @@ import Redis from "ioredis";
 const EDGE_TTL = 7200; // 2 hours
 const PORT = parseInt(process.env.PORT ?? "8080", 10);
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
-const API_SECRET = process.env.API_SECRET ?? "";
+/**
+ * The configured Bearer secret, read per request rather than at module load.
+ *
+ * Reading it lazily lets the process pick up a rotated secret without a
+ * restart, and lets the security regression tests exercise both the
+ * configured and unconfigured paths in one run.
+ *
+ * @returns The secret, or an empty string when unset.
+ */
+function apiSecret(): string {
+  return process.env.API_SECRET ?? "";
+}
 const MAX_BODY_SIZE = 65536; // 64 KB
 const MAX_EDGE_IDS = 1000;
 const REGION_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
@@ -31,13 +42,40 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 120;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-const redis = new Redis(REDIS_URL);
+let redisClient: Redis | null = null;
+
+/**
+ * The shared Redis client, created on first use.
+ *
+ * Lazy rather than module-level so that importing this module — which the
+ * security regression tests in `security/tests/` do — does not open a
+ * connection or keep the process alive.
+ *
+ * @returns The process-wide Redis client.
+ */
+function redisConn(): Redis {
+  redisClient ??= new Redis(REDIS_URL);
+  return redisClient;
+}
+
+/**
+ * Replace the Redis client.
+ *
+ * Exists so the endpoint security regression tests in `security/tests/` can
+ * exercise the real request path — auth, validation, size limits, routing —
+ * against an in-memory double instead of a live Redis. Without it those tests
+ * would hang on ioredis's reconnect loop, and the alternative (asserting on
+ * source text instead of behaviour) pins nothing.
+ *
+ * Passing `null` restores the lazily-created real client.
+ *
+ * @param client - The client to use, or null to reset.
+ */
+export function setRedisClient(client: Redis | null): void {
+  redisClient = client;
+}
 
 const JSON_CONTENT_TYPE = { "Content-Type": "application/json" };
-
-const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-  void handleRequest(req, res);
-});
 
 /**
  * Top-level HTTP request handler: rate-limiting, CORS, auth, then route dispatch.
@@ -48,8 +86,9 @@ async function handleRequest(
 ): Promise<void> {
   const clientIp = resolveClientIp(req);
 
-  // Headers first: the rate-limit short-circuit below returns before route
-  // dispatch, and previously did so before any security header was set.
+  // Headers first. The rate-limit short-circuit below returns before route
+  // dispatch, and previously did so before any security header was set, so
+  // every 429 went out bare. #86 makes the same move for the same reason.
   setStandardHeaders(req, res);
 
   // Rate limiting
@@ -147,7 +186,8 @@ function setStandardHeaders(req: IncomingMessage, res: ServerResponse): void {
  * Verify the Bearer API secret; writes an error response and returns false on failure.
  */
 function authenticate(req: IncomingMessage, res: ServerResponse): boolean {
-  if (!API_SECRET) {
+  const secret = apiSecret();
+  if (!secret) {
     res.writeHead(503, JSON_CONTENT_TYPE);
     res.end(JSON.stringify({ error: "Service not configured" }));
     return false;
@@ -156,7 +196,7 @@ function authenticate(req: IncomingMessage, res: ServerResponse): boolean {
   const providedSecret = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
     : "";
-  if (!timingSafeEqual(providedSecret, API_SECRET)) {
+  if (!timingSafeEqual(providedSecret, secret)) {
     res.writeHead(401, JSON_CONTENT_TYPE);
     res.end(JSON.stringify({ error: "Unauthorized" }));
     return false;
@@ -186,6 +226,18 @@ async function parseAssignment(
   } catch {
     res.writeHead(400, JSON_CONTENT_TYPE);
     res.end(JSON.stringify({ error: "Invalid JSON" }));
+    return null;
+  }
+
+  // `parsed` is whatever JSON.parse returned, which includes null and the
+  // primitives. Destructuring null throws, and that TypeError escaped the
+  // handler entirely: the response never ended and the rejection surfaced as
+  // an unhandled promise rejection, which Node 22 treats as fatal. A body of
+  // literal `null` from an authenticated caller was enough to take the
+  // service down. Found by security/tests/input-validation.security.test.ts.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    res.writeHead(400, JSON_CONTENT_TYPE);
+    res.end(JSON.stringify({ error: "Invalid payload" }));
     return null;
   }
 
@@ -239,7 +291,7 @@ async function handleAssignment(
   if (!assignment) return;
 
   const { edgeIds, regionId } = assignment;
-  const pipeline = redis.pipeline();
+  const pipeline = redisConn().pipeline();
   for (const edgeId of edgeIds) {
     const key = `density:${regionId}:${edgeId}`;
     pipeline.incr(key);
@@ -264,7 +316,7 @@ async function handleDensity(
   const edges: Record<string, number> = {};
   let cursor = "0";
   do {
-    const [nextCursor, keys] = await redis.scan(
+    const [nextCursor, keys] = await redisConn().scan(
       cursor,
       "MATCH",
       pattern,
@@ -274,7 +326,7 @@ async function handleDensity(
     cursor = nextCursor;
 
     if (keys.length > 0) {
-      const values = await redis.mget(keys);
+      const values = await redisConn().mget(keys);
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
         if (key === undefined) continue;
@@ -346,16 +398,49 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT_MAX;
 }
 
-// Clean up stale rate limit entries every 5 minutes
-setInterval(() => {
+/**
+ * Drop rate-limit entries whose window has closed.
+ *
+ * Exported so a test can reset the limiter between cases without waiting out
+ * the real five-minute sweep.
+ */
+export function sweepRateLimits(): void {
   const now = Date.now();
   for (const [ip, entry] of rateLimitMap) {
     if (now >= entry.resetAt) {
       rateLimitMap.delete(ip);
     }
   }
-}, 300_000);
+}
 
-server.listen(PORT, () => {
-  console.log(`Route tracker listening on port ${PORT}`);
-});
+/**
+ * Forget every rate-limit entry. Test-only.
+ */
+export function resetRateLimits(): void {
+  rateLimitMap.clear();
+}
+
+/**
+ * Start the HTTP server and the rate-limit sweeper.
+ *
+ * Separated from module load so importing this file has no side effects: no
+ * bound port, no timer, no Redis connection. `main.ts` is the entry point that
+ * calls this.
+ *
+ * @returns The listening server.
+ */
+export function start(): ReturnType<typeof createServer> {
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    void handleRequest(req, res);
+  });
+
+  setInterval(sweepRateLimits, 300_000).unref();
+
+  server.listen(PORT, () => {
+    console.log(`Route tracker listening on port ${PORT}`);
+  });
+
+  return server;
+}
+
+export { handleRequest };

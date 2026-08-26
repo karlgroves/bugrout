@@ -1,0 +1,121 @@
+name: DAST (ZAP baseline)
+
+# Dynamic scan of the deployed worker origins.
+#
+# Triggered by a completed deployment, or manually. NOT scheduled: a timer-run
+# scan reports hours after the change that caused it, attributes it to nobody,
+# and gets ignored — the reasoning is in CLAUDE.md, and §13.3 asks for a
+# post-deploy gate rather than a cron anyway.
+#
+# This is the only check in the repository that talks to a real deployment.
+# Everything upstream of it — the endpoint regression tests, the header check
+# against `wrangler dev` — asserts what the code does. This asserts what the
+# platform actually serves, which is a different claim: Cloudflare, a proxy or
+# a cache can add, strip or rewrite a header the worker set.
+on:
+  workflow_run:
+    workflows: [Backend Deploy]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Origin to scan"
+        required: false
+        default: https://tiles.bugrout.app
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: ZAP baseline
+    runs-on: ubuntu-latest
+    # Only after a deploy that succeeded. Scanning the origins after a failed
+    # deploy tells you about whatever is still running, attributed to a commit
+    # that never shipped.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Every `${{ ... }}` below goes through `env:` rather than straight into
+      # the shell. `inputs.target` is attacker-influenced in the general case,
+      # and interpolating it into `run:` would splice it into the script the
+      # runner executes. Caught by Semgrep's run-shell-injection rule in the
+      # same pull request that added this workflow, which is roughly the point.
+      - name: Resolve the target
+        id: target
+        env:
+          REQUESTED_TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          echo "url=${REQUESTED_TARGET:-https://tiles.bugrout.app}" >> "$GITHUB_OUTPUT"
+
+      # Cheap and decisive: if the origin is not serving the headers the unit
+      # tests say it should, that is worth knowing before spending 20 minutes
+      # spidering it.
+      - name: Header check against the deployed origin
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: |
+          node security/scripts/check-headers.js --production "$TARGET_URL/health"
+
+      - name: Run ZAP baseline
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/security
+
+          # Exclusions are read from the file rather than inlined, so adding a
+          # destructive endpoint later does not need a workflow edit.
+          exclude_args=""
+          while IFS= read -r pattern; do
+            case "$pattern" in ''|'#'*) continue ;; esac
+            exclude_args="$exclude_args -config globalexcludeurl.url_list.url\\(0\\).regex='$pattern'"
+          done < security/config/zap-exclusions.txt
+
+          docker run --rm \
+            -v "$PWD:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+              -t "$TARGET_URL" \
+              -c security/config/zap-baseline.conf \
+              -r reports/security/zap-report.html \
+              -J reports/security/zap-report.json \
+              -l WARN \
+            || zap_status=$?
+
+          # zap-baseline.py exits 1 on FAIL-level findings and 2 on WARN-level.
+          # Only the former blocks; §19 says medium findings warn.
+          if [ "${zap_status:-0}" = "1" ]; then
+            echo "::error::ZAP reported high-confidence high-risk findings."
+            exit 1
+          fi
+          exit 0
+
+      - name: Generate security summary
+        if: always()
+        env:
+          TARGET_URL: ${{ steps.target.outputs.url }}
+        run: node security/scripts/generate-security-report.mjs --target "$TARGET_URL"
+
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dast-reports
+          path: reports/security/
+          retention-days: 30
+          if-no-files-found: warn

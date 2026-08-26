@@ -33,38 +33,33 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
       - name: Install Semgrep
         run: pipx install semgrep
 
-      # Must stay in sync with the `security:semgrep` script in package.json.
-      # SARIF is written to the artifact below rather than uploaded to code
+      # Rule selection lives in security/config/semgrep.yml and is applied by
+      # security/scripts/semgrep.mjs, which `pnpm run security:semgrep` also
+      # calls. The argument list used to be spelled out here and in
+      # package.json, kept in sync by hand; there is nowhere for them to drift
+      # apart now. `node security/scripts/semgrep.mjs --print` shows the exact
+      # command.
+      #
+      # SARIF is written into the artifact below rather than uploaded to code
       # scanning, which needs Advanced Security.
       #
-      # Rule selection is identical to the `security:semgrep` script in
-      # package.json; the two must stay in sync.
-      #
-      # There are no --exclude-rule flags left. Every exclusion this job started
-      # with has been retired by the work it was deferring:
-      #
-      #   github-actions-mutable-action-tag .. #79, every `uses:` is now pinned
-      #       to a commit SHA.
-      #   pnpm/npm-missing-minimum-release-age, pnpm-trust-policy,
-      #   pnpm-block-exotic-sub-dependencies .. #80, configured in
-      #       pnpm-workspace.yaml and .npmrc.
+      # Rule selection lives in security/config/semgrep.yml and is applied by
+      # security/scripts/semgrep.mjs, which `pnpm run security:semgrep` also
+      # calls — so a local run and this job cannot disagree. There are no
+      # exclusions left; every one has been retired by the work it deferred
+      # (#79 pinned the actions, #80 configured the install-time settings).
       #
       # SARIF is written into the artifact below rather than uploaded to code
       # scanning, which needs Advanced Security.
       - name: Scan
-        run: |
-          mkdir -p reports/security
-          semgrep scan \
-            --config .semgrep/rules \
-            --config p/typescript \
-            --config p/react \
-            --config p/owasp-top-ten \
-            --config p/secrets \
-            --sarif --output reports/security/semgrep.sarif \
-            --error --metrics=off
+        run: node security/scripts/semgrep.mjs --sarif
 
       - name: Upload Semgrep SARIF
         if: always()
@@ -165,6 +160,55 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: container-iac-reports
+
+  regression:
+    name: Security regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Endpoint behaviour: auth, input allowlists, size caps, headers on every
+      # response path, and §18's error-leakage regex. Each control these pin was
+      # verified to fail the suite when removed — see
+      # security/docs/security-test-matrix.md.
+      - name: Endpoint regression tests
+        run: pnpm run security:tests
+
+      # The tests above assert what the handler constructs. This asserts what a
+      # client receives from a running worker, which is a different question.
+      - name: Start tile-server locally
+        working-directory: backend/workers/tile-server
+        run: |
+          npx wrangler dev --port 8787 --local &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8787/health >/dev/null && break
+            sleep 2
+          done
+
+      - name: Header check against the running worker
+        run: node security/scripts/check-headers.js http://127.0.0.1:8787/health
+
+      - name: Generate security summary
+        if: always()
+        run: |
+          mkdir -p reports/security
+          pnpm run security:report || true
+
+      - name: Upload security summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-summary
           path: reports/security/
           retention-days: 30
           if-no-files-found: warn
