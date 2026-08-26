@@ -101,6 +101,74 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+  containers:
+    name: Containers and IaC (Trivy, Hadolint, Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install Trivy
+        env:
+          TRIVY_VERSION: "0.74.0"
+        run: |
+          set -euo pipefail
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -sSLf -o "$archive" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${archive}"
+          tar -xzf "$archive" trivy
+          sudo mv trivy /usr/local/bin/trivy
+          rm -f "$archive"
+          trivy --version
+
+      - name: Install Hadolint
+        env:
+          HADOLINT_VERSION: "2.15.1"
+        run: |
+          set -euo pipefail
+          sudo curl -sSLf -o /usr/local/bin/hadolint \
+            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+          sudo chmod +x /usr/local/bin/hadolint
+          hadolint --version
+
+      - name: Install Checkov
+        run: pipx install checkov
+
+      # Each step runs the same script the pre-push hook and a developer's
+      # shell run, so a local pass and a CI pass cannot disagree.
+      - name: Dockerfile lint (Hadolint)
+        run: pnpm run security:docker
+
+      - name: IaC scan (Checkov + Trivy config)
+        run: pnpm run security:iac
+
+      - name: Filesystem scan (Trivy)
+        run: pnpm run security:fs
+
+      # Non-gating, full-severity JSON for the artifact: the gates above ignore
+      # unfixed findings because there is nothing to do about them, but that is
+      # a reason not to block a merge, not a reason not to record them.
+      - name: Write JSON reports
+        if: always()
+        run: |
+          mkdir -p reports/security
+          pnpm run security:fs:report || true
+          pnpm run security:iac:report || true
+
+      - name: Upload scanner reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: container-iac-reports
+          path: reports/security/
+          retention-days: 30
+          if-no-files-found: warn
+
   # OWASP Dependency-Check is deliberately absent.
   #
   # It was moved onto the PR path here and failed on its first real run:

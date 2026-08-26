@@ -192,7 +192,57 @@ jobs:
         with:
           ref: ${{ needs.gate.outputs.sha }}
 
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+
+      # Scan the image that is about to ship, not the source tree it came
+      # from. `trivy fs` in PR CI covers the dependency manifests; only this
+      # sees the base image's own OS packages, which is where a container
+      # vulnerability usually lives.
+      - name: Install Trivy
+        env:
+          TRIVY_VERSION: "0.74.0"
+        run: |
+          set -euo pipefail
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -sSLf -o "$archive" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${archive}"
+          tar -xzf "$archive" trivy
+          sudo mv trivy /usr/local/bin/trivy
+          rm -f "$archive"
+
+      - name: Build route-tracker image
+        working-directory: backend/services/route-tracker
+        run: docker build -t bugrout-route-tracker:${{ github.sha }} .
+
+      - name: Scan route-tracker image (Trivy)
+        env:
+          BUGROUT_IMAGE: bugrout-route-tracker:${{ github.sha }}
+        run: pnpm run security:container
+
+      - name: Write image scan report
+        if: always()
+        env:
+          BUGROUT_IMAGE: bugrout-route-tracker:${{ github.sha }}
+        run: |
+          mkdir -p reports/security
+          trivy image --severity HIGH,CRITICAL --exit-code 0 \
+            --format json --output reports/security/trivy-image.json \
+            "$BUGROUT_IMAGE" || true
+
+      - name: Upload image scan report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-image-route-tracker
+          path: reports/security/trivy-image.json
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: Deploy route-tracker
         working-directory: backend/services/route-tracker

@@ -1,0 +1,26 @@
+# Hadolint configuration.
+#
+# The failure threshold is `warning`, not `error`. Hadolint classifies almost
+# nothing as an error — the rules that actually matter here (unpinned base
+# images, a builder stage left as root, a masked pipe failure) are all warnings,
+# so an error-only gate would have passed the `:latest` base images this
+# configuration exists to catch.
+failureThreshold: warning
+
+ignored:
+  # DL3008 — pin apt package versions.
+  #
+  # Deliberately not followed. The two packages involved are curl and
+  # ca-certificates in a build stage that downloads an OSM extract; pinning them
+  # to Debian point releases means the image stops building the moment the
+  # base image's apt snapshot moves on, and neither package ends up in the
+  # runtime image. Nothing is gained and a recurring breakage is bought.
+  - DL3008
+
+  # DL3066 — non-numeric user id.
+  #
+  # Informational, and both images run as a named user created by their own
+  # base image (`valhalla`, `node`). Switching to numeric ids would make the
+  # Dockerfiles less legible in exchange for portability to hosts that do not
+  # apply here.
+  - DL3066

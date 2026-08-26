@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Installs the system binaries the local quality gates need.
+#
+# gitleaks / osv-scanner / lychee / semgrep — source and dependency scanning
+# trivy / hadolint / checkov                — container and IaC scanning
 # Node-level deps come from `pnpm install`.
 set -euo pipefail
 
@@ -31,6 +34,9 @@ status=0
 install_brew_or_hint gitleaks "https://github.com/gitleaks/gitleaks/releases" || status=1
 install_brew_or_hint osv-scanner "https://github.com/google/osv-scanner/releases" || status=1
 install_brew_or_hint lychee "https://github.com/lycheeverse/lychee/releases" || status=1
+install_brew_or_hint trivy "https://github.com/aquasecurity/trivy/releases" || status=1
+install_brew_or_hint hadolint "https://github.com/hadolint/hadolint/releases" || status=1
+install_brew_or_hint checkov "https://www.checkov.io/2.Basics/Installing%20Checkov.html" || status=1
 
 if ! need semgrep; then
   echo "Installing semgrep..."
