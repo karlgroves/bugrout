@@ -1,20 +1,148 @@
 name: Backend Deploy
 
+# Deployment is gated on the checks, not merely adjacent to them.
+#
+# This previously ran on `push: [main]` with no dependency on ci.yml at all, so
+# a pull request whose CI was red could be merged and the merge would deploy
+# three Cloudflare Workers and a Fly service. Format, lint, typecheck, tests,
+# audit and secret scan were advisory in the only sense that matters.
+#
+# `workflow_run` fires only after CI has finished, and carries its conclusion.
+# The gate job below additionally requires the Security workflow to have
+# succeeded for the same commit, and re-derives the `backend/**` path filter
+# that `workflow_run` cannot express.
+#
+# Not a schedule: `workflow_run` is event-driven, triggered by CI completing.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - "backend/**"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or ref to deploy"
+        required: false
+        default: main
+
+permissions:
+  contents: read
+  # Needed to read the Security workflow's conclusion for this commit.
+  actions: read
+
+concurrency:
+  group: backend-deploy
+  cancel-in-progress: false
 
 jobs:
+  gate:
+    name: Verify checks passed
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+      sha: ${{ steps.decide.outputs.sha }}
+    steps:
+      - name: Resolve the commit under consideration
+        id: resolve
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "manual=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "manual=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Deploying the default branch's tip when CI passed on an older commit
+      # would deploy code that was never checked. Everything below pins the
+      # exact SHA CI ran against.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+          fetch-depth: 2
+
+      - name: Require CI to have succeeded
+        if: steps.resolve.outputs.manual == 'false'
+        run: |
+          set -euo pipefail
+          conclusion="${{ github.event.workflow_run.conclusion }}"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI concluded '$conclusion' for ${{ steps.resolve.outputs.sha }} — not deploying."
+            exit 1
+          fi
+
+      - name: Require Security to have succeeded for the same commit
+        if: steps.resolve.outputs.manual == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Security runs on the same push event, so it may still be in flight
+          # when CI finishes. Wait for it rather than guessing.
+          deadline=$(( SECONDS + 1200 ))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            status=$(gh api \
+              "repos/${{ github.repository }}/actions/workflows/security.yml/runs?head_sha=$SHA&per_page=1" \
+              --jq '.workflow_runs[0].status // "missing"')
+            conclusion=$(gh api \
+              "repos/${{ github.repository }}/actions/workflows/security.yml/runs?head_sha=$SHA&per_page=1" \
+              --jq '.workflow_runs[0].conclusion // ""')
+            case "$status" in
+              completed)
+                if [ "$conclusion" = "success" ]; then
+                  echo "Security succeeded for $SHA."
+                  exit 0
+                fi
+                echo "::error::Security concluded '$conclusion' for $SHA — not deploying."
+                exit 1
+                ;;
+              missing)
+                echo "::error::No Security run found for $SHA — not deploying."
+                exit 1
+                ;;
+              *)
+                echo "Security is '$status' for $SHA; waiting…"
+                sleep 30
+                ;;
+            esac
+          done
+          echo "::error::Timed out waiting for Security to finish for $SHA."
+          exit 1
+
+      # `workflow_run` carries no `paths:` filter, so the one the old `push:`
+      # trigger had is re-derived here rather than silently dropped.
+      - name: Decide whether backend/ actually changed
+        id: decide
+        run: |
+          set -euo pipefail
+          sha="${{ steps.resolve.outputs.sha }}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.resolve.outputs.manual }}" = "true" ]; then
+            echo "Manual dispatch — deploying regardless of changed paths."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$sha^" "$sha" | grep -q '^backend/'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No backend/ changes in $sha — nothing to deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-workers:
     name: Deploy Cloudflare Workers
+    needs: gate
+    if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
         worker: [tile-server, alert-aggregator, crowd-signal]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
 
@@ -34,9 +162,13 @@ jobs:
 
   deploy-services:
     name: Deploy Fly.io Services
+    needs: gate
+    if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
