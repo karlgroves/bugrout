@@ -38,4 +38,4 @@ steps:
   - activate: button "Create new evacuation scenario"
   - locate: field "Scenario name"
   - focus: field "Scenario name"
-  - locate: button "Save scenario"
+  - locate: button "Save Scenario"
