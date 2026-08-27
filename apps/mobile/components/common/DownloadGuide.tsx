@@ -90,6 +90,7 @@ export function DownloadGuide({
         <Pressable
           style={styles.skipButton}
           onPress={onDismiss}
+          testID="download-guide-skip-btn"
           accessibilityLabel="Skip for now"
           accessibilityHint="Dismisses this prompt and continues without downloading maps"
           accessibilityRole="button"

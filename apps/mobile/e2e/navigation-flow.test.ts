@@ -41,10 +41,17 @@ describe("Navigation Flow", () => {
 
   it("should open destination picker on FAB tap", async () => {
     // On a fresh install (no tiles) the map opens with the "Download Offline
-    // Maps" guide overlaying the Bug Out FAB. Dismiss it first — its label is
-    // "Skip for now" (distinct from onboarding's "Skip location permission for
-    // now"), so it never collides with the earlier step.
-    await element(by.label("Skip for now")).tap();
+    // Maps" guide overlaying the Bug Out FAB, so dismiss it before reaching for
+    // the FAB.
+    //
+    // Addressed by testID, not by label. Detox's `by.label` on Android matches
+    // a content description *or* a TextView's text, and this control is a
+    // Pressable labelled "Skip for now" wrapping a Text reading "Skip for now"
+    // — so the matcher found both the wrapper and its child and failed as
+    // ambiguous, taking the rest of this flow with it. That duplication is
+    // correct accessibility (WCAG 2.5.3 wants the accessible name to contain
+    // the visible text), so the test is what has to change, not the label.
+    await element(by.id("download-guide-skip-btn")).tap();
     await element(by.label("Bug Out — set evacuation destination")).tap();
     // The picker presents as a modal; wait out the slide-in before asserting.
     await waitFor(element(by.id("destination-search-input")))
