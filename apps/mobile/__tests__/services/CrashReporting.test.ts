@@ -161,6 +161,10 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
   // never sees — ones Sentry generates itself. Asserting the function works
   // does not assert it is installed, and deleting `beforeSend: scrubEvent`
   // from Sentry.init passed every other test in this file.
+  //
+  // initCrashReporting takes the consent flag (#88), so these pass `true`:
+  // the question here is whether redaction is wired for a user who HAS opted
+  // in. That the opt-in itself gates initialisation is covered separately.
   const ORIGINAL_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
   afterEach(() => {
@@ -178,10 +182,10 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
    */
   function loadWithDsn(): {
     init: jest.MockedFunction<(options: Record<string, unknown>) => void>;
-    initCrashReporting: (...args: never[]) => void;
+    initCrashReporting: (optIn: boolean) => void;
   } {
     process.env.EXPO_PUBLIC_SENTRY_DSN = "https://public@example.ingest/1";
-    let loaded!: { initCrashReporting: (...args: never[]) => void };
+    let loaded!: { initCrashReporting: (optIn: boolean) => void };
     let sentry!: {
       init: jest.MockedFunction<(options: Record<string, unknown>) => void>;
     };
@@ -196,7 +200,7 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
     const { init, initCrashReporting } = loadWithDsn();
     init.mockClear();
 
-    initCrashReporting();
+    initCrashReporting(true);
 
     expect(init).toHaveBeenCalledTimes(1);
     const options = init.mock.calls[0]?.[0];
@@ -207,7 +211,7 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
     const { init, initCrashReporting } = loadWithDsn();
     init.mockClear();
 
-    initCrashReporting();
+    initCrashReporting(true);
 
     const beforeSend = init.mock.calls[0]?.[0]?.beforeSend as (
       e: Record<string, unknown>,
@@ -219,11 +223,28 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
     expect(JSON.stringify(scrubbed)).toContain("[redacted]");
   });
 
+  it("initialises nothing without consent, even once a DSN is provisioned", () => {
+    // This is the case that actually pins the consent gate. The sibling test
+    // in privacyPolicy.test.ts asserts the same thing with the placeholder DSN
+    // still in place — where init returns early regardless, so it passes with
+    // the consent check deleted. Confirmed by mutation: removing
+    // `if (!optIn) return;` left all 106 tests green until this one existed.
+    //
+    // The whole point of #88 is that provisioning a DSN must not switch crash
+    // reporting on for people who never agreed to it.
+    const { init, initCrashReporting } = loadWithDsn();
+    init.mockClear();
+
+    initCrashReporting(false);
+
+    expect(init).not.toHaveBeenCalled();
+  });
+
   it("turns off Sentry's default PII collection", () => {
     const { init, initCrashReporting } = loadWithDsn();
     init.mockClear();
 
-    initCrashReporting();
+    initCrashReporting(true);
 
     expect(init.mock.calls[0]?.[0]?.sendDefaultPii).toBe(false);
   });
