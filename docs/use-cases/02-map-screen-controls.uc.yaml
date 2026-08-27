@@ -19,9 +19,9 @@ expected_result:
   destination picker."
 
 data:
-  accept_disclaimer: "Accept disclaimer and continue"
-  skip_location: "Skip location permission for now"
-  start_app: "Start using BugRout"
+  accept_disclaimer: "I Understand — Continue"
+  skip_location: "Skip for now"
+  start_app: "Get Started"
   guide_skip: "Skip for now"
   download_banner: "Download offline maps to navigate without a connection"
   bug_out: "Bug Out — set evacuation destination"
@@ -35,8 +35,10 @@ steps:
   - activate: button "{{ start_app }}"
 
   # The first-launch download guide overlays the FAB and must be dismissed
-  # before it. Its label is "Skip for now", distinct from onboarding's
-  # "Skip location permission for now", so the two never collide.
+  # before it. Its button is also named "Skip for now": onboarding's skip
+  # carries the same name, because an accessible name has to contain the text
+  # on the button (WCAG 2.5.3). The two never collide because onboarding is
+  # unmounted by the time this step runs — not because the names differ.
   - locate: button "{{ guide_skip }}"
   - focus: button "{{ guide_skip }}"
   - activate: button "{{ guide_skip }}"

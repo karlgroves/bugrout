@@ -20,9 +20,9 @@ data:
   contact_phone: "5555550123"
 
 steps:
-  - activate: button "Accept disclaimer and continue"
-  - activate: button "Skip location permission for now"
-  - activate: button "Start using BugRout"
+  - activate: button "I Understand — Continue"
+  - activate: button "Skip for now"
+  - activate: button "Get Started"
   - activate: button "Skip for now"
   - activate: tab "Settings"
   - activate: button "Emergency Contacts"
