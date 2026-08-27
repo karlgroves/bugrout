@@ -98,14 +98,24 @@ const testHooks = Reanimated as unknown as {
   __createdSharedValues: { value: unknown }[];
 };
 
-/** The scale value the screen is currently holding for the FAB. */
+/**
+ * The scale value the screen is currently holding for the FAB.
+ *
+ * The list is cleared before each test, and the map screen creates exactly one
+ * shared value per mount, so a length other than 1 means this accessor is no
+ * longer reading what it claims to. Assert that rather than silently indexing
+ * into whatever happens to be last.
+ */
 function fabScaleValue(): unknown {
-  return testHooks.__createdSharedValues.at(-1)?.value;
+  const values = testHooks.__createdSharedValues;
+  expect(values).toHaveLength(1);
+  return values[0]?.value;
 }
 
 describe("Bug Out FAB pulse honours the reduced-motion preference", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    testHooks.__createdSharedValues.length = 0;
   });
 
   it("starts no animation when the system asks for reduced motion", async () => {
