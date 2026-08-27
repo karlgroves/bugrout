@@ -21,9 +21,9 @@ data:
   download_banner: "Download offline maps to navigate without a connection"
 
 steps:
-  - activate: button "Accept disclaimer and continue"
-  - activate: button "Skip location permission for now"
-  - activate: button "Start using BugRout"
+  - activate: button "I Understand — Continue"
+  - activate: button "Skip for now"
+  - activate: button "Get Started"
 
   # The first-launch guide, before it is dismissed.
   # The guide's body copy, not its title: "Download Offline Maps" also matches

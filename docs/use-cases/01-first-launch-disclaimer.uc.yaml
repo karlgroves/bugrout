@@ -20,9 +20,9 @@ expected_result:
   Out control present."
 
 data:
-  accept_disclaimer: "Accept disclaimer and continue"
-  skip_location: "Skip location permission for now"
-  start_app: "Start using BugRout"
+  accept_disclaimer: "I Understand — Continue"
+  skip_location: "Skip for now"
+  start_app: "Get Started"
   bug_out: "Bug Out — set evacuation destination"
 
 steps:
