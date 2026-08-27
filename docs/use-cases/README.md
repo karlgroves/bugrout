@@ -1,9 +1,10 @@
 # Use cases
 
-BugRout's user journeys, written in the
-[`@afixt/usecase-runner`](https://www.npmjs.com/package/@afixt/usecase-runner)
-DSL. Each `.uc.yaml` is simultaneously **documentation**, an **executable
-test**, and an **accessibility contract**.
+BugRout's user journeys, written in the `@afixt/usecase-runner` DSL. (Not
+linked: the package is private, so the npm page returns 403 for anyone without
+access to the scope — which is also why it is not yet a dependency here.) Each
+`.uc.yaml` is simultaneously **documentation**, an **executable test**, and an
+**accessibility contract**.
 
 Steps target elements by ARIA role and accessible name, never by CSS. A step
 that cannot find its element is reporting a real barrier, not a broken selector
@@ -91,80 +92,89 @@ does not template that field.
 
 ## Status
 
-**Authored and validated. Not yet wired into CI.**
+**Authored, validated, and executed against a real build. Not yet wired into
+CI.**
 
-Every file passes `usecase-runner validate`. The web-target files were executed
-against a real `expo export --platform web` build, and the results below are
-measured, not predicted.
+Every file passes `usecase-runner validate`. The web-target files were run
+against a real `expo export --platform web` build of `main`; the numbers below
+are measured, not predicted.
 
-| File                               | Steps passing | Remaining failures               |
-| ---------------------------------- | ------------- | -------------------------------- |
-| `01-first-launch-disclaimer`       | 14/15         | `audit:` only                    |
-| `02-map-screen-controls`           | 17/20         | `audit:`, plus the Bug Out flake |
-| `03-destination-search`            | 11/14         | `audit:`, plus "Clear search"    |
-| `04-destination-search-no-results` | 9/10 best run | `audit:`, plus the Bug Out flake |
-| `05-settings-and-legal`            | 21/22         | `audit:` only                    |
-| `06-emergency-contacts`            | 21/22         | `audit:` only                    |
-| `07-no-tiles-downloaded`           | 11/12         | `audit:` only                    |
-| `08-scenarios-empty-state`         | 14/15         | `audit:` only                    |
+| File                               | Steps passing | Remaining failures |
+| ---------------------------------- | ------------- | ------------------ |
+| `01-first-launch-disclaimer`       | 14/15         | `audit:` only      |
+| `02-map-screen-controls`           | 19/20         | `audit:` only      |
+| `03-destination-search`            | 13/14         | `audit:` only      |
+| `04-destination-search-no-results` | 9/10          | `audit:` only      |
+| `05-settings-and-legal`            | 23/24         | `audit:` only      |
+| `06-emergency-contacts`            | 21/22         | `audit:` only      |
+| `07-no-tiles-downloaded`           | 11/12         | `audit:` only      |
+| `08-scenarios-empty-state`         | 14/15         | `audit:` only      |
 
-### Two blockers
+Those numbers are from a run with **reduce-motion enabled** — see below, it is
+not optional.
+
+### The one remaining blocker
 
 **`@afixt` packages are unavailable** — the npm token for the private scope
 returns 401. That is why the runner is not a dependency yet, and why every
 `audit:` step fails with "audit steps require `@afixt/afixt-engine`". The
 `audit:` steps are authored and correct; they have never executed.
 
-**The Bug Out activation is intermittent on web.**
-`activate: button "Bug Out — set evacuation destination"` times out on some runs
-and succeeds on others — 1 pass in 4 consecutive runs of the same file,
-unchanged.
+### Run with reduce-motion enabled
 
-The obvious suspect was the map screen's infinite FAB pulse
-(`withRepeat(…, -1)`), since Playwright's actionability check waits for an
-element to stop moving, and the same animation is what issue #30 identifies as
-the Detox blocker. **That was tested and ruled out**: a second web bundle built
-with the pulse removed fails the same way. Cause not isolated. Recorded here
-rather than papered over by switching those steps to a test id, because if it is
-a real defect, hiding it is the wrong outcome.
+The Bug Out control is unclickable by Playwright unless the browser reports
+`prefers-reduced-motion: reduce`. Playwright's actionability check waits for an
+element to stop moving, and the map screen's FAB pulses forever
+(`withRepeat(…, -1)`) unless the reduce-motion preference suppresses it.
 
-## Accessibility defects found while authoring
+This was measured, and it corrects an earlier claim in this file that the
+animation had been "ruled out":
 
-Per the issue's instruction, these are **filed separately** rather than worked
-around in the steps: #100, #101, #102, #103. Each was confirmed against the
-running web build and in the source.
+| build               | `02-map-screen-controls` | `04-no-results` | Bug Out click       |
+| ------------------- | ------------------------ | --------------- | ------------------- |
+| default (animating) | 17/20                    | 4/10            | fails, 3 of 3 runs  |
+| reduce-motion on    | **19/20**                | **9/10**        | passes, 4 of 4 runs |
 
-1. **The four Settings toggles have no accessible name.** `ToggleRow` in
-   `app/(tabs)/settings.tsx` renders `<Switch>` with no `accessibilityLabel`;
-   the visible text sits in a sibling `View` and is never associated with the
-   control. A screen reader user meets four unlabelled switches — Units, Voice
-   Navigation, Crowd Signal, Battery Optimization. `05-settings-and-legal`
-   targets them by test id with a comment saying why, and those steps should
-   become `locate: switch "Voice Navigation"` once fixed.
+The earlier A/B that appeared to exonerate the animation was one run per arm
+against pre-#30 code, and was simply wrong.
 
-2. **The scenario card in the destination picker has no `accessibilityLabel`.**
-   Its name comes from contents and reads
-   `" Wildfire EastIncludes resource stops"` — a leading space and two
-   run-together phrases. Every comparable control in the app is labelled
-   properly; the map's equivalent chip is `"Quick activate: Wildfire East"`.
+Two consequences worth carrying forward:
 
-3. **No page has a `<title>`.** `document.title` is empty on every route.
-   Browser tabs, history entries and screen-reader page announcements all get
-   nothing, and every route is indistinguishable from every other.
+- When this is wired into CI, the Playwright context must set
+  `reducedMotion: 'reduce'`. That is also the honest configuration — it is how a
+  user with the preference set experiences the app.
+- It makes #109 more important than its severity suggests. That issue covers the
+  fact that nothing pins the reduce-motion guard in the map screen; if the guard
+  regresses, this suite stops working as well as the accessibility property
+  being lost.
 
-4. **Screens with `headerShown: false` have no heading at all.** The onboarding
-   screen renders "BugRout" and "Important Disclaimer" as generic elements, and
-   the map and scenarios tabs have no heading either. Screens presented as Stack
-   routes do get an `h1` from the navigator, which is why
-   `verify: heading "Set Destination"` works but no equivalent exists for the
-   tab screens.
+## Accessibility defects found while authoring — all now fixed
 
-5. **Two settings test ids are unstable or malformed.** The id is derived from
-   the visible label, so `Crowd Signal (Anonymous)` yields
-   `settings-toggle-crowd-signal-anonymous-` with a trailing dash, and
-   `Units: Miles` yields `settings-toggle-units-miles` — an id that **changes
-   when the setting changes**. The Units toggle is deliberately not asserted:
-   there is no stable handle to target.
+Authoring against real accessible names surfaced five defects that the Detox
+suite and the unit tests never saw. Each was filed separately rather than worked
+around in a step, and each has since been fixed and merged:
+
+| #    | Defect                                                                 | Fixed by |
+| ---- | ---------------------------------------------------------------------- | -------- |
+| #100 | All four Settings switches had no accessible name                      | #105     |
+| #101 | No page had a `<title>`; screens without a Stack header had no heading | #108     |
+| #102 | The destination picker's rows had no `accessibilityLabel`              | #106     |
+| #103 | Two Settings test ids were malformed or state-dependent                | #107     |
+
+That is the argument for this format, made concretely: none of these were
+visible to a suite that drives the app by text and test id, and all four were
+found by insisting that every step address its element the way assistive
+technology does.
+
+`05-settings-and-legal.uc.yaml` shows the payoff directly — it originally
+targeted the Settings switches by test id, with a comment recording that as a
+finding. Now that they have names, it targets them by role and name, which is
+what the format is for.
+
+A fifth observation, which turned out **not** to be a defect: the bottom tab bar
+looked unlabelled in an accessibility-tree dump. `role="tab"` computes its name
+from contents, so `getByRole('tab', { name: 'Map' })` resolves. Checked before
+filing.
 
 ## What is not covered
 

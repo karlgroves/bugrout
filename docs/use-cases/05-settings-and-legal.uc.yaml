@@ -37,24 +37,24 @@ steps:
   - locate: button "Legal & Disclaimers"
   - focus: button "Legal & Disclaimers"
 
-  # Preference toggles.
+  # Preference toggles, targeted by accessible name.
   #
-  # These are addressed by test id, and that is a FINDING rather than a
-  # convenience: the Switch controls carry no accessibilityLabel at all, so
-  # they have no accessible name to target. The visible text sits in a sibling
-  # View and is never associated with the control. See README.md — this is
-  # filed rather than worked around, and these steps should become
-  # `locate: switch "Voice Navigation"` once it is fixed.
-  - locate: data-testid "settings-toggle-voice-navigation"
-  # Note the trailing dash: the id is derived from the visible label, and
-  # "Crowd Signal (Anonymous)" ends in a closing paren. Recorded in README.md.
-  - locate: data-testid "settings-toggle-crowd-signal-anonymous-"
-  - locate: data-testid "settings-toggle-battery-optimization"
-
-  # The Units toggle is deliberately NOT asserted. Its id is derived from a
-  # label that includes the current value ("Units: Miles"), so the id itself
-  # changes when the setting changes — there is no stable handle to target.
-  # Recorded in README.md rather than worked around with a regex.
+  # These were originally addressed by test id, because the Switch controls
+  # carried no accessibilityLabel at all and so had no name to target. That was
+  # recorded as a finding, filed as #100, and has since been fixed — so they are
+  # role-first here, which is what this format is for.
+  #
+  # "Distance units" rather than "Units: Miles": #100 also took the value out of
+  # the label, because as an accessible name it announced
+  # "Units: Miles, switch, off" — heard as miles being turned off rather than
+  # miles being selected.
+  # The DSL has no `switch` token, so these use its custom-role form.
+  # react-native-web renders Switch as role="switch".
+  - locate: role "switch" name "Voice Navigation"
+  - focus: role "switch" name "Voice Navigation"
+  - locate: role "switch" name "Crowd Signal (Anonymous)"
+  - locate: role "switch" name "Battery Optimization"
+  - locate: role "switch" name "Distance units"
 
   # The advisory disclaimer is repeated here, where a user goes looking for it.
   - verify: text "Advisory routing only."
