@@ -1,0 +1,41 @@
+id: route-preview-and-go
+title: "Confirm a calculated route and start navigation"
+type: positive
+description:
+  "Verify the route preview names the distance, ETA and any threat warnings before
+  the user commits, and that both Go and Back are operable. NATIVE ONLY: route
+  calculation needs a GPS fix, and expo-location is stubbed out of the web build
+  by metro.config.js. See docs/use-cases/README.md."
+
+preconditions:
+  - "The app is running on a device or emulator"
+  - "Location permission has been granted"
+  - "Offline tiles are downloaded for the current region"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "The preview presents the route, and Go starts turn-by-turn navigation."
+
+data:
+  bug_out: "Bug Out — set evacuation destination"
+
+steps:
+  - activate: button "{{ bug_out }}"
+  - locate: field "Search for an address"
+  - enter: field "Search for an address" value "Sacramento"
+
+  - locate: button "Calculate route and start navigation"
+  - focus: button "Calculate route and start navigation"
+  - activate: button "Calculate route and start navigation"
+
+  # The preview is the last point at which a user can reconsider. Both exits
+  # must be reachable, and Back must be as reachable as Go — an evacuation app
+  # that makes committing easier than reconsidering is a dark pattern.
+  - locate: button "Start navigation on this route"
+  - focus: button "Start navigation on this route"
+  - locate: button "Go back and change destination"
+  - focus: button "Go back and change destination"
+
+  - audit: page
+
+  - activate: button "Start navigation on this route"

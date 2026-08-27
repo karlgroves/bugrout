@@ -1,0 +1,37 @@
+id: destination-search-no-results
+title: "A destination search matching nothing explains itself"
+type: negative
+description:
+  "Verify that a search matching no address produces an explanatory empty state
+  rather than a silently blank list. A user under evacuation pressure who types
+  a place name and sees nothing cannot tell whether the app is thinking, broken,
+  or telling them the place does not exist."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+  - "The device is online"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "An explanatory message is shown and no result rows remain."
+
+data:
+  search_field: "Search for an address"
+  nonsense: "zzzznotaplaceatall"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+  - activate: button "Skip for now"
+  - activate: button "Bug Out — set evacuation destination"
+
+  - locate: field "{{ search_field }}"
+  - focus: field "{{ search_field }}"
+  - enter: field "{{ search_field }}" value "{{ nonsense }}"
+
+  # A dead end must say so. This is the assertion that fails if the empty state
+  # is ever replaced by an empty list.
+  - verify: text "No results found"
+
+  - audit: page

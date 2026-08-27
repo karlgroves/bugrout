@@ -1,0 +1,44 @@
+id: no-tiles-downloaded
+title: "With no offline maps stored, the app says so and offers the fix"
+type: negative
+description:
+  "Verify that the absence of downloaded tiles is surfaced as a named, operable
+  route to the download manager rather than as a map that silently shows
+  nothing. BugRout is offline-first: a user who has not downloaded their region
+  has an app that cannot route, and must be told before they need it."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+  - "No tile regions are downloaded"
+
+start_location: "http://localhost:4599/"
+
+expected_result:
+  "The first-launch guide and the persistent banner both name the problem and
+  lead to the download manager."
+
+data:
+  download_banner: "Download offline maps to navigate without a connection"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+
+  # The first-launch guide, before it is dismissed.
+  # The guide's body copy, not its title: "Download Offline Maps" also matches
+  # the button beneath it, and Playwright's strict mode rejects the ambiguity.
+  - verify: text "BugRout works best with offline maps."
+  - locate: button "Go to offline maps download"
+  - focus: button "Go to offline maps download"
+
+  - audit: page
+
+  - activate: button "Skip for now"
+
+  # Dismissing the guide must not dismiss the problem: a persistent banner
+  # remains, and it is the thing that keeps the gap visible.
+  - locate: button "{{ download_banner }}"
+  - focus: button "{{ download_banner }}"
+  - activate: button "{{ download_banner }}"
+  - verify: heading "Offline Maps"

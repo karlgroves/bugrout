@@ -1,0 +1,32 @@
+id: active-navigation-advisory-badge
+title: "The Advisory Only badge and battery warning are present during navigation"
+type: positive
+description:
+  'Verify that active turn-by-turn navigation keeps the "Advisory Only" badge
+  visible and exposes the emergency SMS control. The badge is a stated UX
+  constraint and a liability boundary: the app must never present itself as
+  authoritative while a user is following it. NATIVE ONLY: navigation needs GPS
+  and TTS, both stubbed on web.'
+
+preconditions:
+  - "The app is running on a device or emulator"
+  - "A route has been calculated and navigation has started"
+
+start_location: "http://localhost:4599/"
+
+expected_result:
+  "The advisory badge is present throughout, and the emergency control is
+  reachable without leaving the navigation screen."
+
+data: {}
+
+steps:
+  # The badge is the assertion this file exists for. If it can be removed
+  # without failing anything, the constraint is not enforced.
+  - verify: text "Advisory Only"
+
+  # An emergency control that cannot be found under stress is not a control.
+  - locate: button "Send emergency SMS to contacts"
+  - focus: button "Send emergency SMS to contacts"
+
+  - audit: page

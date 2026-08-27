@@ -1,0 +1,50 @@
+id: destination-search
+title: "Search for a destination and reach the route preview"
+type: positive
+description:
+  "Verify the destination picker exposes its search field, saved-scenario
+  quick-select and Route & Go control through the accessibility tree. This is
+  step two of the three-tap flow the product promises, and the search box is
+  the only place in the app where what a user types leaves the device."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+  - "The device is online, so geocoding is available"
+
+start_location: "http://localhost:4599/"
+
+expected_result:
+  "The picker opens, the search field accepts input, and the clear control
+  appears once there is something to clear."
+
+data:
+  search_field: "Search for an address"
+  query: "Sacramento"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+  - activate: button "Skip for now"
+  - activate: button "Bug Out — set evacuation destination"
+
+  # Every screen presented as a Stack route gets a heading from the navigator.
+  # The tab screens do not — see the findings in README.md.
+  - verify: heading "Set Destination"
+
+  - locate: field "{{ search_field }}"
+  - focus: field "{{ search_field }}"
+  - enter: field "{{ search_field }}" value "{{ query }}"
+
+  # The clear control is gated on there being a query, so its appearance is the
+  # observable proof the field accepted input — no geocoding needed.
+  - locate: button "Clear search"
+  - focus: button "Clear search"
+
+  - audit: page
+
+  # Route & Go is present but cannot complete on web: it needs a GPS fix, and
+  # expo-location is stubbed out by metro.config.js. Presence and operability
+  # are what this file asserts; the completed route is native/.
+  - locate: button "Calculate route and start navigation"
+  - focus: button "Calculate route and start navigation"

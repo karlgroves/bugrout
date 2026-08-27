@@ -1,0 +1,67 @@
+id: settings-and-legal
+title: "Reach every settings row, both toggles and the bundled legal documents"
+type: positive
+description:
+  "Verify each row on the Settings screen is named and reachable, and that the
+  bundled privacy policy is available offline. The legal documents are linked
+  from the app store listing and shown at first launch, so their reachability
+  is a compliance property rather than a convenience."
+
+preconditions:
+  - "The disclaimer has been accepted in this session"
+
+start_location: "http://localhost:4599/"
+
+expected_result: "Every settings row is operable and the privacy policy renders its text."
+
+data:
+  tab_settings: "Settings"
+
+steps:
+  - activate: button "Accept disclaimer and continue"
+  - activate: button "Skip location permission for now"
+  - activate: button "Start using BugRout"
+  - activate: button "Skip for now"
+
+  - locate: tab "{{ tab_settings }}"
+  - focus: tab "{{ tab_settings }}"
+  - activate: tab "{{ tab_settings }}"
+  - verify: heading "Settings"
+
+  # Navigation rows. Each carries an accessibilityLabel matching its visible
+  # label, so role-first targeting works without a test id.
+  - locate: button "Offline Maps"
+  - focus: button "Offline Maps"
+  - locate: button "Emergency Contacts"
+  - focus: button "Emergency Contacts"
+  - locate: button "Legal & Disclaimers"
+  - focus: button "Legal & Disclaimers"
+
+  # Preference toggles, targeted by accessible name.
+  #
+  # These were originally addressed by test id, because the Switch controls
+  # carried no accessibilityLabel at all and so had no name to target. That was
+  # recorded as a finding, filed as #100, and has since been fixed — so they are
+  # role-first here, which is what this format is for.
+  #
+  # "Distance units" rather than "Units: Miles": #100 also took the value out of
+  # the label, because as an accessible name it announced
+  # "Units: Miles, switch, off" — heard as miles being turned off rather than
+  # miles being selected.
+  # The DSL has no `switch` token, so these use its custom-role form.
+  # react-native-web renders Switch as role="switch".
+  - locate: role "switch" name "Voice Navigation"
+  - focus: role "switch" name "Voice Navigation"
+  - locate: role "switch" name "Crowd Signal (Anonymous)"
+  - locate: role "switch" name "Battery Optimization"
+  - locate: role "switch" name "Distance units"
+
+  # The advisory disclaimer is repeated here, where a user goes looking for it.
+  - verify: text "Advisory routing only."
+
+  - audit: page
+
+  # The bundled privacy policy must render from local text with no network.
+  - activate: button "Offline Maps"
+  - verify: heading "Offline Maps"
+  - locate: data-testid "downloads-screen"

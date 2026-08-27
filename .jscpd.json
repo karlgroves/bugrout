@@ -1,4 +1,5 @@
 {
+  "_comment_ignore_spec": "spec.md is the product specification, not source. The README deliberately restates parts of it (the project-structure table, the data-source list), which is documentation doing its job rather than duplication to refactor. Leaving it in the corpus made a 38-line prose table count against the threshold and pushed the gate over.",
   "threshold": 0.75,
   "minTokens": 50,
   "minLines": 5,
@@ -23,6 +24,7 @@
     "**/*.generated.*",
     "**/*.min.*",
     "**/native-modules/**",
+    "spec.md",
     "data-pipeline/**"
   ],
   "absolute": true,

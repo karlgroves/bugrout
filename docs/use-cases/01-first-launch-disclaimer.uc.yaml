@@ -1,0 +1,59 @@
+id: first-launch-disclaimer
+title: "Complete the first-launch disclaimer and reach the map"
+type: positive
+description:
+  "Verify the legal disclaimer is the first thing a new user meets, that all three
+  onboarding steps are operable through the accessibility tree alone, and that
+  completing them lands on the map screen. This flow is a legal prerequisite,
+  not a nicety: the app may not be usable until the advisory-only disclaimer has
+  been acknowledged."
+
+preconditions:
+  - "The web build is being served and no disclaimer acceptance is stored"
+
+# start_location must be a literal absolute URL — the DSL does not template it.
+# 4599 matches `pnpm run usecases:serve`.
+start_location: "http://localhost:4599/"
+
+expected_result:
+  "All three onboarding steps complete and the map screen renders with the Bug
+  Out control present."
+
+data:
+  accept_disclaimer: "Accept disclaimer and continue"
+  skip_location: "Skip location permission for now"
+  start_app: "Start using BugRout"
+  bug_out: "Bug Out — set evacuation destination"
+
+steps:
+  # The disclaimer text itself, before anything is dismissed. Both sentences
+  # are asserted because the second is the operative instruction — the first
+  # alone would let the warning be softened without failing anything.
+  - verify: text "Important Disclaimer"
+  - verify: text "BugRout provides advisory routing only."
+
+  # Each control is located, focused, then activated. `focus` is the step that
+  # asserts keyboard operability rather than pointer-only operability, which
+  # matters here because these render as pressable Views, not buttons.
+  - locate: button "{{ accept_disclaimer }}"
+  - focus: button "{{ accept_disclaimer }}"
+
+  # Audit placed at the disclaimer, not at the top of the run: this is the
+  # state the flow exists to reach, and it is the one screen every user is
+  # guaranteed to see.
+  - audit: page
+
+  - activate: button "{{ accept_disclaimer }}"
+
+  - verify: text "Enable Location"
+  - locate: button "{{ skip_location }}"
+  - focus: button "{{ skip_location }}"
+  - activate: button "{{ skip_location }}"
+
+  - verify: text "You're Ready"
+  - locate: button "{{ start_app }}"
+  - focus: button "{{ start_app }}"
+  - activate: button "{{ start_app }}"
+
+  # Landed on the map.
+  - locate: button "{{ bug_out }}"
