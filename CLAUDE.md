@@ -102,9 +102,10 @@ bash scripts/bootstrap.sh
   `run:` blocks. Runs on any PR touching `.github/workflows/**`
   (`workflow-lint.yml`). It does **not** validate third-party action _inputs_,
   so it cannot catch a missing required `with:` key — that class is what left
-  the container/IaC check red for six merges (#111). Nor does it enforce
-  SHA-pinned `uses:`; the Semgrep rule `github-actions-mutable-action-tag`
-  covers that, and the two together are the workflow gate.
+  the container/IaC check red across five merges until #111 fixed it. Nor does
+  it enforce SHA-pinned `uses:`; the Semgrep rule
+  `github-actions-mutable-action-tag` covers that, and the two together are the
+  workflow gate.
 - **Grandfathered violations** live in `docs/tech-debt.md` with file-level
   eslint-disables; new code gets no exemptions. Adaptation decisions from the
   org tooling baseline (issue #1) are ADRs in `docs/adr/`.

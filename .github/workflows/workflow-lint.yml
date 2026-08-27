@@ -3,8 +3,9 @@ name: Workflow Lint
 # The workflows are the only code in this repository that nothing else checks.
 # A mistake in one of them does not fail a build — it changes what the build
 # *is*, which is how `security.yml` shipped an artifact upload with no `path`
-# and reported red on every run for six merges while the scanners underneath
-# it were passing (#111).
+# and reported red on every run on main from #99 until #111 — five pull
+# requests merged with that check red — while the scanners underneath it were
+# passing the whole time.
 #
 # Path-filtered per the no-scheduled-Actions policy in CLAUDE.md: this runs on
 # the pull request that touches a workflow, which is the point at which the
@@ -58,7 +59,9 @@ jobs:
           rm -f "$archive"
           actionlint --version
 
-      # The same command a developer runs (`pnpm run lint:actions`) and the
-      # pre-push hook runs, so a local pass and a CI pass cannot disagree.
+      # Byte-for-byte what `pnpm run lint:actions` runs locally, so a local
+      # pass and a CI pass cannot disagree. Note the pre-push hook does *not*
+      # run it — it stays in `check:all` — so CI is the first gate that sees a
+      # workflow change.
       - name: Lint workflows
         run: actionlint
