@@ -108,7 +108,7 @@ function OnboardingScreen(): React.JSX.Element {
             testID="onboarding-accept-btn"
             style={styles.primaryButton}
             onPress={handleAcceptDisclaimer}
-            accessibilityLabel="Accept disclaimer and continue"
+            accessibilityLabel="I Understand — Continue"
             accessibilityHint="Acknowledges the advisory-only disclaimer and moves to the location permission step"
             accessibilityRole="button"
           >
@@ -151,7 +151,7 @@ function OnboardingScreen(): React.JSX.Element {
           <Pressable
             style={styles.skipButton}
             onPress={handleSkipLocation}
-            accessibilityLabel="Skip location permission for now"
+            accessibilityLabel="Skip for now"
             accessibilityHint="Continues without granting location; you can enable it later in Settings"
             accessibilityRole="button"
           >
@@ -189,7 +189,7 @@ function OnboardingScreen(): React.JSX.Element {
           <Pressable
             style={styles.primaryButton}
             onPress={handleFinish}
-            accessibilityLabel="Start using BugRout"
+            accessibilityLabel="Get Started"
             accessibilityHint="Completes onboarding and opens the main map screen"
             accessibilityRole="button"
           >
