@@ -127,6 +127,28 @@ describe("bootstrap — the app starts", () => {
     expect(useMapStore.getState().tilesLoaded).toBe(false);
   });
 
+  it("flips the store to loaded when a region is present", async () => {
+    // The fresh-install case above cannot pin setTilesLoaded on its own: the
+    // store already defaults to false, so it passes whether the call happens
+    // or not. Confirmed by mutation — deleting the call left all ten tests
+    // green until this one existed. The map screen gates its download banner
+    // on this flag, so a boot that never sets it shows "download offline maps"
+    // to someone who already has them.
+    useMapStore.setState({ tilesLoaded: false });
+    const { getDownloadedRegions } = jest.requireMock<{
+      getDownloadedRegions: jest.Mock;
+    }>("@/services/tiles/TileManager");
+    getDownloadedRegions.mockResolvedValueOnce([
+      { id: "bay-area", bbox: { north: 1, south: 0, east: 1, west: 0 } },
+    ]);
+
+    const result = await bootstrap();
+
+    expect(result.hasDownloadedTiles).toBe(true);
+    expect(useMapStore.getState().tilesLoaded).toBe(true);
+    expect(useMapStore.getState().activeRegion?.id).toBe("bay-area");
+  });
+
   it("populates the stores the first screen renders from", async () => {
     await bootstrap();
     expect(useScenarioStore.getState().scenarios).toEqual([]);
