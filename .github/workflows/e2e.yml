@@ -16,12 +16,16 @@ name: E2E (Detox, Android)
 #
 # The weekly cron is gone per the no-scheduled-Actions policy in CLAUDE.md.
 #
-# NOT a required check yet — the smoke suite has been red since July, all eight
-# specs failing on the same Espresso idling error. This PR removes the cause
-# (an infinite FAB pulse; see hooks/useReducedMotion.ts), but that fix has not
-# been confirmed against a real emulator, so the promotion criterion is
-# unchanged: once it is green across several runs, add it to the required
-# checks in scripts/apply-branch-protection.sh and note it on issue #30.
+# NOT a required check yet. The suite was red from July until #114, all eight
+# specs failing on the same Espresso idling error; #98 removed the cause (an
+# infinite FAB pulse, see hooks/useReducedMotion.ts) and #114 fixed the last
+# two failures, which were an ambiguous Detox matcher rather than the app.
+#
+# The idling fix is now confirmed against a real emulator — 8 of 8 passing,
+# twice, on #114 — but both runs were on a pull request branch. The promotion
+# criterion is unchanged and still unmet: once it is green across several runs
+# on main, add it to the required checks in scripts/apply-branch-protection.sh
+# and note it on issue #30.
 
 on:
   workflow_dispatch:
@@ -43,6 +47,14 @@ on:
       - "apps/mobile/platform/**"
       - "apps/mobile/app/_layout.tsx"
       - "apps/mobile/services/AppBootstrap.ts"
+      # The two gates every test walks through before reaching what it tests:
+      # onboarding, and the first-launch download guide that overlays the FAB.
+      # A change to either can break every describe block while touching none
+      # of the paths above. #115 renamed three onboarding controls this suite
+      # taps in six places and this job never ran; it survived only because
+      # those taps use by.text, which a label change does not affect.
+      - "apps/mobile/app/onboarding/**"
+      - "apps/mobile/components/common/DownloadGuide.tsx"
       # The suite itself.
       - "apps/mobile/e2e/**"
       - ".github/workflows/e2e.yml"
