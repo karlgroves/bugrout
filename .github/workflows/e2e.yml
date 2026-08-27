@@ -1,23 +1,51 @@
 name: E2E (Detox, Android)
 
-# NOT a PR gate yet. This workflow compiles native code and drives an emulator,
-# which is slow (~20-30 min) and historically flaky on hosted runners, and the
-# smoke suite is currently red (6 of 8, see issue #30). Gating PRs on it today
-# would block everything.
+# Boot validation. Nothing else in the pipeline launches the app.
 #
-# The weekly cron is gone per the no-scheduled-Actions policy in CLAUDE.md. Its
-# purpose — a recurring signal on whether the app still boots — is preserved by
-# running on merge into an integration branch instead. That is the "full matrix
-# on merge to the default branch" shape the policy prescribes for E2E: still
-# recurring in practice, but attributable to a commit rather than to a clock.
+# Runs on pull requests that touch anything capable of breaking the boot, and
+# on every merge into an integration branch. The path filter is the point: this
+# job compiles native code and drives an emulator (~20-30 min), so gating every
+# PR on it would be paid mostly by PRs that cannot possibly affect the boot,
+# and the ones that can would get lost among them.
 #
-# Promotion path unchanged: once the smoke suite is green and stable across
-# several runs, add `pull_request` and make it a required check. Update issue
-# #30 / ADR 0007 at that point.
+# What the filter covers is exactly the failure class issue #30 is about. The
+# Dependabot triage in #15-#26 produced four unmergeable PRs and CI caught
+# almost none of them, because an Expo SDK 56 module in an SDK 54 app
+# type-checks perfectly. Every one of those PRs touched package.json and the
+# lockfile, so every one would land in this filter.
+#
+# The weekly cron is gone per the no-scheduled-Actions policy in CLAUDE.md.
+#
+# NOT a required check yet — the smoke suite has been red since July, all eight
+# specs failing on the same Espresso idling error. This PR removes the cause
+# (an infinite FAB pulse; see hooks/useReducedMotion.ts), but that fix has not
+# been confirmed against a real emulator, so the promotion criterion is
+# unchanged: once it is green across several runs, add it to the required
+# checks in scripts/apply-branch-protection.sh and note it on issue #30.
+
 on:
   workflow_dispatch:
   push:
     branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+    paths:
+      # Dependency changes — the case that produced four green-but-broken PRs.
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "apps/mobile/package.json"
+      # Anything that changes what gets built or how it starts.
+      - "apps/mobile/app.config.ts"
+      - "apps/mobile/metro.config.js"
+      - "apps/mobile/.detoxrc.js"
+      - "apps/mobile/eas.json"
+      - "apps/mobile/native-modules/**"
+      - "apps/mobile/platform/**"
+      - "apps/mobile/app/_layout.tsx"
+      - "apps/mobile/services/AppBootstrap.ts"
+      # The suite itself.
+      - "apps/mobile/e2e/**"
+      - ".github/workflows/e2e.yml"
 
 # Least privilege: no job here writes to the repository, publishes packages,
 # or posts to the API. `contents: read` is all that is needed to check the code
