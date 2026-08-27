@@ -38,7 +38,11 @@ function ScenariosScreen(): React.JSX.Element {
           <Text
             style={styles.emptyTitle}
             accessibilityRole="header"
-            aria-level={1}
+            // Level 2: this tab DOES get an h1 from the navigator header
+            // ("Scenarios"), so a level-1 empty-state title put a second h1 on
+            // the page. Same mistake #102 caught in the destination picker —
+            // react-native-web maps a bare header role to <h1>.
+            aria-level={2}
           >
             No Scenarios Saved
           </Text>
