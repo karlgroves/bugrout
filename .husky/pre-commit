@@ -1,2 +1,8 @@
+# Fail on the first failing command. husky's shim already runs hooks as
+# `sh -e` (.husky/_/h), so this changes nothing today — it is here so the
+# hook does not depend on that. Without it, under a plain `sh` a failing
+# step is ignored and the last command's exit code decides the push.
+set -e
+
 pnpm exec lint-staged
 gitleaks protect --staged --no-banner --redact
