@@ -454,7 +454,7 @@ function DestinationScreen(): React.JSX.Element {
       <Pressable
         style={[styles.confirmButton, !selectedDest && styles.confirmDisabled]}
         onPress={confirmRoute}
-        accessibilityLabel="Calculate route and start navigation"
+        accessibilityLabel="Route & Go"
         accessibilityHint="Calculates the evacuation route to the selected destination and opens the route preview"
         accessibilityRole="button"
         testID="route-and-go-button"

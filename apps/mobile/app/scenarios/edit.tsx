@@ -192,7 +192,7 @@ function ScenarioEditScreen(): React.JSX.Element {
       <Pressable
         style={styles.saveButton}
         onPress={handleSave}
-        accessibilityLabel="Save scenario"
+        accessibilityLabel={existing ? "Update Scenario" : "Save Scenario"}
         accessibilityHint="Saves this scenario and returns to the scenarios list"
         accessibilityRole="button"
       >

@@ -24,18 +24,18 @@ steps:
   - locate: field "Search for an address"
   - enter: field "Search for an address" value "Sacramento"
 
-  - locate: button "Calculate route and start navigation"
-  - focus: button "Calculate route and start navigation"
-  - activate: button "Calculate route and start navigation"
+  - locate: button "Route & Go"
+  - focus: button "Route & Go"
+  - activate: button "Route & Go"
 
   # The preview is the last point at which a user can reconsider. Both exits
   # must be reachable, and Back must be as reachable as Go — an evacuation app
   # that makes committing easier than reconsidering is a dark pattern.
-  - locate: button "Start navigation on this route"
-  - focus: button "Start navigation on this route"
+  - locate: button "Go"
+  - focus: button "Go"
   - locate: button "Go back and change destination"
   - focus: button "Go back and change destination"
 
   - audit: page
 
-  - activate: button "Start navigation on this route"
+  - activate: button "Go"
