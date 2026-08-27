@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { StyleSheet, View, Text, FlatList, Pressable } from "react-native";
 
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import {
   buttons,
   colors,
@@ -17,7 +18,7 @@ import { useScenarioStore } from "@/stores/useScenarioStore";
 const MAX_SCENARIOS = 3;
 
 /** Lists saved evacuation scenarios (max 3) and links to the scenario editor. */
-export default function ScenariosScreen(): React.JSX.Element {
+function ScenariosScreen(): React.JSX.Element {
   const router = useRouter();
   const { scenarios, setScenarios } = useScenarioStore();
 
@@ -34,7 +35,17 @@ export default function ScenariosScreen(): React.JSX.Element {
       {scenarios.length === 0 ? (
         <View style={styles.emptyState}>
           <FontAwesome name="bookmark-o" size={48} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>No Scenarios Saved</Text>
+          <Text
+            style={styles.emptyTitle}
+            accessibilityRole="header"
+            // Level 2: this tab DOES get an h1 from the navigator header
+            // ("Scenarios"), so a level-1 empty-state title put a second h1 on
+            // the page. Same mistake #102 caught in the destination picker —
+            // react-native-web maps a bare header role to <h1>.
+            aria-level={2}
+          >
+            No Scenarios Saved
+          </Text>
           <Text style={styles.emptyDescription}>
             Pre-configure up to 3 evacuation scenarios with destinations,
             preferred routes, and resource stops.
@@ -183,3 +194,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+export default withScreenTitle(ScenariosScreen, "Scenarios");

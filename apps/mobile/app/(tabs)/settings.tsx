@@ -10,11 +10,12 @@ import {
   Switch,
 } from "react-native";
 
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
 /** Settings menu for offline maps, contacts, voice, battery, and legal info. */
-export default function SettingsScreen(): React.JSX.Element {
+function SettingsScreen(): React.JSX.Element {
   const router = useRouter();
   const {
     units,
@@ -52,7 +53,13 @@ export default function SettingsScreen(): React.JSX.Element {
       />
 
       {/* Toggle rows */}
-      <Text style={styles.sectionTitle}>Preferences</Text>
+      <Text
+        style={styles.sectionTitle}
+        accessibilityRole="header"
+        aria-level={2}
+      >
+        Preferences
+      </Text>
 
       {/*
         The label deliberately does NOT carry the current value. It used to
@@ -110,7 +117,13 @@ export default function SettingsScreen(): React.JSX.Element {
       />
 
       {/* Info rows */}
-      <Text style={styles.sectionTitle}>About</Text>
+      <Text
+        style={styles.sectionTitle}
+        accessibilityRole="header"
+        aria-level={2}
+      >
+        About
+      </Text>
 
       <NavRow
         id="legal"
@@ -294,3 +307,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+
+export default withScreenTitle(SettingsScreen, "Settings");

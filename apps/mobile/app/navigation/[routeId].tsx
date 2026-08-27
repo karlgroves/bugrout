@@ -12,6 +12,7 @@ import { StyleSheet, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
@@ -35,7 +36,7 @@ import type { NavigationEvent } from "@/services/navigation/NavigationController
 import type { LatLng } from "@bugrout/shared";
 
 /** Active turn-by-turn navigation view driven by the NavigationController. */
-export default function NavigationScreen(): React.JSX.Element {
+function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
   const { activeRoute, hasDeviated, clearRoute, setStatus } = useRouteStore();
   const battery = useBattery();
@@ -252,3 +253,5 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
 });
+
+export default withScreenTitle(NavigationScreen, "Navigating");

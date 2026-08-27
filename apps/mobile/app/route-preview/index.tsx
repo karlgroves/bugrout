@@ -18,6 +18,7 @@ import { useCallback, useMemo } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
@@ -29,7 +30,7 @@ import { useThreatStore } from "@/stores/useThreatStore";
 import { formatDistance, formatDuration } from "@/utils/geo";
 
 /** Route confirmation screen showing distance, ETA, threats, and Go/Back actions. */
-export default function RoutePreviewScreen(): React.JSX.Element | null {
+function RoutePreviewScreen(): React.JSX.Element | null {
   const router = useRouter();
   const { activeRoute } = useRouteStore();
   const { threatZones } = useThreatStore();
@@ -316,3 +317,5 @@ const styles = StyleSheet.create({
     color: colors.background,
   },
 });
+
+export default withScreenTitle(RoutePreviewScreen, "Route Preview");

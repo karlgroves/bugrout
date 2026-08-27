@@ -17,6 +17,7 @@ import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FeatureRow } from "@/components/common/FeatureRow";
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { buttons, colors, spacing, typography } from "@/constants/theme";
 import { track, Events } from "@/platform/analytics";
 import { requestForegroundPermissionsAsync } from "@/platform/location";
@@ -25,7 +26,7 @@ import { acceptDisclaimer } from "@/services/AppBootstrap";
 type Step = "disclaimer" | "location" | "ready";
 
 /** First-launch onboarding: disclaimer, location permission, and ready steps. */
-export default function OnboardingScreen(): React.JSX.Element {
+function OnboardingScreen(): React.JSX.Element {
   const router = useRouter();
   const [step, setStep] = useState<Step>("disclaimer");
   const [locationGranted, setLocationGranted] = useState(false);
@@ -70,7 +71,9 @@ export default function OnboardingScreen(): React.JSX.Element {
           style={styles.scrollContent}
           contentContainerStyle={styles.centeredContent}
         >
-          <Text style={styles.title}>BugRout</Text>
+          <Text style={styles.title} accessibilityRole="header" aria-level={1}>
+            BugRout
+          </Text>
           <Text style={styles.subtitle}>Evacuation-Aware Navigation</Text>
 
           <View style={styles.disclaimerBox}>
@@ -79,7 +82,13 @@ export default function OnboardingScreen(): React.JSX.Element {
               size={24}
               color={colors.warning}
             />
-            <Text style={styles.disclaimerTitle}>Important Disclaimer</Text>
+            <Text
+              style={styles.disclaimerTitle}
+              accessibilityRole="header"
+              aria-level={2}
+            >
+              Important Disclaimer
+            </Text>
             <Text style={styles.disclaimerText}>
               BugRout provides advisory routing only. Route suggestions are
               based on statistical models and may not reflect real-time
@@ -113,7 +122,13 @@ export default function OnboardingScreen(): React.JSX.Element {
       {step === "location" && (
         <View style={styles.centeredContent}>
           <FontAwesome name="map-marker" size={56} color={colors.accent} />
-          <Text style={styles.stepTitle}>Enable Location</Text>
+          <Text
+            style={styles.stepTitle}
+            accessibilityRole="header"
+            aria-level={1}
+          >
+            Enable Location
+          </Text>
           <Text style={styles.stepDescription}>
             BugRout needs your location to provide turn-by-turn navigation and
             calculate routes from your current position.
@@ -148,7 +163,13 @@ export default function OnboardingScreen(): React.JSX.Element {
       {step === "ready" && (
         <View style={styles.centeredContent}>
           <FontAwesome name="check-circle" size={56} color={colors.accent} />
-          <Text style={styles.stepTitle}>You're Ready</Text>
+          <Text
+            style={styles.stepTitle}
+            accessibilityRole="header"
+            aria-level={1}
+          >
+            You're Ready
+          </Text>
           <Text style={styles.stepDescription}>
             {locationGranted
               ? "Location enabled. For the best experience, download offline maps for your region."
@@ -284,3 +305,5 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
 });
+
+export default withScreenTitle(OnboardingScreen, "Welcome");

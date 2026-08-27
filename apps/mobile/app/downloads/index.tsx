@@ -17,6 +17,7 @@ import {
   Alert,
 } from "react-native";
 
+import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { getCountyGroups } from "@/constants/counties";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useTileManager } from "@/hooks/useTileManager";
@@ -32,7 +33,7 @@ function formatBytes(bytes: number): string {
 }
 
 /** Offline tile download manager with progress, storage info, and stale warnings. */
-export default function DownloadsScreen(): React.JSX.Element {
+function DownloadsScreen(): React.JSX.Element {
   const {
     downloadedRegions,
     availableRegions,
@@ -443,3 +444,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+
+export default withScreenTitle(DownloadsScreen, "Offline Maps");
