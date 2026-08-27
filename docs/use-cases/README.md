@@ -143,10 +143,13 @@ Two consequences worth carrying forward:
 - When this is wired into CI, the Playwright context must set
   `reducedMotion: 'reduce'`. That is also the honest configuration — it is how a
   user with the preference set experiences the app.
-- It makes #109 more important than its severity suggests. That issue covers the
-  fact that nothing pins the reduce-motion guard in the map screen; if the guard
-  regresses, this suite stops working as well as the accessibility property
-  being lost.
+- It made #109 more important than its severity suggested: nothing pinned the
+  reduce-motion guard in the map screen, so a regression would have cost this
+  suite as well as the accessibility property. That guard is now pinned by
+  `apps/mobile/__tests__/screens/mapFabReducedMotion.test.tsx`, which asserts
+  the branch reanimated actually takes rather than the rendered transform —
+  under the jest mock the animation never runs, so the transform reads
+  `scale: 1` either way and cannot distinguish them.
 
 ## Accessibility defects found while authoring — all now fixed
 
