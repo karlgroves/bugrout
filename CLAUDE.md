@@ -34,8 +34,12 @@ pnpm install
 # Everyday quality gate: format check + lint + typecheck + tests + markdownlint
 pnpm run check
 
-# Full gate: check + duplication, links, security scans, license compliance
+# Full gate: check + duplication, links, workflow lint, security scans,
+# license compliance
 pnpm run check:all
+
+# Lint the GitHub Actions workflows (actionlint + shellcheck on `run:` blocks)
+pnpm run lint:actions
 
 # Lint all workspaces / autofix
 pnpm run lint
@@ -93,6 +97,14 @@ bash scripts/bootstrap.sh
 - **Hooks (Husky):** pre-commit = lint-staged + gitleaks; commit-msg =
   commitlint (Conventional Commits — commit messages MUST be conventional);
   pre-push = `pnpm run check` + dupes/secrets/licenses.
+- **actionlint:** `pnpm run lint:actions` lints every workflow — syntax,
+  expressions, `needs`/matrix references, runner labels, and shellcheck over
+  `run:` blocks. Runs on any PR touching `.github/workflows/**`
+  (`workflow-lint.yml`). It does **not** validate third-party action _inputs_,
+  so it cannot catch a missing required `with:` key — that class is what left
+  the container/IaC check red for six merges (#111). Nor does it enforce
+  SHA-pinned `uses:`; the Semgrep rule `github-actions-mutable-action-tag`
+  covers that, and the two together are the workflow gate.
 - **Grandfathered violations** live in `docs/tech-debt.md` with file-level
   eslint-disables; new code gets no exemptions. Adaptation decisions from the
   org tooling baseline (issue #1) are ADRs in `docs/adr/`.
