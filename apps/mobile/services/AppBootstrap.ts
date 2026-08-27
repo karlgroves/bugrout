@@ -2,6 +2,7 @@
  * App Bootstrap
  *
  * Initializes the app on launch:
+ * 0. Initialize analytics
  * 1. Initialize SQLite database
  * 2. Load persisted settings into Zustand stores
  * 3. Load saved scenarios
@@ -46,8 +47,7 @@ export interface BootstrapResult {
  * Call this once during app startup (in root layout).
  */
 export async function bootstrap(): Promise<BootstrapResult> {
-  // 0. Initialize crash reporting and analytics
-  initCrashReporting();
+  // 0. Initialize analytics
   initAnalytics(process.env.EXPO_PUBLIC_POSTHOG_KEY);
 
   // 1. Initialize database (creates tables if needed)
@@ -56,6 +56,15 @@ export async function bootstrap(): Promise<BootstrapResult> {
   // 2. Load persisted settings and start auto-persistence
   await loadSettings();
   startSettingsPersistence();
+
+  // 2a. Crash reporting, once the opt-in is known.
+  //
+  // This runs after the database and settings rather than first, because the
+  // consent decision lives in storage and cannot be read before it is open.
+  // The cost is that a failure inside getDatabase() or loadSettings() is not
+  // reported to Sentry. That is the right trade: reporting a crash from a user
+  // who never agreed to send crash reports is worse than losing the report.
+  initCrashReporting(useSettingsStore.getState().crashReportingOptIn);
 
   // 3. Load saved scenarios
   const scenarios = await getScenarios();
@@ -126,6 +135,11 @@ async function loadSettings(): Promise<void> {
 
   const crowd = await getPreference("crowd_signal_opt_in");
   if (crowd !== null) store.setCrowdSignalOptIn(crowd === "true");
+
+  const crashReporting = await getPreference("crash_reporting_opt_in");
+  if (crashReporting !== null) {
+    store.setCrashReportingOptIn(crashReporting === "true");
+  }
 }
 
 /**

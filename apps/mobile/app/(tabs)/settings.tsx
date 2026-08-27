@@ -21,10 +21,12 @@ export default function SettingsScreen(): React.JSX.Element {
     voiceEnabled,
     batteryOptimization,
     crowdSignalOptIn,
+    crashReportingOptIn,
     setUnits,
     setVoiceEnabled,
     setBatteryOptimization,
     setCrowdSignalOptIn,
+    setCrashReportingOptIn,
   } = useSettingsStore();
 
   return (
@@ -87,6 +89,15 @@ export default function SettingsScreen(): React.JSX.Element {
         hint="Shares anonymous speed and heading data to warn other evacuees about congestion"
         value={crowdSignalOptIn}
         onToggle={setCrowdSignalOptIn}
+      />
+      <ToggleRow
+        id="crash-reports"
+        icon="bug"
+        label="Crash Reports"
+        subtitle="Send crash traces to help fix bugs. Off unless you turn it on."
+        hint="Sends crash traces to our error-reporting provider. Coordinates and contact details are stripped before sending."
+        value={crashReportingOptIn}
+        onToggle={setCrashReportingOptIn}
       />
       <ToggleRow
         id="battery-optimization"

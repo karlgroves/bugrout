@@ -3,7 +3,9 @@
  *
  * Three input modes:
  * 1. Saved scenarios (quick-select)
- * 2. Address search via Nominatim (online only, debounced)
+ * 2. Address search via Nominatim (online only, debounced) — see
+ *    services/geocoding/Geocoder.ts, which owns the request and refuses to
+ *    make it before the disclaimer is accepted
  * 3. Recent destinations from SQLite
  *
  * After selecting, "Route & Go" calculates and opens the route preview.
@@ -34,6 +36,7 @@ import {
 } from "@/db/queries/preferences";
 import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
+import { searchDestinations } from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
@@ -120,36 +123,15 @@ export default function DestinationScreen(): React.JSX.Element {
     setSearching(true);
     setNoResults(false);
     try {
-      const resp = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&countrycodes=us&addressdetails=1`,
-        { headers: { "User-Agent": "BugRout/1.0" } },
-      );
-      const data = (await resp.json()) as {
-        display_name: string;
-        lat: string;
-        lon: string;
-        address?: {
-          city?: string;
-          town?: string;
-          village?: string;
-          state?: string;
-          road?: string;
-          house_number?: string;
-        };
-      }[];
-
-      if (data.length === 0) {
+      // Gated on the disclaimer inside the service: this is the only place a
+      // user-typed string leaves the device, and the disclaimer is where the
+      // policy disclosing that is shown.
+      const found = await searchDestinations(q);
+      if (found.length === 0) {
         setNoResults(true);
         setResults([]);
       } else {
-        setResults(
-          data.map((d) => ({
-            displayName: d.display_name,
-            shortName: buildShortName(d.address, d.display_name),
-            lat: parseFloat(d.lat),
-            lng: parseFloat(d.lon),
-          })),
-        );
+        setResults(found);
         setNoResults(false);
       }
     } catch {
@@ -485,29 +467,6 @@ export default function DestinationScreen(): React.JSX.Element {
       </Pressable>
     </View>
   );
-}
-
-/** Build a short display name from Nominatim address details. */
-function buildShortName(
-  address: Record<string, string | undefined> | undefined,
-  fallback: string,
-): string {
-  if (!address) return fallback.split(",")[0] ?? fallback;
-
-  const parts: string[] = [];
-  if (address.house_number && address.road) {
-    parts.push(`${address.house_number} ${address.road}`);
-  } else if (address.road) {
-    parts.push(address.road);
-  }
-
-  const city = address.city ?? address.town ?? address.village;
-  if (city) parts.push(city);
-  if (address.state) parts.push(address.state);
-
-  return parts.length > 0
-    ? parts.join(", ")
-    : (fallback.split(",")[0] ?? fallback);
 }
 
 /** Build the heterogeneous list data. */

@@ -14,6 +14,7 @@ let lastPersisted = {
   voiceEnabled: "",
   batteryOptimization: "",
   crowdSignalOptIn: "",
+  crashReportingOptIn: "",
 };
 
 /**
@@ -38,6 +39,7 @@ export function startSettingsPersistence(): () => void {
       voiceEnabled: String(state.voiceEnabled),
       batteryOptimization: String(state.batteryOptimization),
       crowdSignalOptIn: String(state.crowdSignalOptIn),
+      crashReportingOptIn: String(state.crashReportingOptIn),
     };
 
     // Only persist changed values
@@ -57,6 +59,10 @@ export function startSettingsPersistence(): () => void {
       persistPreference("crowd_signal_opt_in", current.crowdSignalOptIn);
       lastPersisted.crowdSignalOptIn = current.crowdSignalOptIn;
     }
+    if (current.crashReportingOptIn !== lastPersisted.crashReportingOptIn) {
+      persistPreference("crash_reporting_opt_in", current.crashReportingOptIn);
+      lastPersisted.crashReportingOptIn = current.crashReportingOptIn;
+    }
   });
 
   // Initialize lastPersisted with current state
@@ -66,6 +72,7 @@ export function startSettingsPersistence(): () => void {
     voiceEnabled: String(state.voiceEnabled),
     batteryOptimization: String(state.batteryOptimization),
     crowdSignalOptIn: String(state.crowdSignalOptIn),
+    crashReportingOptIn: String(state.crashReportingOptIn),
   };
 
   return unsubscribe;
