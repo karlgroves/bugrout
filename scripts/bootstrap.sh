@@ -37,6 +37,7 @@ install_brew_or_hint lychee "https://github.com/lycheeverse/lychee/releases" || 
 install_brew_or_hint trivy "https://github.com/aquasecurity/trivy/releases" || status=1
 install_brew_or_hint hadolint "https://github.com/hadolint/hadolint/releases" || status=1
 install_brew_or_hint checkov "https://www.checkov.io/2.Basics/Installing%20Checkov.html" || status=1
+install_brew_or_hint actionlint "https://github.com/rhysd/actionlint/releases" || status=1
 
 if ! need semgrep; then
   echo "Installing semgrep..."

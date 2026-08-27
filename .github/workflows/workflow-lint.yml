@@ -1,0 +1,67 @@
+name: Workflow Lint
+
+# The workflows are the only code in this repository that nothing else checks.
+# A mistake in one of them does not fail a build — it changes what the build
+# *is*, which is how `security.yml` shipped an artifact upload with no `path`
+# and reported red on every run on main from #99 until #111 — five pull
+# requests merged with that check red — while the scanners underneath it were
+# passing the whole time.
+#
+# Path-filtered per the no-scheduled-Actions policy in CLAUDE.md: this runs on
+# the pull request that touches a workflow, which is the point at which the
+# mistake is cheapest to fix and attributable to someone.
+#
+# Scope, honestly: actionlint validates workflow syntax, expressions, `needs`
+# and matrix references, runner labels, and shell scripts inside `run:` blocks
+# (via shellcheck). It does **not** know the input schemas of third-party
+# actions, so it would not have caught the missing `path` above. It is worth
+# running for everything else it does catch, not as a fix for that.
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - ".github/workflows/**"
+  push:
+    branches: [main, develop]
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Pinned and checksum-verified, like the other scanner binaries in
+      # security.yml. Downloading a linter over the network to police the
+      # supply chain is worth doing carefully.
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.7"
+          ACTIONLINT_SHA256: "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSLf -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          sudo mv actionlint /usr/local/bin/actionlint
+          rm -f "$archive"
+          actionlint --version
+
+      # Byte-for-byte what `pnpm run lint:actions` runs locally, so a local
+      # pass and a CI pass cannot disagree. Note the pre-push hook does *not*
+      # run it — it stays in `check:all` — so CI is the first gate that sees a
+      # workflow change.
+      - name: Lint workflows
+        run: actionlint
