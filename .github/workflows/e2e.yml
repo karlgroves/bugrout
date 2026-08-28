@@ -61,17 +61,24 @@ on:
       # on each screen by label — "Clear search", "Scenario name", "Create
       # Scenario". A rename in any of these breaks specs while touching none of
       # the paths above; #116 edits two of them and this job runs zero times.
-      #
-      # The line is drawn at name-addressed screens, not every screen the suite
-      # reaches. route-preview and navigation/[routeId] are driven entirely by
-      # testID, which exists to be a stable handle and carries no accessibility
-      # pressure to change. Accessible names do — that pressure is what renamed
-      # controls in #115 and #116 — so those are the ones worth a trigger.
       - "apps/mobile/app/(tabs)/**"
       - "apps/mobile/app/destination/**"
       - "apps/mobile/app/scenarios/**"
       - "apps/mobile/app/contacts/**"
       - "apps/mobile/app/downloads/**"
+      # The remaining surfaces the suite drives, addressed by testID. Less
+      # fragile than a name — a testID exists to be a stable handle — but the
+      # suite depends on them just as hard, so the filter now covers every file
+      # it addresses rather than only the ones likeliest to drift.
+      #
+      # components/navigation is the substantive one: the controls tapped
+      # during navigation are not on the screen file at all. stop-navigation-btn
+      # and emergency-contact-btn both live in RouteBottomBar.tsx, so
+      # app/navigation/** on its own would cover neither.
+      - "apps/mobile/app/route-preview/**"
+      - "apps/mobile/app/navigation/**"
+      - "apps/mobile/components/navigation/**"
+      - "apps/mobile/components/common/StatusIndicator.tsx"
       # The suite itself.
       - "apps/mobile/e2e/**"
       - ".github/workflows/e2e.yml"
