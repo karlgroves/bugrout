@@ -4,16 +4,13 @@
  * Tests creating, editing, and activating evacuation scenarios.
  */
 
-import { by, device, element, expect } from "detox";
+import { by, element, expect } from "detox";
+
+import { launchToMapScreen } from "./support/launch";
 
 describe("Scenario Management", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
-    try {
-      await element(by.text("I Understand — Continue")).tap();
-    } catch {
-      // Already accepted
-    }
+    await launchToMapScreen();
   });
 
   it("should navigate to scenarios tab", async () => {

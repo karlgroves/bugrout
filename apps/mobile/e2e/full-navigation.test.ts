@@ -7,17 +7,13 @@
  * 3. Confirm route → Navigate
  */
 
-import { by, device, element, expect } from "detox";
+import { by, element, expect } from "detox";
+
+import { launchToMapScreen } from "./support/launch";
 
 describe("Full Navigation Flow", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
-    // Complete onboarding
-    try {
-      await element(by.id("onboarding-accept-btn")).tap();
-    } catch {
-      // Already accepted
-    }
+    await launchToMapScreen();
   });
 
   it("shows the map screen with Bug Out FAB", async () => {
