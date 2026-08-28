@@ -16,12 +16,6 @@ name: E2E (Detox, Android)
 #
 # The weekly cron is gone per the no-scheduled-Actions policy in CLAUDE.md.
 #
-# The job runs the whole suite — all five specs, 25 tests. It ran only
-# navigation-flow.test.ts until now, on both pull_request and push, so the four
-# other specs (17 tests) executed nowhere in CI and the filter above triggered
-# on screens nothing then exercised. The script and job names still say
-# "smoke", which is now historical.
-#
 # NOT a required check yet. The suite was red from July until #114, all eight
 # specs failing on the same Espresso idling error; #98 removed the cause (an
 # infinite FAB pulse, see hooks/useReducedMotion.ts) and #114 fixed the last
@@ -145,7 +139,7 @@ jobs:
         working-directory: apps/mobile
         run: pnpm run e2e:build
 
-      - name: Run the Detox suite
+      - name: Run Detox smoke test
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 33
