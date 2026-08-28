@@ -55,6 +55,23 @@ on:
       # those taps use by.text, which a label change does not affect.
       - "apps/mobile/app/onboarding/**"
       - "apps/mobile/components/common/DownloadGuide.tsx"
+      # The screens the suite drives by accessible name or visible text. It
+      # navigates between them by tapping the tab titles in (tabs)/_layout.tsx,
+      # which four of the five spec files depend on, and it addresses controls
+      # on each screen by label — "Clear search", "Scenario name", "Create
+      # Scenario". A rename in any of these breaks specs while touching none of
+      # the paths above; #116 edits two of them and this job runs zero times.
+      #
+      # The line is drawn at name-addressed screens, not every screen the suite
+      # reaches. route-preview and navigation/[routeId] are driven entirely by
+      # testID, which exists to be a stable handle and carries no accessibility
+      # pressure to change. Accessible names do — that pressure is what renamed
+      # controls in #115 and #116 — so those are the ones worth a trigger.
+      - "apps/mobile/app/(tabs)/**"
+      - "apps/mobile/app/destination/**"
+      - "apps/mobile/app/scenarios/**"
+      - "apps/mobile/app/contacts/**"
+      - "apps/mobile/app/downloads/**"
       # The suite itself.
       - "apps/mobile/e2e/**"
       - ".github/workflows/e2e.yml"
