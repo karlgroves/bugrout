@@ -79,6 +79,13 @@ on:
       - "apps/mobile/app/navigation/**"
       - "apps/mobile/components/navigation/**"
       - "apps/mobile/components/common/StatusIndicator.tsx"
+      # The one locator source that is data rather than markup: the
+      # downloads spec asserts three region names by visible text, and
+      # those strings are defined here, reaching the screen through
+      # useTileManager. Renaming a region breaks downloads.test.ts while
+      # touching none of the paths above. useTileManager itself stays out
+      # — it defines nothing the suite addresses, it only passes them on.
+      - "apps/mobile/constants/regions.ts"
       # The suite itself.
       - "apps/mobile/e2e/**"
       - ".github/workflows/e2e.yml"
