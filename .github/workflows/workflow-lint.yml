@@ -59,9 +59,8 @@ jobs:
           rm -f "$archive"
           actionlint --version
 
-      # Byte-for-byte what `pnpm run lint:actions` runs locally, so a local
-      # pass and a CI pass cannot disagree. Note the pre-push hook does *not*
-      # run it — it stays in `check:all` — so CI is the first gate that sees a
-      # workflow change.
+      # Byte-for-byte what `pnpm run lint:actions` runs locally and what
+      # .husky/pre-push runs before a push, so a local pass and a CI pass
+      # cannot disagree.
       - name: Lint workflows
         run: actionlint

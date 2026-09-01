@@ -56,7 +56,7 @@ anything that bypasses them (`--no-verify`, web-UI merges).
 | ---------- | --------------------------------------------------------------- |
 | pre-commit | lint-staged (ESLint --fix + Prettier on staged files), gitleaks |
 | commit-msg | commitlint (Conventional Commits)                               |
-| pre-push   | `pnpm run check` + secrets/licenses/duplication scans           |
+| pre-push   | `pnpm run check` + duplication/workflow-lint/secrets/licenses   |
 | post-merge | reinstall + audit when `pnpm-lock.yaml` changed                 |
 
 Linting is a single root [`eslint.config.mjs`](eslint.config.mjs)
