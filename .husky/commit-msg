@@ -1,7 +1,7 @@
 # Fail on the first failing command. husky's shim already runs hooks as
 # `sh -e` (.husky/_/h), so this changes nothing today — it is here so the
 # hook does not depend on that. Without it, under a plain `sh` a failing
-# step is ignored and the last command's exit code decides the push.
+# step is ignored and the last command's exit code decides the result.
 set -e
 
 pnpm exec commitlint --edit "$1"
