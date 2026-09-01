@@ -37,11 +37,17 @@ import { join } from "node:path";
 const REPO_ROOT = join(__dirname, "..", "..", "..", "..");
 const APP_ROOT = join(REPO_ROOT, "apps", "mobile");
 const DOCS_ROOT = join(REPO_ROOT, "docs");
-const SOURCE_DIRS = ["app", "components", "constants"];
+// Only .tsx is walked, so "constants" would match nothing — every file
+// there is .ts. Left out rather than left in looking like coverage.
+const SOURCE_DIRS = ["app", "components"];
 
 /**
  * Locators whose name is an accessible name resolvable from source. Written
  * out rather than built from a list so it stays a literal regex.
+ *
+ * `heading` is deliberately absent: a heading is named by its own text
+ * content, not by an accessibilityLabel, so it cannot resolve against this
+ * index. The seven heading locators in the documents go unchecked here.
  */
 const LOCATOR = /\b(?:button|tab|switch|link|field|image)\s+"([^"]+)"/g;
 const TEMPLATE_VAR = /^\{\{\s*([a-z_]+)\s*\}\}$/;
@@ -120,7 +126,10 @@ function patternFor(templateLiteral: string): RegExp | null {
         : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
     )
     .join("");
-  if (source === "(?:.+)") return null;
+  // A pattern with no fixed text whitelists every name, so it is not a
+  // name index entry at all. The check is on *all* the holes, not just a
+  // single one: `${a}${b}` yields "(?:.+)(?:.+)", which is equally empty.
+  if (/^(?:\(\?:\.\+\))+$/.test(source)) return null;
   // Built from this repository's own source text, never from external input.
   // eslint-disable-next-line security/detect-non-literal-regexp
   return new RegExp(`^${source}$`);
@@ -258,8 +267,14 @@ describe("use-case documents name controls that exist in the app", () => {
   it("resolves locators to check (guards against a vacuous walk)", () => {
     // If either parser stops matching, the assertion below passes for the
     // wrong reason. Both sides have to be non-trivial to mean anything.
-    expect(locators.length).toBeGreaterThanOrEqual(60);
-    expect(index.fixed.size).toBeGreaterThanOrEqual(20);
+    // Floors sit just under the real counts at the time of writing — 121
+    // locators and 51 fixed names — so losing a chunk of either walk shows
+    // up here rather than as a quietly smaller check.
+    expect(locators.length).toBeGreaterThanOrEqual(115);
+    expect(index.fixed.size).toBeGreaterThanOrEqual(48);
+    // Names the index cannot resolve are excluded from the comparison, so a
+    // rising count means a growing blind spot. 7 at the time of writing.
+    expect(index.unverifiable).toBeLessThanOrEqual(7);
   });
 
   it("has no locator naming a control the app cannot announce", () => {
