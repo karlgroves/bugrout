@@ -333,6 +333,30 @@ function uncoveredIn(control: Control, visible: string[]): Uncovered[] {
     }));
 }
 
+/**
+ * Every name the Detox smoke suite addresses with `by.label`.
+ *
+ * Conforming to 2.5.3 is what makes such a matcher ambiguous: on Android
+ * `by.label` matches a contentDescription *or* a TextView's text, so once a
+ * Pressable's name equals its own `<Text>` child, both match and the matcher
+ * fails. #114 hit this on the download-guide skip button and audited the other
+ * matchers by hand, concluding the download banner was safe — which stopped
+ * being true the moment that banner's name was made to contain its visible
+ * text. A hand audit expires silently; this does not.
+ */
+function detoxLabelMatchers(): Set<string> {
+  const names = new Set<string>();
+  const dir = join(APP_ROOT, "e2e");
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".ts")) continue;
+    const source = readFileSync(join(dir, entry), "utf8");
+    for (const m of source.matchAll(/by\.label\(\s*"([^"]+)"/g)) {
+      names.add(m[1] ?? "");
+    }
+  }
+  return names;
+}
+
 /** Every labelled control in the app, across the searched directories. */
 function walk(): WalkResult {
   const result: WalkResult = {
@@ -379,6 +403,25 @@ describe("WCAG 2.5.3 — every accessible name contains its visible label", () =
     // Measured, not guessed: 10 and 3 as this lands.
     expect(result.unreadableNames).toBeLessThanOrEqual(10);
     expect(result.unreadableText).toBeLessThanOrEqual(3);
+  });
+
+  it("has no by.label matcher the emulator would find ambiguous", () => {
+    // The converse of the check below: where a name *equals* a visible string,
+    // conformance is correct but Detox cannot tell parent from child. The fix
+    // is always to address the control by testID, never to weaken the label.
+    const addressed = detoxLabelMatchers();
+    const report = seen
+      .flatMap(({ control, visible }) =>
+        control.names
+          .filter((name) => addressed.has(name) && visible.includes(name))
+          .map(
+            (name) =>
+              `  ${control.file}\n     by.label("${name}") also matches its own <Text>` +
+              `\n     address it by testID instead, as #114 did`,
+          ),
+      )
+      .join("\n");
+    expect(report).toBe("");
   });
 
   it("has no control whose accessible name omits its visible text", () => {
