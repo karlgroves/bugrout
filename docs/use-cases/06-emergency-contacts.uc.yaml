@@ -31,9 +31,9 @@ steps:
   # The empty state must explain itself rather than showing a blank panel.
   - verify: text "No emergency contacts added"
 
-  - locate: button "Add emergency contact"
-  - focus: button "Add emergency contact"
-  - activate: button "Add emergency contact"
+  - locate: button "Add Contact"
+  - focus: button "Add Contact"
+  - activate: button "Add Contact"
 
   - locate: field "Contact name"
   - focus: field "Contact name"

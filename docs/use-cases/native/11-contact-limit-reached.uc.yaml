@@ -26,6 +26,6 @@ steps:
   # The limit must be stated, not merely enforced. A missing button with no
   # explanation reads as a bug.
   - verify: text "Maximum 5 contacts"
-  - verify: hidden button "Add emergency contact"
+  - verify: hidden button "Add Contact"
 
   - audit: page

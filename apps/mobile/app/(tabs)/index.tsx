@@ -94,7 +94,7 @@ function MapScreen(): React.JSX.Element {
           onPress={() => {
             router.push("/downloads");
           }}
-          accessibilityLabel="Download offline maps to navigate without a connection"
+          accessibilityLabel="Download offline maps for your region"
           accessibilityHint="Opens the offline map download manager for your region"
           accessibilityRole="button"
         >
@@ -112,7 +112,7 @@ function MapScreen(): React.JSX.Element {
           onPress={() => {
             router.push("/downloads");
           }}
-          accessibilityLabel="Offline maps are outdated. Tap to update."
+          accessibilityLabel="Maps outdated — tap to update"
           accessibilityHint="Opens the download manager to refresh your stored offline maps"
           accessibilityRole="button"
         >

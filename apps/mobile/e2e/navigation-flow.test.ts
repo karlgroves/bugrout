@@ -89,9 +89,7 @@ describe("Offline Mode", () => {
 
   it("should show tile download banner when no tiles downloaded", async () => {
     await expect(
-      element(
-        by.label("Download offline maps to navigate without a connection"),
-      ),
+      element(by.label("Download offline maps for your region")),
     ).toBeVisible();
   });
 });
