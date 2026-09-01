@@ -96,7 +96,7 @@ bash scripts/bootstrap.sh
     (extends `expo/tsconfig.base`, flags repeated inline).
 - **Hooks (Husky):** pre-commit = lint-staged + gitleaks; commit-msg =
   commitlint (Conventional Commits — commit messages MUST be conventional);
-  pre-push = `pnpm run check` + dupes/secrets/licenses.
+  pre-push = `pnpm run check` + dupes/workflow-lint/secrets/licenses.
 - **actionlint:** `pnpm run lint:actions` lints every workflow — syntax,
   expressions, `needs`/matrix references, runner labels, and shellcheck over
   `run:` blocks. Runs on any PR touching `.github/workflows/**`
