@@ -105,6 +105,26 @@ to a version that breaks `require('uuid')` in the Expo iOS prebuild path. It
 passed `pnpm audit` and the full check suite, and was caught only by
 hand-reading the lockfile. Bound every override to a range.
 
+It had already happened again, silently, and stayed that way until #126 swept
+the file. Three of the 23 overrides had no upper bound, and one of them had
+drifted across a major exactly as #28 predicted:
+
+```json
+"@tootallnate/once@2.0.0": ">=2.0.1"
+```
+
+`http-proxy-agent@5.0.0` declares `"@tootallnate/once": "2"`. The unbounded
+replacement resolved it to **3.0.1** — a different major than its only consumer
+asks for — and every gate stayed green, because nothing in this repository
+exercises that code path. Bounding it to `>=2.0.1 <3` moved it back to 2.0.1,
+which is both inside the consumer's range and past the advisory the override was
+written for.
+
+The lesson is narrower than "add a bound": an unbounded override is invisible
+once it drifts, because the resolved version only appears in the lockfile. Diff
+the resolved versions, not just the manifest, whenever an override changes. All
+23 are bounded as of #126.
+
 ## What runs in CI instead
 
 | Check                                  | Where          | Gating                |
