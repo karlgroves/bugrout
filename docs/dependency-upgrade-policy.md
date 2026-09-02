@@ -258,7 +258,99 @@ That is one command, in one shell, visible in the transcript — as opposed to
 editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
 tends not to get put back.
 
-## Two known-vulnerable transitive packages
+### `trustPolicy` currently blocks every lockfile regeneration
+
+`pnpm install` fails on this repository today, before it reaches anything you
+changed:
+
+```text
+ERR_PNPM_TRUST_DOWNGRADE  High-risk trust downgrade for "semver@6.3.1"
+This error happened while installing the dependencies of eslint-plugin-import@2.32.0
+```
+
+**It is a false positive, and the evidence is on the registry.** `trustPolicy`
+compares publish _dates_ across the whole package, ignoring release lines:
+
+| version | published        | provenance attestation |
+| ------- | ---------------- | ---------------------- |
+| 7.5.1   | 2023-05-12       | yes                    |
+| 7.5.4   | 2023-07-07       | yes                    |
+| 5.7.2   | 2023-07-10 19:57 | **no**                 |
+| 6.3.1   | 2023-07-10 22:38 | **no**                 |
+
+`5.7.2` and `6.3.1` are the CVE-2022-25883 backports to the old majors,
+published from a release path that predates provenance. Because they are dated
+_after_ the 7.5.x line that had it, pnpm reads them as trust going backwards.
+Both are npm-signed; neither is a takeover.
+
+This does **not** affect CI or any `--frozen-lockfile` install — those resolve
+nothing, so the check never runs. It fires only when the lockfile is
+regenerated, which is to say on every dependency change. Take it the same way as
+the quarantine above, one visible command at a time:
+
+```bash
+pnpm install --trust-policy-exclude "semver@6.3.1"
+```
+
+The standing alternatives — `trustPolicyExclude` or `trustPolicyIgnoreAfter` in
+`pnpm-workspace.yaml` — were both considered and not taken. The flag keeps the
+exemption attached to the one install that needs it, where a reviewer sees it in
+the diff or the transcript, rather than leaving a hole open for everybody
+between now and whenever someone remembers to close it.
+
+**Do not read the error's package as the cause.** It names
+`eslint-plugin-import@2.32.0` because that is merely where resolution reached
+`semver@6.3.1` first. Thirteen packages depend on that version, and most of them
+are the Babel toolchain this app is built on:
+
+```console
+$ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
+  '@babel/core@7.29.7':
+  '@babel/helper-compilation-targets@7.28.6':
+  '@babel/helper-compilation-targets@7.29.7':
+  '@babel/helper-create-class-features-plugin@7.28.6(@babel/core@7.29.7)':
+  ... 9 more, incl. eslint-plugin-react, istanbul-lib-instrument
+```
+
+So this is structural, not one stray dev dependency: the flag will be needed on
+every lockfile regeneration until npm backfills provenance onto `semver@6.3.1`
+or the Babel chain stops depending on `semver` 6. Neither is close. Treating it
+as nearly-obsolete would be wrong.
+
+That is an argument for revisiting `trustPolicyExclude` /
+`trustPolicyIgnoreAfter` in `pnpm-workspace.yaml`, not against it — the standing
+alternatives were considered and set aside for now on the grounds above, and the
+choice is worth reopening if the friction outweighs keeping the exemption
+visible per-install. Re-check whenever this section is next touched.
+
+## One known-vulnerable transitive package
+
+An advisory gets an ignore entry only when this repository cannot reach the fix.
+That is two distinct situations, and the entry has to say which one it is,
+because they retire on different signals:
+
+1. **No fixed version is published** — `image-size`, below. Retires when
+   upstream ships a fix.
+2. **A fixed version exists but is structurally unreachable** — pinning it
+   breaks the consumer that pulls the package in, no upstream bump gets there,
+   and no patch bridges the gap. Retires when the _consumer_ changes, not when
+   the vulnerable package does.
+
+**Nothing is currently in case 2.** `decode-uri-component` was recorded there by
+PR #120, on the grounds that `0.5.0` is ESM-only and its only consumer
+`query-string@7.1.3` is CommonJS. Both of those facts hold. The conclusion did
+not: PR #124 closed the advisory with a two-line `pnpm` patch that unwraps the
+interop, described under
+[One patched transitive package](#one-patched-transitive-package).
+
+The lesson is in the bar, not the entry. "Structurally unreachable" now requires
+showing that a patch cannot bridge the gap either — the two cases above are
+about fixes this repository genuinely cannot reach, and a patched dependency is
+within reach.
+
+Anything else gets a bounded `pnpm.overrides` entry instead.
+
+### `image-size` — no fixed version exists
 
 `pnpm audit --prod` reports two HIGH advisories and both are ignored via
 `pnpm.auditConfig.ignoreGhsas` in `package.json`. That list previously held two
@@ -285,6 +377,15 @@ other.
 
 Both entries come out the moment `image-size` publishes a fix and Metro takes
 it. `--ignore-unfixed` makes that automatic: CI goes red on its own.
+
+### Retiring an ignore
+
+`osv-scanner` prints an `unused ignores` warning once an advisory is no longer
+in the tree. That warning is the signal to delete the block — not to leave it in
+place as insurance. It is how the `uuid@7.0.3` entry (`GHSA-w5hq-g745-h8pq`) was
+found to be dead: the bounded `uuid@<11.1.1` override had already moved
+`xcode@3.0.1` onto `uuid@11.1.1`, so the ignore was suppressing a finding that
+no longer existed.
 
 ## One patched transitive package
 
