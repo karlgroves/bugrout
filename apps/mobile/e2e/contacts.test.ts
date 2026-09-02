@@ -2,16 +2,13 @@
  * E2E Test: Emergency Contacts CRUD
  */
 
-import { by, device, element, expect } from "detox";
+import { by, element, expect } from "detox";
+
+import { launchToMapScreen } from "./support/launch";
 
 describe("Emergency Contacts", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
-    try {
-      await element(by.id("onboarding-accept-btn")).tap();
-    } catch {
-      // Already accepted
-    }
+    await launchToMapScreen();
   });
 
   it("navigates to contacts from settings", async () => {

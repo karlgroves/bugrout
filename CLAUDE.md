@@ -74,7 +74,7 @@ pnpm run doctor
 cd apps/mobile
 npx expo prebuild --platform android --no-install
 pnpm run e2e:build   # gradle assembleDebug + assembleAndroidTest
-pnpm run e2e:smoke   # launch + map screen, against a Pixel_6_API_33 AVD
+pnpm run e2e:smoke   # all five specs, against a Pixel_6_API_33 AVD
 
 # Run a specific backend worker locally
 cd backend/workers/tile-server && pnpm dev
@@ -274,8 +274,10 @@ a pull request blocks the defect at the point of introduction.
     output, not a periodic report.
   - DAST scans (ZAP and equivalents) run against the PR preview environment or
     as a post-deploy gate, not against a static URL on a timer.
-  - End-to-end suites run as a smoke subset on `pull_request` and as the full
-    matrix on merge to the default branch — never nightly.
+  - End-to-end suites run on `pull_request` and on merge to the default branch —
+    never nightly. `e2e.yml` has one job and runs the whole suite in it; there
+    is no separate full-matrix run, and the "smoke" in the script and job names
+    is historical, from when it ran a single spec.
 - `workflow_dispatch` is allowed. A manual, on-demand run is not a scheduled
   run.
 - Event-driven triggers (`push`, `pull_request`, `release`,
