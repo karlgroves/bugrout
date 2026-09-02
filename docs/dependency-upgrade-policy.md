@@ -307,8 +307,12 @@ Both use it for deep-link and route-parameter parsing, and `query-string` is
 present in the production Metro bundle (verified by exporting an unminified
 bundle and reading it). A crafted deep link is attacker-supplied input on a path
 that ships. Measured on the unpatched tree, an 800-character malformed value
-cost **8.6 seconds** of CPU in a single decode; patched, the same input at 2000
-characters costs 0.5 ms.
+cost **8.6 seconds** of CPU in a single decode, and 2000 characters cost **over
+a minute** (63–76 s across runs). Patched, that same 2000-character input costs
+1–2 ms.
+
+`security/tests/deep-link-decoding.security.test.ts` pins all of this, and both
+controls below were mutation-tested against it.
 
 ### Why a patch and not just an override
 
