@@ -16,6 +16,9 @@ pnpm-lock.yaml
 *.generated.*
 *.d.ts
 
+# pnpm dependency patches — reformatting one would stop it applying
+patches/
+
 # Native build trees and artifacts
 apps/mobile/ios/
 apps/mobile/android/

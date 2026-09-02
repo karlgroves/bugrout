@@ -12,6 +12,7 @@ overrides:
   brace-expansion@>=2.0.0 <2.1.4: '>=2.1.4 <3'
   brace-expansion@>=4.0.0 <5.0.9: '>=5.0.9 <6'
   browserslist@<4.28.7: '>=4.28.7 <5'
+  decode-uri-component@<0.5.0: '>=0.5.0 <1'
   esbuild@<0.28.1: '>=0.28.1 <1'
   fast-uri@<4.1.2: '>=4.1.2 <5'
   form-data@>=4 <4.0.6: '>=4.0.6 <5'
@@ -27,6 +28,11 @@ overrides:
   ws@>=6 <6.2.4: '>=6.2.4 <7'
   ws@>=7 <7.5.11: '>=7.5.11 <8'
   ws@>=8 <8.20.1: '>=8.20.1'
+
+patchedDependencies:
+  query-string@7.1.3:
+    hash: cf4a7d9d4955369af8f76b4bf059d862dab977d29abab766e14c228318559969
+    path: patches/query-string@7.1.3.patch
 
 importers:
 
@@ -3395,9 +3401,9 @@ packages:
   decode-named-character-reference@1.3.0:
     resolution: {integrity: sha512-GtpQYB283KrPp6nRw50q3U9/VfOutZOe103qlN7BPP6Ad27xYnOIWv4lPzo8HCAL+mMZofJ9KEy30fq6MfaK6Q==}
 
-  decode-uri-component@0.2.2:
-    resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
-    engines: {node: '>=0.10'}
+  decode-uri-component@0.5.0:
+    resolution: {integrity: sha512-1BiQVoK8C9gUbQU6NzAtO/tkz2qOFpEObMWpcFvhx4fYnj4Oc5yzaJN/LD36ihkVUdXyh5ZekzX+yM+ty/SrPg==}
+    engines: {node: '>=14.16'}
 
   dedent@1.7.2:
     resolution: {integrity: sha512-WzMx3mW98SN+zn3hgemf4OzdmyNhhhKz5Ay0pUfQiMQ3e1g+xmTJWp/pKdwKVXhdSkAEGIIzqeuWrL3mV/AXbA==}
@@ -9565,7 +9571,7 @@ snapshots:
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
       nanoid: 3.3.18
-      query-string: 7.1.3
+      query-string: 7.1.3(patch_hash=cf4a7d9d4955369af8f76b4bf059d862dab977d29abab766e14c228318559969)
       react: 19.1.0
       react-is: 19.2.8
       use-latest-callback: 0.2.6(react@19.1.0)
@@ -10769,7 +10775,7 @@ snapshots:
     dependencies:
       character-entities: 2.0.2
 
-  decode-uri-component@0.2.2: {}
+  decode-uri-component@0.5.0: {}
 
   dedent@1.7.2: {}
 
@@ -11597,7 +11603,7 @@ snapshots:
       fast-deep-equal: 3.1.3
       invariant: 2.2.4
       nanoid: 3.3.18
-      query-string: 7.1.3
+      query-string: 7.1.3(patch_hash=cf4a7d9d4955369af8f76b4bf059d862dab977d29abab766e14c228318559969)
       react: 19.1.0
       react-fast-compare: 3.2.2
       react-native: 0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0)
@@ -14056,9 +14062,9 @@ snapshots:
 
   qrcode-terminal@0.11.0: {}
 
-  query-string@7.1.3:
+  query-string@7.1.3(patch_hash=cf4a7d9d4955369af8f76b4bf059d862dab977d29abab766e14c228318559969):
     dependencies:
-      decode-uri-component: 0.2.2
+      decode-uri-component: 0.5.0
       filter-obj: 1.1.0
       split-on-first: 1.1.0
       strict-uri-encode: 2.0.0

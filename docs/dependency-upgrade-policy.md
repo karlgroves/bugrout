@@ -323,7 +323,7 @@ alternatives were considered and set aside for now on the grounds above, and the
 choice is worth reopening if the friction outweighs keeping the exemption
 visible per-install. Re-check whenever this section is next touched.
 
-## Three known-vulnerable transitive packages
+## One known-vulnerable transitive package
 
 An advisory gets an ignore entry only when this repository cannot reach the fix.
 That is two distinct situations, and the entry has to say which one it is,
@@ -332,78 +332,23 @@ because they retire on different signals:
 1. **No fixed version is published** — `image-size`, below. Retires when
    upstream ships a fix.
 2. **A fixed version exists but is structurally unreachable** — pinning it
-   breaks the consumer that pulls the package in, and no upstream bump gets
-   there either. `decode-uri-component`, below. Retires when the _consumer_
-   changes, not when the vulnerable package does.
+   breaks the consumer that pulls the package in, no upstream bump gets there,
+   and no patch bridges the gap. Retires when the _consumer_ changes, not when
+   the vulnerable package does.
+
+**Nothing is currently in case 2.** `decode-uri-component` was recorded there by
+PR #120, on the grounds that `0.5.0` is ESM-only and its only consumer
+`query-string@7.1.3` is CommonJS. Both of those facts hold. The conclusion did
+not: PR #124 closed the advisory with a two-line `pnpm` patch that unwraps the
+interop, described under
+[One patched transitive package](#one-patched-transitive-package).
+
+The lesson is in the bar, not the entry. "Structurally unreachable" now requires
+showing that a patch cannot bridge the gap either — the two cases above are
+about fixes this repository genuinely cannot reach, and a patched dependency is
+within reach.
 
 Anything else gets a bounded `pnpm.overrides` entry instead.
-
-### `decode-uri-component` — the fix is published and cannot be installed
-
-`GHSA-vcc3-ghjq-m6fr` (MODERATE, CVE pending) is a denial of service: malformed
-percent-encoded input decodes in exponential time. It is fixed in
-`decode-uri-component@0.5.0` and in no earlier release — the advisory range is
-`<0.5.0`.
-
-That fix cannot be taken. 0.5.0 is pure ESM — `"type": "module"`, one
-`export default`, and an `exports` map with no `require` condition. Its only
-consumer here is `query-string@7.1.3`, which is CommonJS and reads it as
-`const decodeComponent = require('decode-uri-component')` at `index.js:3`.
-Forcing 0.5.0 under that consumer resolves and bundles cleanly, then fails when
-called:
-
-```console
-$ node -e "const d = require('decode-uri-component'); d('%C3%A5')"
-TypeError: d is not a function
-```
-
-`require()` of an ES module yields `{ __esModule, default }`, not the function.
-
-**Nothing in the gate catches this, and that was measured rather than assumed.**
-With the override actually applied, on this branch:
-
-| Gate                    | Result with the broken override in place  |
-| ----------------------- | ----------------------------------------- |
-| `pnpm run check`        | ✅ exit 0 — 33 suites, 250 tests          |
-| `pnpm run bundle:check` | ✅ exit 0 — iOS + Android bundles emitted |
-| `pnpm run security:osv` | ✅ exit 0 — the advisory is "resolved"    |
-
-The broken module is not merely undetected, it is **shipped**: the iOS Hermes
-bundle contains `decode-uri-component@0.5.0`'s own error string
-(``Expected `encodedURI` to be of type``) alongside `query-string`'s internals.
-
-Note this does not contradict [ADR 0007](adr/0007-dependency-update-policy.md),
-which credits `bundle:check` with closing the module-graph hole. It closes it
-for _resolution_ errors — unresolvable imports, missing files. This is a
-resolution **success** whose returned value has the wrong shape, so there is
-nothing for the bundler to object to. Same family as the `uuid` 14 near-miss in
-ADR 0007 §4, which is why overrides are bounded in the first place.
-
-No upstream bump reaches a fix either:
-
-- `@react-navigation/core@7.21.13` — the latest, against 7.21.11 installed —
-  still depends on `query-string: ^7.1.3`.
-- `query-string` 8.x through 9.3.x still depend on
-  `decode-uri-component: ^0.4.1`, inside the affected range.
-- `query-string@9.5.1` does move to `^0.5.0`, but it is ESM-only itself and
-  React Navigation does not use it.
-
-**Exposure.** Availability only — the advisory states there is no memory
-corruption, disclosure or RCE, and the CVSS 4.0 vector agrees
-(`VC:N/VI:N/VA:H`). It is reached through React Navigation's URL parsing, so an
-attacker needs the device to open a `bugrout://` link carrying a pathological
-percent-encoded path. The custom scheme is the entire surface: no universal
-links and no Android intent filters are configured. Worst case is the app
-pegging a core and going unresponsive, recoverable by force-quitting.
-
-It is recorded in `osv-scanner.toml` and deliberately **not** in
-`pnpm.auditConfig.ignoreGhsas`. `security:audit` runs at `--audit-level=high`
-and this is MODERATE, so pnpm never gates on it; adding it there would delete it
-from the audit report without changing any gate.
-
-Retire it when `@react-navigation/core` drops `query-string@7`, or when
-`query-string` ships a CJS-compatible release built on `decode-uri-component`
-0.5.0.
 
 ### `image-size` — no fixed version exists
 
@@ -441,3 +386,73 @@ place as insurance. It is how the `uuid@7.0.3` entry (`GHSA-w5hq-g745-h8pq`) was
 found to be dead: the bounded `uuid@<11.1.1` override had already moved
 `xcode@3.0.1` onto `uuid@11.1.1`, so the ignore was suppressing a finding that
 no longer existed.
+
+## One patched transitive package
+
+`query-string@7.1.3` carries a two-line patch in `patches/`, applied through
+`pnpm.patchedDependencies`. It exists to close `GHSA-vcc3-ghjq-m6fr` — denial of
+service via exponential decoding of malformed percent-encoded input in
+`decode-uri-component`.
+
+Unlike the `image-size` advisories above, this one is **reachable in the shipped
+app**. The chain is:
+
+```text
+decode-uri-component
+  └── query-string@7.1.3
+        ├── expo-router
+        └── @react-navigation/core
+```
+
+Both use it for deep-link and route-parameter parsing, and `query-string` is
+present in the production Metro bundle (verified by exporting an unminified
+bundle and reading it). A crafted deep link is attacker-supplied input on a path
+that ships. Measured on the unpatched tree, an 800-character malformed value
+cost **8.6 seconds** of CPU in a single decode, and 2000 characters cost **over
+a minute** (63–76 s across runs). Patched, that same 2000-character input costs
+1–2 ms.
+
+`security/tests/deep-link-decoding.security.test.ts` pins all of this, and both
+controls below were mutation-tested against it.
+
+### Why a patch and not just an override
+
+`decode-uri-component@0.5.0` is the first patched release, and every earlier
+version is vulnerable (`<= 0.4.2`). The override that pins it is bounded, per
+the rule above:
+
+```json
+"decode-uri-component@<0.5.0": ">=0.5.0 <1"
+```
+
+That alone is not enough. `0.5.0` is **ESM-only**, while `query-string@7.1.3` is
+CommonJS and `require`s it — so the require yields the module namespace rather
+than the function, and `decodeComponent is not a function` is thrown on the
+first deep link. This reproduces under both Node and Metro; the bundle shows
+Metro taking the `.default` branch, so the shim is load-bearing there, not only
+in tests.
+
+Nor can the version be lifted out of the problem. `query-string` first depends
+on a patched `decode-uri-component` at `9.5.0`, but `@react-navigation/core`
+(through `7.21.13`) and `expo-router@6.0.24` all pin `^7.1.3`, and the 9.x line
+is itself ESM-only with a changed API. There is no upgrade path today.
+
+So the patch does the narrowest possible thing — unwrap the interop, tolerating
+both module shapes:
+
+```js
+const decodeComponentModule = require("decode-uri-component");
+const decodeComponent = decodeComponentModule.default || decodeComponentModule;
+```
+
+### Retirement
+
+The patch comes out when `@react-navigation/core` and `expo-router` move to
+`query-string@>=9.5.0`, which depends on a patched `decode-uri-component`
+directly. At that point both the patch and the override can be deleted together.
+
+This cannot rot unnoticed. The `patchedDependencies` key pins an exact version,
+so if a future resolution moves `query-string` off `7.1.3` the install fails
+with `ERR_PNPM_UNUSED_PATCH` rather than quietly dropping the patch — verified
+by pointing the key at a version not in the tree. A stale patch is therefore a
+loud error, not a silent reintroduction of the advisory.
