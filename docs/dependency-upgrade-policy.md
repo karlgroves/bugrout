@@ -285,3 +285,69 @@ other.
 
 Both entries come out the moment `image-size` publishes a fix and Metro takes
 it. `--ignore-unfixed` makes that automatic: CI goes red on its own.
+
+## One patched transitive package
+
+`query-string@7.1.3` carries a two-line patch in `patches/`, applied through
+`pnpm.patchedDependencies`. It exists to close `GHSA-vcc3-ghjq-m6fr` — denial of
+service via exponential decoding of malformed percent-encoded input in
+`decode-uri-component`.
+
+Unlike the `image-size` advisories above, this one is **reachable in the shipped
+app**. The chain is:
+
+```text
+decode-uri-component
+  └── query-string@7.1.3
+        ├── expo-router
+        └── @react-navigation/core
+```
+
+Both use it for deep-link and route-parameter parsing, and `query-string` is
+present in the production Metro bundle (verified by exporting an unminified
+bundle and reading it). A crafted deep link is attacker-supplied input on a path
+that ships. Measured on the unpatched tree, an 800-character malformed value
+cost **8.6 seconds** of CPU in a single decode; patched, the same input at 2000
+characters costs 0.5 ms.
+
+### Why a patch and not just an override
+
+`decode-uri-component@0.5.0` is the first patched release, and every earlier
+version is vulnerable (`<= 0.4.2`). The override that pins it is bounded, per
+the rule above:
+
+```json
+"decode-uri-component@<0.5.0": ">=0.5.0 <1"
+```
+
+That alone is not enough. `0.5.0` is **ESM-only**, while `query-string@7.1.3` is
+CommonJS and `require`s it — so the require yields the module namespace rather
+than the function, and `decodeComponent is not a function` is thrown on the
+first deep link. This reproduces under both Node and Metro; the bundle shows
+Metro taking the `.default` branch, so the shim is load-bearing there, not only
+in tests.
+
+Nor can the version be lifted out of the problem. `query-string` first depends
+on a patched `decode-uri-component` at `9.5.0`, but `@react-navigation/core`
+(through `7.21.13`) and `expo-router@6.0.24` all pin `^7.1.3`, and the 9.x line
+is itself ESM-only with a changed API. There is no upgrade path today.
+
+So the patch does the narrowest possible thing — unwrap the interop, tolerating
+both module shapes:
+
+```js
+const decodeComponentModule = require("decode-uri-component");
+const decodeComponent = decodeComponentModule.default || decodeComponentModule;
+```
+
+### Retirement
+
+The patch comes out when `@react-navigation/core` and `expo-router` move to
+`query-string@>=9.5.0`, which depends on a patched `decode-uri-component`
+directly. At that point both the patch and the override can be deleted together.
+
+This cannot rot unnoticed. The `patchedDependencies` key pins an exact version,
+so if a future resolution moves `query-string` off `7.1.3` the install fails
+with `ERR_PNPM_UNUSED_PATCH` rather than quietly dropping the patch — verified
+by pointing the key at a version not in the tree. A stale patch is therefore a
+loud error, not a silent reintroduction of the advisory.
