@@ -300,7 +300,14 @@ the whole package, ignoring release lines:
 `5.7.2` and `6.3.1` are the CVE-2022-25883 backports to the old majors,
 published from a release path that predates provenance. Because they are dated
 _after_ the 7.5.x line that had it, pnpm reads them as trust going backwards.
-Both are npm-signed; neither is a takeover.
+
+Two facts from the registry separate this from a real takeover, and both are
+checkable rather than asserted. **`6.3.1` carries a valid npm signature** — what
+it lacks is only the newer provenance attestation. And the publishers line up
+with the story: the backports were published by `lukekarrys`, an npm CLI
+maintainer, while the attestation-bearing 7.5.x releases came from CI
+automation. A manual backport from a human account is exactly why no attestation
+exists.
 
 It is pinned in `pnpm-workspace.yaml`:
 
@@ -349,9 +356,19 @@ $ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
   ... 9 more, incl. eslint-plugin-react, istanbul-lib-instrument
 ```
 
+**Nothing enforces the retirement of this one, so it carries a review date.**
+Every other suppression in this repository is self-policing: `osv-scanner.toml`
+entries have `ignoreUntil` dates _and_ osv-scanner reports an ignore as unused
+once the advisory leaves the tree, and `patchedDependencies` fails the install
+outright with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither —
+verified, an entry naming a package absent from the tree installs silently. That
+makes it the one suppression here that can rot without saying so, which is the
+"permanent suppression" `osv-scanner.toml` warns against. Hence the advisory
+`Review by 2026-11-11` in the config, on the same horizon as the osv ignores.
+
 Retire the entry when npm backfills provenance onto `semver@6.3.1`, or when the
-Babel chain stops depending on `semver` 6. The signal is concrete: delete the
-two lines, force a resolve, and see whether it still fails.
+Babel chain stops depending on `semver` 6. The test is concrete: delete the two
+lines, force a resolve, and see whether it still fails.
 
 ## One known-vulnerable transitive package
 

@@ -51,6 +51,14 @@ blockExoticSubdeps: true
 #
 # Scope: exactly one name at one version. It does not relax trustPolicy for any
 # other package, and a genuine downgrade anywhere else still fails the install.
+# Verified by pointing this entry at semver@6.3.0 instead: the install fails
+# again on 6.3.1, so the match is per-version and not per-package.
+#
+# Evidence that it is a false positive rather than a suppressed signal: 6.3.1
+# carries a valid npm signature and was published by an npm CLI maintainer
+# (lukekarrys), the same release path as the 5.7.2 backport. What it lacks is a
+# provenance attestation, which the 7.5.x line has because those were published
+# by CI automation. Registry data is in docs/dependency-upgrade-policy.md.
 #
 # This replaces `pnpm install --trust-policy-exclude "semver@6.3.1"`, which was
 # the standing remedy from #120. That kept the exemption visible per-install, at
@@ -59,8 +67,17 @@ blockExoticSubdeps: true
 # packages depend on semver 6.3.1, most of them the Babel toolchain, so the flag
 # was needed on every dependency change rather than occasionally.
 #
-# Retire this when npm backfills provenance onto semver@6.3.1, or when the
-# Babel chain stops depending on semver 6. The signal is that removing these two
-# lines and forcing a resolve no longer fails.
+# Review by 2026-11-11, matching the ignoreUntil horizon used in
+# osv-scanner.toml. That date is advisory and nothing enforces it: unlike an
+# osv-scanner ignore, which osv-scanner reports as unused once the advisory
+# leaves the tree, and unlike patchedDependencies, which fails the install with
+# ERR_PNPM_UNUSED_PATCH, pnpm says nothing about a trustPolicyExclude entry that
+# no longer matches anything. Verified -- an entry for a package absent from the
+# tree installs silently. So this one needs a human to come back to it.
+#
+# Retire it when npm backfills provenance onto semver@6.3.1, or when the Babel
+# chain stops depending on semver 6. The test is concrete: delete these two
+# lines, force a resolve (any manifest change will do), and see whether it still
+# fails.
 trustPolicyExclude:
   - semver@6.3.1
