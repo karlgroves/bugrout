@@ -56,7 +56,7 @@ function ScenariosScreen(): React.JSX.Element {
             onPress={() => {
               router.push("/scenarios/edit");
             }}
-            accessibilityLabel="Create new evacuation scenario"
+            accessibilityLabel="Create Scenario"
             accessibilityHint="Opens the editor to configure a new evacuation scenario"
             accessibilityRole="button"
           >
@@ -113,7 +113,7 @@ function ScenariosScreen(): React.JSX.Element {
               onPress={() => {
                 router.push("/scenarios/edit");
               }}
-              accessibilityLabel="Add another scenario"
+              accessibilityLabel="Add Scenario"
               accessibilityHint="Opens the editor to configure an additional evacuation scenario"
               accessibilityRole="button"
             >

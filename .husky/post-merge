@@ -1,3 +1,9 @@
+# Fail on the first failing command. husky's shim already runs hooks as
+# `sh -e` (.husky/_/h), so this changes nothing today — it is here so the
+# hook does not depend on that. Without it, under a plain `sh` a failing
+# step is ignored and the last command's exit code decides the result.
+set -e
+
 changed=$(git diff HEAD@{1} HEAD --name-only 2>/dev/null)
 if echo "$changed" | grep -q "pnpm-lock.yaml"; then
   echo "Lockfile changed; installing and auditing..."

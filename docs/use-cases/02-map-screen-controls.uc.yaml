@@ -23,7 +23,7 @@ data:
   skip_location: "Skip for now"
   start_app: "Get Started"
   guide_skip: "Skip for now"
-  download_banner: "Download offline maps to navigate without a connection"
+  download_banner: "Download offline maps for your region"
   bug_out: "Bug Out — set evacuation destination"
 
 steps:

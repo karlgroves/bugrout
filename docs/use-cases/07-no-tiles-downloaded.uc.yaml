@@ -18,7 +18,7 @@ expected_result:
   lead to the download manager."
 
 data:
-  download_banner: "Download offline maps to navigate without a connection"
+  download_banner: "Download offline maps for your region"
 
 steps:
   - activate: button "I Understand — Continue"
@@ -29,8 +29,8 @@ steps:
   # The guide's body copy, not its title: "Download Offline Maps" also matches
   # the button beneath it, and Playwright's strict mode rejects the ambiguity.
   - verify: text "BugRout works best with offline maps."
-  - locate: button "Go to offline maps download"
-  - focus: button "Go to offline maps download"
+  - locate: button "Download Maps"
+  - focus: button "Download Maps"
 
   - audit: page
 

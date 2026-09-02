@@ -105,6 +105,32 @@ to a version that breaks `require('uuid')` in the Expo iOS prebuild path. It
 passed `pnpm audit` and the full check suite, and was caught only by
 hand-reading the lockfile. Bound every override to a range.
 
+It had already happened again, silently, and stayed that way until #126 swept
+the file. Three of the 23 overrides had no upper bound, and one of them had
+drifted across a major exactly as #28 predicted:
+
+```json
+"@tootallnate/once@2.0.0": ">=2.0.1"
+```
+
+`http-proxy-agent@5.0.0` declares `"@tootallnate/once": "2"`. The unbounded
+replacement resolved it to **3.0.1** — a different major than its only consumer
+asks for. Bounding it to `>=2.0.1 <3` moved it back to 2.0.1, which is both
+inside the consumer's range and still patched: GHSA-vpq2-c234-7xj6 has separate
+fix lines per major, at 2.0.1 and 3.0.1.
+
+The uncomfortable part is that this path is not obscure. `jsdom` — the Jest
+environment — loads `http-proxy-agent` eagerly, which pulls `@tootallnate/once`,
+so **every one of the 34 suites loaded the wrong major on every run** and stayed
+green. Loading succeeds under both, and nothing asserts on the behaviour that
+differs. An exercised code path is not a tested one, and a green suite is not
+evidence that a resolved version is the intended one.
+
+The lesson is narrower than "add a bound": an unbounded override is invisible
+once it drifts, because the resolved version only appears in the lockfile. Diff
+the resolved versions, not just the manifest, whenever an override changes. All
+23 are bounded as of #126.
+
 ## What runs in CI instead
 
 | Check                                  | Where          | Gating                |
@@ -258,7 +284,120 @@ That is one command, in one shell, visible in the transcript — as opposed to
 editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
 tends not to get put back.
 
-## Two known-vulnerable transitive packages
+### `trustPolicy` exempts one verified false positive
+
+`semver@6.3.1` trips `trustPolicy: no-downgrade`, and it is a false positive.
+The evidence is on the registry — `trustPolicy` compares publish _dates_ across
+the whole package, ignoring release lines:
+
+| version | published        | provenance attestation |
+| ------- | ---------------- | ---------------------- |
+| 7.5.1   | 2023-05-12       | yes                    |
+| 7.5.4   | 2023-07-07       | yes                    |
+| 5.7.2   | 2023-07-10 19:57 | **no**                 |
+| 6.3.1   | 2023-07-10 22:38 | **no**                 |
+
+`5.7.2` and `6.3.1` are the CVE-2022-25883 backports to the old majors,
+published from a release path that predates provenance. Because they are dated
+_after_ the 7.5.x line that had it, pnpm reads them as trust going backwards.
+
+Two facts from the registry separate this from a real takeover, and both are
+checkable rather than asserted. **`6.3.1` carries a valid npm signature** — what
+it lacks is only the newer provenance attestation. And the publishers line up
+with the story: the backports were published by `lukekarrys`, an npm CLI
+maintainer, while the attestation-bearing 7.5.x releases came from CI
+automation. A manual backport from a human account is exactly why no attestation
+exists.
+
+It is pinned in `pnpm-workspace.yaml`:
+
+```yaml
+trustPolicyExclude:
+  - semver@6.3.1
+```
+
+**The exemption is one name at one version, and that was verified rather than
+assumed.** Pointing the entry at `semver@6.3.0` and forcing a resolve makes the
+install fail again on `6.3.1` — so `trustPolicy` stays fully in force for every
+other package, and a genuine downgrade anywhere else still fails.
+
+#### Why this replaced the per-install flag
+
+PR #120 chose the visible-per-install form instead:
+
+```bash
+pnpm install --trust-policy-exclude "semver@6.3.1"
+```
+
+The reasoning was that the exemption stays attached to the install that needs
+it, where a reviewer sees it. That held until the friction was measured: #126
+and its three predecessors needed the flag on **eight** separate installs in a
+single afternoon, because thirteen packages depend on `semver@6.3.1` and most of
+them are the Babel toolchain this app is built on. The flag was not an
+occasional exception, it was a precondition of every dependency change — and one
+that fails closed for anyone who does not know to type it, including future
+automation.
+
+A per-install flag that is always required is not more visible than a config
+entry; it is just less reliable. The standing entry above is narrower than it
+looks — one pinned version, with a written retirement condition — and it is in a
+file that is reviewed.
+
+**Do not read the error's package as the cause** if it ever fires again. It
+names `eslint-plugin-import` only because that is where resolution reached
+`semver@6.3.1` first:
+
+```console
+$ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
+  '@babel/core@7.29.7':
+  '@babel/helper-compilation-targets@7.28.6':
+  '@babel/helper-compilation-targets@7.29.7':
+  '@babel/helper-create-class-features-plugin@7.28.6(@babel/core@7.29.7)':
+  ... 9 more, incl. eslint-plugin-react, istanbul-lib-instrument
+```
+
+**Nothing enforces the retirement of this one, so it carries a review date.**
+Every other suppression in this repository is self-policing: `osv-scanner.toml`
+entries have `ignoreUntil` dates _and_ osv-scanner reports an ignore as unused
+once the advisory leaves the tree, and `patchedDependencies` fails the install
+outright with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither —
+verified, an entry naming a package absent from the tree installs silently. That
+makes it the one suppression here that can rot without saying so, which is the
+"permanent suppression" `osv-scanner.toml` warns against. Hence the advisory
+`Review by 2026-11-11` in the config, on the same horizon as the osv ignores.
+
+Retire the entry when npm backfills provenance onto `semver@6.3.1`, or when the
+Babel chain stops depending on `semver` 6. The test is concrete: delete the two
+lines, force a resolve, and see whether it still fails.
+
+## One known-vulnerable transitive package
+
+An advisory gets an ignore entry only when this repository cannot reach the fix.
+That is two distinct situations, and the entry has to say which one it is,
+because they retire on different signals:
+
+1. **No fixed version is published** — `image-size`, below. Retires when
+   upstream ships a fix.
+2. **A fixed version exists but is structurally unreachable** — pinning it
+   breaks the consumer that pulls the package in, no upstream bump gets there,
+   and no patch bridges the gap. Retires when the _consumer_ changes, not when
+   the vulnerable package does.
+
+**Nothing is currently in case 2.** `decode-uri-component` was recorded there by
+PR #120, on the grounds that `0.5.0` is ESM-only and its only consumer
+`query-string@7.1.3` is CommonJS. Both of those facts hold. The conclusion did
+not: PR #124 closed the advisory with a two-line `pnpm` patch that unwraps the
+interop, described under
+[One patched transitive package](#one-patched-transitive-package).
+
+The lesson is in the bar, not the entry. "Structurally unreachable" now requires
+showing that a patch cannot bridge the gap either — the two cases above are
+about fixes this repository genuinely cannot reach, and a patched dependency is
+within reach.
+
+Anything else gets a bounded `pnpm.overrides` entry instead.
+
+### `image-size` — no fixed version exists
 
 `pnpm audit --prod` reports two HIGH advisories and both are ignored via
 `pnpm.auditConfig.ignoreGhsas` in `package.json`. That list previously held two
@@ -285,3 +424,82 @@ other.
 
 Both entries come out the moment `image-size` publishes a fix and Metro takes
 it. `--ignore-unfixed` makes that automatic: CI goes red on its own.
+
+### Retiring an ignore
+
+`osv-scanner` prints an `unused ignores` warning once an advisory is no longer
+in the tree. That warning is the signal to delete the block — not to leave it in
+place as insurance. It is how the `uuid@7.0.3` entry (`GHSA-w5hq-g745-h8pq`) was
+found to be dead: the bounded `uuid@<11.1.1` override had already moved
+`xcode@3.0.1` onto `uuid@11.1.1`, so the ignore was suppressing a finding that
+no longer existed.
+
+## One patched transitive package
+
+`query-string@7.1.3` carries a two-line patch in `patches/`, applied through
+`pnpm.patchedDependencies`. It exists to close `GHSA-vcc3-ghjq-m6fr` — denial of
+service via exponential decoding of malformed percent-encoded input in
+`decode-uri-component`.
+
+Unlike the `image-size` advisories above, this one is **reachable in the shipped
+app**. The chain is:
+
+```text
+decode-uri-component
+  └── query-string@7.1.3
+        ├── expo-router
+        └── @react-navigation/core
+```
+
+Both use it for deep-link and route-parameter parsing, and `query-string` is
+present in the production Metro bundle (verified by exporting an unminified
+bundle and reading it). A crafted deep link is attacker-supplied input on a path
+that ships. Measured on the unpatched tree, an 800-character malformed value
+cost **8.6 seconds** of CPU in a single decode, and 2000 characters cost **over
+a minute** (63–76 s across runs). Patched, that same 2000-character input costs
+1–2 ms.
+
+`security/tests/deep-link-decoding.security.test.ts` pins all of this, and both
+controls below were mutation-tested against it.
+
+### Why a patch and not just an override
+
+`decode-uri-component@0.5.0` is the first patched release, and every earlier
+version is vulnerable (`<= 0.4.2`). The override that pins it is bounded, per
+the rule above:
+
+```json
+"decode-uri-component@<0.5.0": ">=0.5.0 <1"
+```
+
+That alone is not enough. `0.5.0` is **ESM-only**, while `query-string@7.1.3` is
+CommonJS and `require`s it — so the require yields the module namespace rather
+than the function, and `decodeComponent is not a function` is thrown on the
+first deep link. This reproduces under both Node and Metro; the bundle shows
+Metro taking the `.default` branch, so the shim is load-bearing there, not only
+in tests.
+
+Nor can the version be lifted out of the problem. `query-string` first depends
+on a patched `decode-uri-component` at `9.5.0`, but `@react-navigation/core`
+(through `7.21.13`) and `expo-router@6.0.24` all pin `^7.1.3`, and the 9.x line
+is itself ESM-only with a changed API. There is no upgrade path today.
+
+So the patch does the narrowest possible thing — unwrap the interop, tolerating
+both module shapes:
+
+```js
+const decodeComponentModule = require("decode-uri-component");
+const decodeComponent = decodeComponentModule.default || decodeComponentModule;
+```
+
+### Retirement
+
+The patch comes out when `@react-navigation/core` and `expo-router` move to
+`query-string@>=9.5.0`, which depends on a patched `decode-uri-component`
+directly. At that point both the patch and the override can be deleted together.
+
+This cannot rot unnoticed. The `patchedDependencies` key pins an exact version,
+so if a future resolution moves `query-string` off `7.1.3` the install fails
+with `ERR_PNPM_UNUSED_PATCH` rather than quietly dropping the patch — verified
+by pointing the key at a version not in the tree. A stale patch is therefore a
+loud error, not a silent reintroduction of the advisory.

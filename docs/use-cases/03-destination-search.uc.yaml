@@ -46,5 +46,5 @@ steps:
   # Route & Go is present but cannot complete on web: it needs a GPS fix, and
   # expo-location is stubbed out by metro.config.js. Presence and operability
   # are what this file asserts; the completed route is native/.
-  - locate: button "Calculate route and start navigation"
-  - focus: button "Calculate route and start navigation"
+  - locate: button "Route & Go"
+  - focus: button "Route & Go"

@@ -5,17 +5,30 @@
 # stops being looked at. Re-review on expiry or whenever the dependency chain
 # changes — whichever comes first.
 #
-# Only ignore an advisory that has **no fixed version**. If a fix exists, pin it
-# with a bounded `pnpm.overrides` entry in package.json instead; see
-# docs/dependency-upgrade-policy.md.
-
-[[IgnoredVulns]]
-id = "GHSA-w5hq-g745-h8pq"
-ignoreUntil = 2026-11-11
-reason = """uuid@7.0.3 is pinned by xcode@3.0.1 (Expo prebuild tooling). \
-Dev-time only — generates Xcode project object IDs, never ships in the app \
-and never handles untrusted input. Remove when @expo/config-plugins bumps \
-its xcode dependency. (uuid@11 in the app itself is patched.)"""
+# Only ignore an advisory whose fix this repository cannot actually reach. That
+# is two cases, and the reason has to say which one applies:
+#
+#   1. **No fixed version is published.** Nothing to pin. (`image-size`, below.)
+#   2. **A fixed version exists but is structurally unreachable** — pinning it
+#      would break the consumer that pulls the package in, no upstream bump
+#      gets there, *and* no patch can bridge the gap. This case needs evidence
+#      that the pin breaks, not an assertion that it would — and then evidence
+#      that a `pnpm.patchedDependencies` shim cannot fix what it breaks.
+#
+#      No entry currently qualifies. `decode-uri-component` was recorded here
+#      in #120 on the first two grounds, and #124 removed it: the pin does
+#      break query-string@7.1.3's CJS `require`, and no upstream bump reaches
+#      0.5.0, but a two-line patch unwraps the interop. Check the third ground
+#      before using this category — the bar is higher than it looks.
+#
+# If a fix exists and *is* reachable, pin it with a bounded `pnpm.overrides`
+# entry in package.json instead; see docs/dependency-upgrade-policy.md. Every
+# override is upper-bounded to the current major — an unbounded replacement
+# range silently crosses majors (ADR 0007).
+#
+# Remove an entry the moment it goes green: `osv-scanner` prints an "unused
+# ignores" warning when the advisory is no longer in the tree, and that warning
+# is the signal to delete the block, not to leave it as insurance.
 
 # image-size: no fixed version exists. The advisories cover <=2.0.2 and 2.0.2 is
 # the newest release (first_patched = NONE), so no override or SDK bump reaches

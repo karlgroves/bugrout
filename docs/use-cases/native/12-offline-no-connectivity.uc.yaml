@@ -29,6 +29,6 @@ steps:
   - focus: 'button "Quick activate: Wildfire East"'
   - activate: 'button "Quick activate: Wildfire East"'
 
-  - locate: button "Start navigation on this route"
+  - locate: button "Go"
 
   - audit: page

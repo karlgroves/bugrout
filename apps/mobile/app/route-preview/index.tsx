@@ -169,7 +169,7 @@ function RoutePreviewScreen(): React.JSX.Element | null {
             testID="route-preview-go-btn"
             style={styles.goButton}
             onPress={handleGo}
-            accessibilityLabel="Start navigation on this route"
+            accessibilityLabel="Go"
             accessibilityHint="Begins turn-by-turn navigation along the previewed route"
             accessibilityRole="button"
           >

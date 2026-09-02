@@ -77,7 +77,9 @@ export function DownloadGuide({
             onDismiss();
             router.push("/downloads");
           }}
-          accessibilityLabel="Go to offline maps download"
+          accessibilityLabel={
+            suggestedRegion ? `Download ${suggestedRegion}` : "Download Maps"
+          }
           accessibilityHint="Opens the download manager to save maps for offline use"
           accessibilityRole="button"
         >
