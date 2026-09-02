@@ -115,10 +115,16 @@ drifted across a major exactly as #28 predicted:
 
 `http-proxy-agent@5.0.0` declares `"@tootallnate/once": "2"`. The unbounded
 replacement resolved it to **3.0.1** — a different major than its only consumer
-asks for — and every gate stayed green, because nothing in this repository
-exercises that code path. Bounding it to `>=2.0.1 <3` moved it back to 2.0.1,
-which is both inside the consumer's range and past the advisory the override was
-written for.
+asks for. Bounding it to `>=2.0.1 <3` moved it back to 2.0.1, which is both
+inside the consumer's range and still patched: GHSA-vpq2-c234-7xj6 has separate
+fix lines per major, at 2.0.1 and 3.0.1.
+
+The uncomfortable part is that this path is not obscure. `jsdom` — the Jest
+environment — loads `http-proxy-agent` eagerly, which pulls `@tootallnate/once`,
+so **every one of the 34 suites loaded the wrong major on every run** and stayed
+green. Loading succeeds under both, and nothing asserts on the behaviour that
+differs. An exercised code path is not a tested one, and a green suite is not
+evidence that a resolved version is the intended one.
 
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
