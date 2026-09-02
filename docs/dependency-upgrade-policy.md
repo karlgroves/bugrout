@@ -258,7 +258,154 @@ That is one command, in one shell, visible in the transcript — as opposed to
 editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
 tends not to get put back.
 
-## Two known-vulnerable transitive packages
+### `trustPolicy` currently blocks every lockfile regeneration
+
+`pnpm install` fails on this repository today, before it reaches anything you
+changed:
+
+```text
+ERR_PNPM_TRUST_DOWNGRADE  High-risk trust downgrade for "semver@6.3.1"
+This error happened while installing the dependencies of eslint-plugin-import@2.32.0
+```
+
+**It is a false positive, and the evidence is on the registry.** `trustPolicy`
+compares publish _dates_ across the whole package, ignoring release lines:
+
+| version | published        | provenance attestation |
+| ------- | ---------------- | ---------------------- |
+| 7.5.1   | 2023-05-12       | yes                    |
+| 7.5.4   | 2023-07-07       | yes                    |
+| 5.7.2   | 2023-07-10 19:57 | **no**                 |
+| 6.3.1   | 2023-07-10 22:38 | **no**                 |
+
+`5.7.2` and `6.3.1` are the CVE-2022-25883 backports to the old majors,
+published from a release path that predates provenance. Because they are dated
+_after_ the 7.5.x line that had it, pnpm reads them as trust going backwards.
+Both are npm-signed; neither is a takeover.
+
+This does **not** affect CI or any `--frozen-lockfile` install — those resolve
+nothing, so the check never runs. It fires only when the lockfile is
+regenerated, which is to say on every dependency change. Take it the same way as
+the quarantine above, one visible command at a time:
+
+```bash
+pnpm install --trust-policy-exclude "semver@6.3.1"
+```
+
+The standing alternatives — `trustPolicyExclude` or `trustPolicyIgnoreAfter` in
+`pnpm-workspace.yaml` — were both considered and not taken. The flag keeps the
+exemption attached to the one install that needs it, where a reviewer sees it in
+the diff or the transcript, rather than leaving a hole open for everybody
+between now and whenever someone remembers to close it.
+
+**Do not read the error's package as the cause.** It names
+`eslint-plugin-import@2.32.0` because that is merely where resolution reached
+`semver@6.3.1` first. Thirteen packages depend on that version, and most of them
+are the Babel toolchain this app is built on:
+
+```console
+$ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
+  '@babel/core@7.29.7':
+  '@babel/helper-compilation-targets@7.28.6':
+  '@babel/helper-compilation-targets@7.29.7':
+  '@babel/helper-create-class-features-plugin@7.28.6(@babel/core@7.29.7)':
+  ... 9 more, incl. eslint-plugin-react, istanbul-lib-instrument
+```
+
+So this is structural, not one stray dev dependency: the flag will be needed on
+every lockfile regeneration until npm backfills provenance onto `semver@6.3.1`
+or the Babel chain stops depending on `semver` 6. Neither is close. Treating it
+as nearly-obsolete would be wrong.
+
+That is an argument for revisiting `trustPolicyExclude` /
+`trustPolicyIgnoreAfter` in `pnpm-workspace.yaml`, not against it — the standing
+alternatives were considered and set aside for now on the grounds above, and the
+choice is worth reopening if the friction outweighs keeping the exemption
+visible per-install. Re-check whenever this section is next touched.
+
+## Three known-vulnerable transitive packages
+
+An advisory gets an ignore entry only when this repository cannot reach the fix.
+That is two distinct situations, and the entry has to say which one it is,
+because they retire on different signals:
+
+1. **No fixed version is published** — `image-size`, below. Retires when
+   upstream ships a fix.
+2. **A fixed version exists but is structurally unreachable** — pinning it
+   breaks the consumer that pulls the package in, and no upstream bump gets
+   there either. `decode-uri-component`, below. Retires when the _consumer_
+   changes, not when the vulnerable package does.
+
+Anything else gets a bounded `pnpm.overrides` entry instead.
+
+### `decode-uri-component` — the fix is published and cannot be installed
+
+`GHSA-vcc3-ghjq-m6fr` (MODERATE, CVE pending) is a denial of service: malformed
+percent-encoded input decodes in exponential time. It is fixed in
+`decode-uri-component@0.5.0` and in no earlier release — the advisory range is
+`<0.5.0`.
+
+That fix cannot be taken. 0.5.0 is pure ESM — `"type": "module"`, one
+`export default`, and an `exports` map with no `require` condition. Its only
+consumer here is `query-string@7.1.3`, which is CommonJS and reads it as
+`const decodeComponent = require('decode-uri-component')` at `index.js:3`.
+Forcing 0.5.0 under that consumer resolves and bundles cleanly, then fails when
+called:
+
+```console
+$ node -e "const d = require('decode-uri-component'); d('%C3%A5')"
+TypeError: d is not a function
+```
+
+`require()` of an ES module yields `{ __esModule, default }`, not the function.
+
+**Nothing in the gate catches this, and that was measured rather than assumed.**
+With the override actually applied, on this branch:
+
+| Gate                    | Result with the broken override in place  |
+| ----------------------- | ----------------------------------------- |
+| `pnpm run check`        | ✅ exit 0 — 33 suites, 250 tests          |
+| `pnpm run bundle:check` | ✅ exit 0 — iOS + Android bundles emitted |
+| `pnpm run security:osv` | ✅ exit 0 — the advisory is "resolved"    |
+
+The broken module is not merely undetected, it is **shipped**: the iOS Hermes
+bundle contains `decode-uri-component@0.5.0`'s own error string
+(``Expected `encodedURI` to be of type``) alongside `query-string`'s internals.
+
+Note this does not contradict [ADR 0007](adr/0007-dependency-update-policy.md),
+which credits `bundle:check` with closing the module-graph hole. It closes it
+for _resolution_ errors — unresolvable imports, missing files. This is a
+resolution **success** whose returned value has the wrong shape, so there is
+nothing for the bundler to object to. Same family as the `uuid` 14 near-miss in
+ADR 0007 §4, which is why overrides are bounded in the first place.
+
+No upstream bump reaches a fix either:
+
+- `@react-navigation/core@7.21.13` — the latest, against 7.21.11 installed —
+  still depends on `query-string: ^7.1.3`.
+- `query-string` 8.x through 9.3.x still depend on
+  `decode-uri-component: ^0.4.1`, inside the affected range.
+- `query-string@9.5.1` does move to `^0.5.0`, but it is ESM-only itself and
+  React Navigation does not use it.
+
+**Exposure.** Availability only — the advisory states there is no memory
+corruption, disclosure or RCE, and the CVSS 4.0 vector agrees
+(`VC:N/VI:N/VA:H`). It is reached through React Navigation's URL parsing, so an
+attacker needs the device to open a `bugrout://` link carrying a pathological
+percent-encoded path. The custom scheme is the entire surface: no universal
+links and no Android intent filters are configured. Worst case is the app
+pegging a core and going unresponsive, recoverable by force-quitting.
+
+It is recorded in `osv-scanner.toml` and deliberately **not** in
+`pnpm.auditConfig.ignoreGhsas`. `security:audit` runs at `--audit-level=high`
+and this is MODERATE, so pnpm never gates on it; adding it there would delete it
+from the audit report without changing any gate.
+
+Retire it when `@react-navigation/core` drops `query-string@7`, or when
+`query-string` ships a CJS-compatible release built on `decode-uri-component`
+0.5.0.
+
+### `image-size` — no fixed version exists
 
 `pnpm audit --prod` reports two HIGH advisories and both are ignored via
 `pnpm.auditConfig.ignoreGhsas` in `package.json`. That list previously held two
@@ -285,3 +432,12 @@ other.
 
 Both entries come out the moment `image-size` publishes a fix and Metro takes
 it. `--ignore-unfixed` makes that automatic: CI goes red on its own.
+
+### Retiring an ignore
+
+`osv-scanner` prints an `unused ignores` warning once an advisory is no longer
+in the tree. That warning is the signal to delete the block — not to leave it in
+place as insurance. It is how the `uuid@7.0.3` entry (`GHSA-w5hq-g745-h8pq`) was
+found to be dead: the bounded `uuid@<11.1.1` override had already moved
+`xcode@3.0.1` onto `uuid@11.1.1`, so the ignore was suppressing a finding that
+no longer existed.

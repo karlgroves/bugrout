@@ -5,17 +5,75 @@
 # stops being looked at. Re-review on expiry or whenever the dependency chain
 # changes — whichever comes first.
 #
-# Only ignore an advisory that has **no fixed version**. If a fix exists, pin it
-# with a bounded `pnpm.overrides` entry in package.json instead; see
-# docs/dependency-upgrade-policy.md.
+# Only ignore an advisory whose fix this repository cannot actually reach. That
+# is two cases, and the reason has to say which one applies:
+#
+#   1. **No fixed version is published.** Nothing to pin. (`image-size`, below.)
+#   2. **A fixed version exists but is structurally unreachable** — pinning it
+#      would break the consumer that pulls the package in, and no upstream bump
+#      gets there either. (`decode-uri-component`, below.) This case needs
+#      evidence that the pin breaks, not an assertion that it would.
+#
+# If a fix exists and *is* reachable, pin it with a bounded `pnpm.overrides`
+# entry in package.json instead; see docs/dependency-upgrade-policy.md. Every
+# override is upper-bounded to the current major — an unbounded replacement
+# range silently crosses majors (ADR 0007).
+#
+# Remove an entry the moment it goes green: `osv-scanner` prints an "unused
+# ignores" warning when the advisory is no longer in the tree, and that warning
+# is the signal to delete the block, not to leave it as insurance.
+
+# decode-uri-component: a fixed version exists and cannot be installed.
+#
+# GHSA-vcc3-ghjq-m6fr is fixed in decode-uri-component@0.5.0 and nowhere else —
+# the advisory range is `<0.5.0`, so every earlier release is affected. 0.5.0 is
+# pure ESM: `"type": "module"`, a single `export default`, and an `exports` map
+# with no `require` condition.
+#
+# Its only consumer here is query-string@7.1.3, which is CommonJS and reads it
+# as `const decodeComponent = require('decode-uri-component')` (index.js:3).
+# Forcing 0.5.0 under that consumer resolves, bundles, and then throws at call
+# time. Verified on this repo's Node:
+#
+#     $ node -e "const d = require('decode-uri-component'); d('%C3%A5')"
+#     TypeError: d is not a function
+#     # require() of an ES module yields { __esModule, default }, not the function
+#
+# That failure is invisible to every gate in the pipeline — it is a runtime
+# interop error, not a resolution error, so lint, typecheck, Jest and
+# `bundle:check` all stay green while URL parsing is broken on device. This is
+# the exact shape ADR 0007 §4 exists to prevent (`uuid` 14, ESM-only, breaking
+# `require('uuid')`).
+#
+# No upstream bump reaches a fix either:
+#   - @react-navigation/core@7.21.13 (latest, vs 7.21.11 installed) still
+#     depends on `query-string: ^7.1.3`.
+#   - query-string 8.0.x depends on `decode-uri-component: ^0.2.2`, and
+#     8.1.0 through 9.4.1 on `^0.4.1`. Both ranges sit inside the affected
+#     `<0.5.0`, so no 8.x or 9.x release below 9.5.0 reaches the fix.
+#   - query-string 9.5.0 and 9.5.1 do move to `^0.5.0`, but they are
+#     themselves ESM-only and React Navigation does not use them.
+#
+# Exposure: denial of service only — no memory corruption, disclosure or RCE
+# (the advisory says so explicitly; CVSS 4.0 vector is VC:N/VI:N/VA:H). Reached
+# through React Navigation's URL parsing, so an attacker needs the device to
+# open a `bugrout://` deep link with a pathological percent-encoded path. No
+# universal links or Android intent filters are configured, so the custom scheme
+# is the whole surface. Worst case is the app pegging a core and going
+# unresponsive; a user can kill and relaunch it.
+#
+# Remove when @react-navigation/core drops query-string@7, or when query-string
+# ships a CJS-compatible release built on decode-uri-component@0.5.0.
 
 [[IgnoredVulns]]
-id = "GHSA-w5hq-g745-h8pq"
+id = "GHSA-vcc3-ghjq-m6fr"
 ignoreUntil = 2026-11-11
-reason = """uuid@7.0.3 is pinned by xcode@3.0.1 (Expo prebuild tooling). \
-Dev-time only — generates Xcode project object IDs, never ships in the app \
-and never handles untrusted input. Remove when @expo/config-plugins bumps \
-its xcode dependency. (uuid@11 in the app itself is patched.)"""
+reason = """decode-uri-component DoS on malformed percent-encoded input. Fixed \
+only in 0.5.0, which is ESM-only; its sole consumer query-string@7.1.3 is CJS \
+and `require()`s it, so pinning the fix throws `TypeError: d is not a \
+function` at runtime — verified, and invisible to lint/typecheck/Jest/bundle. \
+No upstream bump reaches a fix: @react-navigation/core@7.21.13 still pins \
+query-string ^7.1.3. Exposure is DoS via a crafted `bugrout://` deep link."""
 
 # image-size: no fixed version exists. The advisories cover <=2.0.2 and 2.0.2 is
 # the newest release (first_patched = NONE), so no override or SDK bump reaches
@@ -31,6 +89,11 @@ its xcode dependency. (uuid@11 in the app itself is patched.)"""
 # These two are also accepted for `pnpm audit` via pnpm.auditConfig.ignoreGhsas
 # in package.json — the two scanners have separate ignore mechanisms, so an
 # advisory has to be recorded in both places or the gates disagree.
+#
+# decode-uri-component above is deliberately *not* in that list: it is MODERATE,
+# and `security:audit` runs at `--audit-level=high`, so pnpm never gates on it.
+# Adding it there would suppress it from the audit report without changing any
+# gate, which loses information for nothing.
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
