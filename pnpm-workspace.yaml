@@ -38,3 +38,46 @@ trustPolicy: no-downgrade
 # through any of the checks this repository runs, and nothing in a lockfile
 # review makes that obvious.
 blockExoticSubdeps: true
+
+# One pinned exemption from `trustPolicy`, for a verified false positive.
+#
+# `semver@6.3.1` and `5.7.2` are the CVE-2022-25883 backports to the old
+# majors, published 2023-07-10 from a release path that predates provenance.
+# Because they are dated *after* the 7.5.x line that had attestation, and
+# trustPolicy compares publish dates across the whole package rather than per
+# release line, pnpm reads them as trust going backwards. Both are npm-signed;
+# neither is a takeover. Registry evidence is in
+# docs/dependency-upgrade-policy.md.
+#
+# Scope: exactly one name at one version. It does not relax trustPolicy for any
+# other package, and a genuine downgrade anywhere else still fails the install.
+# Verified by pointing this entry at semver@6.3.0 instead: the install fails
+# again on 6.3.1, so the match is per-version and not per-package.
+#
+# Evidence that it is a false positive rather than a suppressed signal: 6.3.1
+# carries a valid npm signature and was published by an npm CLI maintainer
+# (lukekarrys), the same release path as the 5.7.2 backport. What it lacks is a
+# provenance attestation, which the 7.5.x line has because those were published
+# by CI automation. Registry data is in docs/dependency-upgrade-policy.md.
+#
+# This replaces `pnpm install --trust-policy-exclude "semver@6.3.1"`, which was
+# the standing remedy from #120. That kept the exemption visible per-install, at
+# the cost of every lockfile regeneration failing for anyone who did not know to
+# type it — including CI-adjacent tooling and any future automation. Thirteen
+# packages depend on semver 6.3.1, most of them the Babel toolchain, so the flag
+# was needed on every dependency change rather than occasionally.
+#
+# Review by 2026-11-11, matching the ignoreUntil horizon used in
+# osv-scanner.toml. That date is advisory and nothing enforces it: unlike an
+# osv-scanner ignore, which osv-scanner reports as unused once the advisory
+# leaves the tree, and unlike patchedDependencies, which fails the install with
+# ERR_PNPM_UNUSED_PATCH, pnpm says nothing about a trustPolicyExclude entry that
+# no longer matches anything. Verified -- an entry for a package absent from the
+# tree installs silently. So this one needs a human to come back to it.
+#
+# Retire it when npm backfills provenance onto semver@6.3.1, or when the Babel
+# chain stops depending on semver 6. The test is concrete: delete these two
+# lines, force a resolve (any manifest change will do), and see whether it still
+# fails.
+trustPolicyExclude:
+  - semver@6.3.1

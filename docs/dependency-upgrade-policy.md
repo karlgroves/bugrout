@@ -284,18 +284,11 @@ That is one command, in one shell, visible in the transcript — as opposed to
 editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
 tends not to get put back.
 
-### `trustPolicy` currently blocks every lockfile regeneration
+### `trustPolicy` exempts one verified false positive
 
-`pnpm install` fails on this repository today, before it reaches anything you
-changed:
-
-```text
-ERR_PNPM_TRUST_DOWNGRADE  High-risk trust downgrade for "semver@6.3.1"
-This error happened while installing the dependencies of eslint-plugin-import@2.32.0
-```
-
-**It is a false positive, and the evidence is on the registry.** `trustPolicy`
-compares publish _dates_ across the whole package, ignoring release lines:
+`semver@6.3.1` trips `trustPolicy: no-downgrade`, and it is a false positive.
+The evidence is on the registry — `trustPolicy` compares publish _dates_ across
+the whole package, ignoring release lines:
 
 | version | published        | provenance attestation |
 | ------- | ---------------- | ---------------------- |
@@ -307,27 +300,52 @@ compares publish _dates_ across the whole package, ignoring release lines:
 `5.7.2` and `6.3.1` are the CVE-2022-25883 backports to the old majors,
 published from a release path that predates provenance. Because they are dated
 _after_ the 7.5.x line that had it, pnpm reads them as trust going backwards.
-Both are npm-signed; neither is a takeover.
 
-This does **not** affect CI or any `--frozen-lockfile` install — those resolve
-nothing, so the check never runs. It fires only when the lockfile is
-regenerated, which is to say on every dependency change. Take it the same way as
-the quarantine above, one visible command at a time:
+Two facts from the registry separate this from a real takeover, and both are
+checkable rather than asserted. **`6.3.1` carries a valid npm signature** — what
+it lacks is only the newer provenance attestation. And the publishers line up
+with the story: the backports were published by `lukekarrys`, an npm CLI
+maintainer, while the attestation-bearing 7.5.x releases came from CI
+automation. A manual backport from a human account is exactly why no attestation
+exists.
+
+It is pinned in `pnpm-workspace.yaml`:
+
+```yaml
+trustPolicyExclude:
+  - semver@6.3.1
+```
+
+**The exemption is one name at one version, and that was verified rather than
+assumed.** Pointing the entry at `semver@6.3.0` and forcing a resolve makes the
+install fail again on `6.3.1` — so `trustPolicy` stays fully in force for every
+other package, and a genuine downgrade anywhere else still fails.
+
+#### Why this replaced the per-install flag
+
+PR #120 chose the visible-per-install form instead:
 
 ```bash
 pnpm install --trust-policy-exclude "semver@6.3.1"
 ```
 
-The standing alternatives — `trustPolicyExclude` or `trustPolicyIgnoreAfter` in
-`pnpm-workspace.yaml` — were both considered and not taken. The flag keeps the
-exemption attached to the one install that needs it, where a reviewer sees it in
-the diff or the transcript, rather than leaving a hole open for everybody
-between now and whenever someone remembers to close it.
+The reasoning was that the exemption stays attached to the install that needs
+it, where a reviewer sees it. That held until the friction was measured: #126
+and its three predecessors needed the flag on **eight** separate installs in a
+single afternoon, because thirteen packages depend on `semver@6.3.1` and most of
+them are the Babel toolchain this app is built on. The flag was not an
+occasional exception, it was a precondition of every dependency change — and one
+that fails closed for anyone who does not know to type it, including future
+automation.
 
-**Do not read the error's package as the cause.** It names
-`eslint-plugin-import@2.32.0` because that is merely where resolution reached
-`semver@6.3.1` first. Thirteen packages depend on that version, and most of them
-are the Babel toolchain this app is built on:
+A per-install flag that is always required is not more visible than a config
+entry; it is just less reliable. The standing entry above is narrower than it
+looks — one pinned version, with a written retirement condition — and it is in a
+file that is reviewed.
+
+**Do not read the error's package as the cause** if it ever fires again. It
+names `eslint-plugin-import` only because that is where resolution reached
+`semver@6.3.1` first:
 
 ```console
 $ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
@@ -338,16 +356,19 @@ $ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
   ... 9 more, incl. eslint-plugin-react, istanbul-lib-instrument
 ```
 
-So this is structural, not one stray dev dependency: the flag will be needed on
-every lockfile regeneration until npm backfills provenance onto `semver@6.3.1`
-or the Babel chain stops depending on `semver` 6. Neither is close. Treating it
-as nearly-obsolete would be wrong.
+**Nothing enforces the retirement of this one, so it carries a review date.**
+Every other suppression in this repository is self-policing: `osv-scanner.toml`
+entries have `ignoreUntil` dates _and_ osv-scanner reports an ignore as unused
+once the advisory leaves the tree, and `patchedDependencies` fails the install
+outright with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither —
+verified, an entry naming a package absent from the tree installs silently. That
+makes it the one suppression here that can rot without saying so, which is the
+"permanent suppression" `osv-scanner.toml` warns against. Hence the advisory
+`Review by 2026-11-11` in the config, on the same horizon as the osv ignores.
 
-That is an argument for revisiting `trustPolicyExclude` /
-`trustPolicyIgnoreAfter` in `pnpm-workspace.yaml`, not against it — the standing
-alternatives were considered and set aside for now on the grounds above, and the
-choice is worth reopening if the friction outweighs keeping the exemption
-visible per-install. Re-check whenever this section is next touched.
+Retire the entry when npm backfills provenance onto `semver@6.3.1`, or when the
+Babel chain stops depending on `semver` 6. The test is concrete: delete the two
+lines, force a resolve, and see whether it still fails.
 
 ## One known-vulnerable transitive package
 
