@@ -185,7 +185,7 @@ function EmergencyContactsScreen(): React.JSX.Element {
             onPress={() => {
               setShowAdd(true);
             }}
-            accessibilityLabel="Add emergency contact"
+            accessibilityLabel="Add Contact"
             accessibilityHint="Opens a form to enter a new emergency contact"
             accessibilityRole="button"
           >

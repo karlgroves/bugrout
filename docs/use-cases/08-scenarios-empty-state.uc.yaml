@@ -30,12 +30,12 @@ steps:
 
   - verify: text "No Scenarios Saved"
 
-  - locate: button "Create new evacuation scenario"
-  - focus: button "Create new evacuation scenario"
+  - locate: button "Create Scenario"
+  - focus: button "Create Scenario"
 
   - audit: page
 
-  - activate: button "Create new evacuation scenario"
+  - activate: button "Create Scenario"
   - locate: field "Scenario name"
   - focus: field "Scenario name"
-  - locate: button "Save scenario"
+  - locate: button "Save Scenario"

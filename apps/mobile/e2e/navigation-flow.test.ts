@@ -88,11 +88,11 @@ describe("Offline Mode", () => {
   });
 
   it("should show tile download banner when no tiles downloaded", async () => {
-    await expect(
-      element(
-        by.label("Download offline maps to navigate without a connection"),
-      ),
-    ).toBeVisible();
+    // Addressed by id, not label: the banner's accessible name now contains
+    // its visible text (WCAG 2.5.3), so on Android `by.label` matches both the
+    // Pressable's contentDescription and its own Text child. Same root cause,
+    // and same resolution, as the download-guide skip button in #114.
+    await expect(element(by.id("tile-download-banner"))).toBeVisible();
   });
 });
 

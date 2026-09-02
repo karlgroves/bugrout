@@ -49,7 +49,7 @@ export function DeviationBanner({
         <Pressable
           style={styles.rerouteButton}
           onPress={onReroute}
-          accessibilityLabel="Recalculate route from current position"
+          accessibilityLabel="Reroute"
           accessibilityHint="Calculates a new route to your destination starting from where you are now"
           accessibilityRole="button"
         >

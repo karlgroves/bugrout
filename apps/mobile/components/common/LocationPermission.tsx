@@ -59,7 +59,7 @@ export function LocationPermission({
           <Pressable
             style={styles.settingsButton}
             onPress={() => Linking.openSettings()}
-            accessibilityLabel="Open device settings to enable location"
+            accessibilityLabel="Open Settings"
             accessibilityHint="Leaves the app and opens the system settings screen for BugRout"
             accessibilityRole="button"
           >
