@@ -105,6 +105,32 @@ to a version that breaks `require('uuid')` in the Expo iOS prebuild path. It
 passed `pnpm audit` and the full check suite, and was caught only by
 hand-reading the lockfile. Bound every override to a range.
 
+It had already happened again, silently, and stayed that way until #126 swept
+the file. Three of the 23 overrides had no upper bound, and one of them had
+drifted across a major exactly as #28 predicted:
+
+```json
+"@tootallnate/once@2.0.0": ">=2.0.1"
+```
+
+`http-proxy-agent@5.0.0` declares `"@tootallnate/once": "2"`. The unbounded
+replacement resolved it to **3.0.1** — a different major than its only consumer
+asks for. Bounding it to `>=2.0.1 <3` moved it back to 2.0.1, which is both
+inside the consumer's range and still patched: GHSA-vpq2-c234-7xj6 has separate
+fix lines per major, at 2.0.1 and 3.0.1.
+
+The uncomfortable part is that this path is not obscure. `jsdom` — the Jest
+environment — loads `http-proxy-agent` eagerly, which pulls `@tootallnate/once`,
+so **every one of the 34 suites loaded the wrong major on every run** and stayed
+green. Loading succeeds under both, and nothing asserts on the behaviour that
+differs. An exercised code path is not a tested one, and a green suite is not
+evidence that a resolved version is the intended one.
+
+The lesson is narrower than "add a bound": an unbounded override is invisible
+once it drifts, because the resolved version only appears in the lockfile. Diff
+the resolved versions, not just the manifest, whenever an override changes. All
+23 are bounded as of #126.
+
 ## What runs in CI instead
 
 | Check                                  | Where          | Gating                |
