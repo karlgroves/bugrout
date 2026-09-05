@@ -63,6 +63,12 @@ describe("Navigation Flow", () => {
     // Recent destinations only render after prior use, so a fresh-install smoke
     // run has none — assert the picker's core interaction instead. Typing gates
     // the clear-search control (query.length > 0), which needs no geocoding.
+    //
+    // The one deliberate `typeText` left in the suite: typing is the behaviour
+    // under test here, and Clear search sits inside the search bar at the top,
+    // so the keyboard this raises covers nothing that is tapped afterwards.
+    // Everywhere else, use `fillField` from support/input.ts — see the docblock
+    // there for what the keyboard does to a tap below the fold.
     await element(by.id("destination-search-input")).typeText("Sacramento");
     await expect(element(by.label("Clear search"))).toBeVisible();
   });

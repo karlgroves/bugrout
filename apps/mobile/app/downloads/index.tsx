@@ -105,7 +105,7 @@ function DownloadsScreen(): React.JSX.Element {
           {/* Storage info */}
           {!isExpoGo() && (
             <View style={styles.storageBar}>
-              <Text style={styles.storageText}>
+              <Text testID="downloads-storage-info" style={styles.storageText}>
                 Using {formatBytes(storageUsed)} ·{" "}
                 {formatBytes(storageAvailable)} available
               </Text>
