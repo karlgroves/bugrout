@@ -71,10 +71,16 @@ on:
       # suite depends on them just as hard, so the filter now covers every file
       # it addresses rather than only the ones likeliest to drift.
       #
-      # components/navigation is the substantive one: the controls tapped
-      # during navigation are not on the screen file at all. stop-navigation-btn
-      # and emergency-contact-btn both live in RouteBottomBar.tsx, so
-      # app/navigation/** on its own would cover neither.
+      # The three below are the exception, and are deliberately kept while the
+      # suite does NOT address them. #130 narrowed full-navigation.test.ts to
+      # the destination picker because the rest of the journey needs a
+      # geocoding answer, a GPS fix and routing tiles that a headless CI
+      # emulator has none of, so route-preview-go-btn, stop-navigation-btn and
+      # emergency-contact-btn are currently referenced by no spec. Issue #131
+      # restores them behind a deterministic harness; until it lands these
+      # paths buy nothing, and a change under them triggers a 20-30 minute
+      # emulator job that exercises none of it. Kept anyway rather than removed
+      # and forgotten — deleting them would make #131 land silently unguarded.
       - "apps/mobile/app/route-preview/**"
       - "apps/mobile/app/navigation/**"
       - "apps/mobile/components/navigation/**"

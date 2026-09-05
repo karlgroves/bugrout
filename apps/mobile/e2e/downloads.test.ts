@@ -26,9 +26,12 @@ describe("Offline Maps", () => {
   });
 
   it("shows storage info", async () => {
-    // Runs before the scrolling test below: the storage bar is in the list
-    // header, so it leaves the viewport as soon as anything scrolls.
-    //
+    // The storage bar lives in the list header, so it leaves the viewport as
+    // soon as anything scrolls — and the regions test below scrolls a long way.
+    // Reset to the top rather than relying on this `it` running first, so the
+    // file has no order dependency for a reader to preserve by accident.
+    await element(by.id("downloads-screen")).scrollTo("top");
+
     // Addressed by testID rather than `by.text(/available/)`. Detox hands a
     // RegExp to Espresso as a pattern the whole string has to satisfy, so
     // /available/ did not match "Using 0 KB · 4.5 GB available" — it is a full

@@ -31,6 +31,10 @@
  * Restoring the deep journey needs a deterministic harness — a stubbed
  * geocoder, a seeded emulator location, and a routing fallback the spec can
  * rely on — not more assertions against live services. Tracked in #131.
+ *
+ * The file keeps its name while the describe block does not. #131 puts the
+ * full journey back here, and renaming twice would cost the history that
+ * explains why it left.
  */
 
 import { by, device, element, expect, waitFor } from "detox";
