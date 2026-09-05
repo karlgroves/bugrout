@@ -15,11 +15,13 @@
 #      that the pin breaks, not an assertion that it would — and then evidence
 #      that a `pnpm.patchedDependencies` shim cannot fix what it breaks.
 #
-#      No entry currently qualifies. `decode-uri-component` was recorded here
-#      in #120 on the first two grounds, and #124 removed it: the pin does
-#      break query-string@7.1.3's CJS `require`, and no upstream bump reaches
-#      0.5.0, but a two-line patch unwraps the interop. Check the third ground
-#      before using this category — the bar is higher than it looks.
+#      `stream-json` is the one entry that qualifies, and its block below shows
+#      what clearing all three grounds looks like. `decode-uri-component` was
+#      recorded here in #120 on the first two grounds and #124 removed it: the
+#      pin does break query-string@7.1.3's CJS `require`, and no upstream bump
+#      reaches 0.5.0, but a two-line patch unwraps the interop. Check the third
+#      ground before using this category — the bar is higher than it looks, and
+#      that entry is the reason it exists.
 #
 # If a fix exists and *is* reachable, pin it with a bounded `pnpm.overrides`
 # entry in package.json instead; see docs/dependency-upgrade-policy.md. Every
@@ -57,3 +59,61 @@ id = "GHSA-5p2g-fcmc-qvqq"
 ignoreUntil = 2026-11-11
 reason = """image-size JXL and HEIF parser infinite loops. Same package, same \
 unpatched range, same build-time-only exposure as GHSA-w3rx-r6r6-pgpr."""
+
+# stream-json: a fixed version exists (3.5.0) but is structurally unreachable —
+# category 2 above. This is the first entry to use that category, so the
+# evidence the header asks for is recorded here rather than asserted.
+#
+# The pin breaks, measured not predicted. Adding
+# `"stream-json@<3.5.0": ">=3.5.0 <4"` to pnpm.overrides resolves 3.6.0 and
+# takes Detox out entirely — `detox --version` alone dies:
+#
+#   Error: Cannot find module 'stream-json/jsonl/Parser'
+#   code: 'MODULE_NOT_FOUND'
+#
+# Three independent breaks, any one of them sufficient. 3.x renamed the entry
+# points (`jsonl/Parser` -> `jsonl/parser`, `streamers/StreamArray.js` ->
+# `streamers/stream-array.js`); it is ESM-only (`"type": "module"`) while Detox
+# is CommonJS and reaches it through `require()`; and it replaced the 1.x class
+# API with a function factory re-exported from stream-chain 4.x, so
+# `JsonlParser.make({ checkErrors: true })` — the exact call in Detox's
+# DetoxJSONLParser.js — no longer exists.
+#
+# No upstream bump reaches the fix. detox@latest IS 20.51.4 and declares
+# `stream-json: ^1.7.4`; bunyamin@1.6.3 declares `^1.7.5`. Everything newer than
+# 20.51.4 is a 21.x/22.x pre-release, and moving a devDependency onto an RC of a
+# major to chase a Medium advisory is a worse trade than the one it fixes.
+#
+# A patch cannot bridge it either. `pnpm.patchedDependencies` would have to
+# re-add the removed capitalised paths, bridge CommonJS to an ESM-only package,
+# and reimplement the 1.x Transform-class contract on top of a rewritten
+# functional API that delegates to a different major of stream-chain. That is a
+# maintained compatibility layer for a library rewrite, not a shim.
+#
+# Exposure: not reachable, and not shipped. The advisory is in the `pick` /
+# `ignore` / `filter` / `replace` path filters. Detox imports only
+# `stream-json/jsonl/Parser` and bunyamin only
+# `stream-json/streamers/StreamArray.js` — neither pulls in a filter. It is a
+# devDependency, so it is absent from the app bundle, and the only JSON it sees
+# is the JSONL trace and log files Detox itself just wrote locally. The CVSS
+# vector agrees on the shape: AV:L, C:N/I:N/A:H — local, availability only, 6.2.
+#
+# Not recorded in pnpm.auditConfig.ignoreGhsas, unlike the image-size pair
+# above. That is deliberate rather than an oversight: `security:audit` runs
+# `pnpm audit --prod --audit-level=high`, and this advisory is neither a prod
+# dependency nor high, so the two gates do not disagree here — only OSV-Scanner
+# sees it. Adding a no-op ignore there would imply a finding that gate never
+# makes.
+#
+# Re-review trigger: a stable Detox 21 that moves to stream-json 3.x, whichever
+# comes first with the expiry below.
+
+[[IgnoredVulns]]
+id = "GHSA-528h-pc64-c93x"
+ignoreUntil = 2026-12-05
+reason = """stream-json path-filter DoS (CVE-2026-71429). Fixed in 3.5.0, but \
+3.x renamed the entry points, is ESM-only, and replaced the class API Detox \
+calls — pinning it breaks `detox --version` outright, and detox@latest is \
+20.51.4 which declares ^1.7.4. Unreachable anyway: the flaw is in the pick / \
+ignore / filter / replace filters, and neither Detox nor bunyamin imports \
+one. devDependency, local self-produced JSONL input, AV:L availability-only."""
