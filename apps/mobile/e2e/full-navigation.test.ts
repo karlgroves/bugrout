@@ -30,7 +30,7 @@
  *
  * Restoring the deep journey needs a deterministic harness — a stubbed
  * geocoder, a seeded emulator location, and a routing fallback the spec can
- * rely on — not more assertions against live services.
+ * rely on — not more assertions against live services. Tracked in #131.
  */
 
 import { by, device, element, expect, waitFor } from "detox";
