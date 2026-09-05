@@ -58,6 +58,27 @@ describe("Destination Picker", () => {
       .withTimeout(10000);
   });
 
+  it("acquires a GPS position", async () => {
+    // The single assertion the `adb emu geo fix` in e2e.yml exists to make, and
+    // the first of #131's three blockers to come down.
+    //
+    // The picker renders exactly one of three mutually exclusive status lines
+    // (app/destination/index.tsx): "Getting your location..." while the request
+    // is in flight, "Location unavailable — tap to retry" once it has failed,
+    // and this one only when `position` is non-null. So it discriminates, and a
+    // failure screenshot says which of the other two happened — the fix never
+    // arriving looks different from the fix arriving and being rejected.
+    //
+    // Generous timeout because this is the one assertion here that waits on the
+    // platform rather than on React: getCurrentPositionAsync asks for
+    // Accuracy.High and takes as long as the emulator's GPS takes.
+    await waitFor(
+      element(by.text("Search for an address or select a scenario above")),
+    )
+      .toBeVisible()
+      .withTimeout(30000);
+  });
+
   it("refuses to route with no destination selected", async () => {
     // The confirm button is deliberately always enabled and reports why it
     // cannot proceed (app/destination/index.tsx). That guard runs before the

@@ -163,7 +163,25 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           working-directory: apps/mobile
-          script: pnpm run e2e:smoke
+          # Seed a GPS fix before the suite runs. The AVD boots with no location
+          # at all, so expo-location's getCurrentPositionAsync — which
+          # LocationTracker calls with Accuracy.High and no timeout — never
+          # resolves, and every screen that gates on `position` sits on its
+          # loading state forever. That is one of the three things #131 has to
+          # solve before the navigation journey is testable here; this is the
+          # cheapest of them, so it goes first and on its own.
+          #
+          # Argument order is longitude then latitude, which is the reverse of
+          # how the rest of this repository writes coordinates. -118.2437 34.0522
+          # is downtown Los Angeles, matching the destination the specs use.
+          #
+          # The emulator holds the fix once set, so one call covers the whole
+          # run including the reinstall each spec does. If that turns out not to
+          # hold, the symptom is specs failing on "Getting your location..."
+          # partway through rather than at the start.
+          script: |
+            adb emu geo fix -118.2437 34.0522
+            pnpm run e2e:smoke
 
       - name: Upload Detox artifacts
         if: always()
