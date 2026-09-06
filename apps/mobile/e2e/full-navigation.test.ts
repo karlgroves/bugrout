@@ -68,7 +68,11 @@ describe("Destination Picker", () => {
       .withTimeout(10000);
   });
 
-  it("acquires a GPS position", async () => {
+  it("acquires a position", async () => {
+    // "a position", not "a GPS position": all this observes is that `position`
+    // is non-null. Which provider supplied it is invisible from here, and the
+    // finding below makes the fused or default provider likelier than GPS.
+    //
     // Pins the fact the docblock above corrects: this emulator does supply a
     // position, with nothing seeding it. Measured twice — 661ms with an
     // `adb emu geo fix` in the workflow and 332ms on a control run without one
@@ -79,11 +83,15 @@ describe("Destination Picker", () => {
     // ever goes red, the journey work stops being worth attempting and the
     // reason will be right here rather than three specs downstream.
     //
-    // The picker renders exactly one of three mutually exclusive status lines
-    // (app/destination/index.tsx): "Getting your location..." while the request
-    // is in flight, "Location unavailable — tap to retry" once it has failed,
-    // and this one only when `position` is non-null. So a failure says which of
-    // the other two happened rather than only that something went wrong.
+    // app/destination/index.tsx renders four status lines. Three can reach the
+    // screen at this point — "Getting your location..." while the request is in
+    // flight, "Location unavailable — tap to retry" once it has failed, and
+    // this one only when `position` is non-null. The fourth, "Ready to route",
+    // needs a selected destination and there is none yet. So a failure here
+    // says which of the other two happened rather than only that something went
+    // wrong, and there is no fourth way to fail silently: getPosition always
+    // sets an error on the catch path (hooks/useLocation.ts), so the state
+    // where no line renders at all is unreachable.
     //
     // Generous timeout because this is the one assertion here that waits on the
     // platform rather than on React: getCurrentPositionAsync asks for
