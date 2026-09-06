@@ -20,17 +20,27 @@
  * reports the click as performed. That half is fixed for good in
  * support/input.ts, and this spec no longer types at all.
  *
- * Everything past destination selection needs three things this environment
- * does not supply: a geocoding answer, a GPS fix (`confirmRoute` refuses
- * without `position`, and the AVD boots with no location set), and routing
- * tiles. Those behaviours are covered off-device instead — RouteEngine.test.ts,
+ * Everything past destination selection needs two things this environment does
+ * not supply: a geocoding answer and routing tiles. Those behaviours are
+ * covered off-device instead — RouteEngine.test.ts,
  * RouteEngineIntegration.test.ts, NavigationController.test.ts. What is left
  * here is what a real boot on this emulator can actually prove, which is the
  * same line navigation-flow.test.ts already draws for the same reasons.
  *
- * Restoring the deep journey needs a deterministic harness — a stubbed
- * geocoder, a seeded emulator location, and a routing fallback the spec can
- * rely on — not more assertions against live services. Tracked in #131.
+ * Two, not three. #130 named a GPS fix as the third, on the reasoning that
+ * `confirmRoute` refuses without `position` and the AVD boots with no location
+ * set. The first half is true and the second half is not, and the difference
+ * was never measured until #133 measured it: the emulator supplies a position
+ * without being asked. `adb emu geo fix` was added, the suite went green, and
+ * then the same suite went green again on a control run with the fix removed —
+ * so the seeding was doing nothing and the "blocker" had never existed. The
+ * assertion below is what is left of that experiment, kept because it pins the
+ * fact; the workflow change is gone.
+ *
+ * Restoring the deep journey therefore needs less than #131 assumed — a
+ * destination reachable without geocoding (a saved scenario, or the map-pin
+ * path) and a routing fallback the spec can rely on. Not more assertions
+ * against live services. Tracked in #131.
  *
  * The file keeps its name while the describe block does not. #131 puts the
  * full journey back here, and renaming twice would cost the history that
@@ -59,15 +69,21 @@ describe("Destination Picker", () => {
   });
 
   it("acquires a GPS position", async () => {
-    // The single assertion the `adb emu geo fix` in e2e.yml exists to make, and
-    // the first of #131's three blockers to come down.
+    // Pins the fact the docblock above corrects: this emulator does supply a
+    // position, with nothing seeding it. Measured twice — 661ms with an
+    // `adb emu geo fix` in the workflow and 332ms on a control run without one
+    // — which is what showed the seeding to be doing nothing.
+    //
+    // It does not guard the seeding, because there is none to guard. What it
+    // guards is the precondition every later step of #131 rests on: if this
+    // ever goes red, the journey work stops being worth attempting and the
+    // reason will be right here rather than three specs downstream.
     //
     // The picker renders exactly one of three mutually exclusive status lines
     // (app/destination/index.tsx): "Getting your location..." while the request
     // is in flight, "Location unavailable — tap to retry" once it has failed,
-    // and this one only when `position` is non-null. So it discriminates, and a
-    // failure screenshot says which of the other two happened — the fix never
-    // arriving looks different from the fix arriving and being rejected.
+    // and this one only when `position` is non-null. So a failure says which of
+    // the other two happened rather than only that something went wrong.
     //
     // Generous timeout because this is the one assertion here that waits on the
     // platform rather than on React: getCurrentPositionAsync asks for
