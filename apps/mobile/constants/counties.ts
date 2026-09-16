@@ -25,9 +25,6 @@ export interface CountyGroup {
 /**
  * California county groups — organized by evacuation-relevant regions.
  */
-export /**
- *
- */
 const CA_COUNTIES: CountyGroup[] = [
   {
     id: "ca-sf-bay",
@@ -74,9 +71,6 @@ const CA_COUNTIES: CountyGroup[] = [
 /**
  * Florida county groups.
  */
-export /**
- *
- */
 const FL_COUNTIES: CountyGroup[] = [
   {
     id: "fl-miami",
@@ -107,9 +101,6 @@ const FL_COUNTIES: CountyGroup[] = [
 /**
  * Texas county groups.
  */
-export /**
- *
- */
 const TX_COUNTIES: CountyGroup[] = [
   {
     id: "tx-houston",
@@ -138,9 +129,6 @@ const TX_COUNTIES: CountyGroup[] = [
 ];
 
 /** All county groups indexed by state */
-export /**
- *
- */
 const COUNTY_GROUPS: Record<string, CountyGroup[]> = {
   ca: CA_COUNTIES,
   fl: FL_COUNTIES,

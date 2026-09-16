@@ -27,17 +27,6 @@ import type {
 const DEVIATION_THRESHOLD_METERS = 500;
 
 /**
- * Calculate a route with full threat avoidance and optional resource stops.
- */
-export async function calculateRoute(
-  origin: LatLng,
-  destination: LatLng,
-  options?: RouteOptions,
-): Promise<Route> {
-  return Valhalla.calculateRoute(origin, destination, options);
-}
-
-/**
  * Calculate a route with automatic threat avoidance and resource waypoints.
  * This is the high-level "smart route" that incorporates all BugRout features.
  */
@@ -182,5 +171,3 @@ function pointToSegmentDistance(p: LatLng, a: LatLng, b: LatLng): number {
   const dB = haversineDistance(p, b);
   return Math.min(dA, dB);
 }
-
-export { DEVIATION_THRESHOLD_METERS };

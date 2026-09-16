@@ -10,9 +10,6 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/"
   },
-  "dependencies": {
-    "@bugrout/shared": "workspace:*"
-  },
   "devDependencies": {
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"

@@ -389,12 +389,19 @@ describe("WCAG 2.5.3 — every accessible name contains its visible label", () =
   it("finds labelled controls to check (guards against a vacuous walk)", () => {
     // If the scanner silently stops matching, the assertion below passes for
     // the wrong reason. The floors sit just under the real counts as this
-    // lands — 32 controls and 27 visible strings — so losing a chunk of
+    // lands — 28 controls and 24 visible strings — so losing a chunk of
     // either shows up here rather than as a quietly smaller check. The regex
     // version this replaced saw 21 and 18; floors set beneath those numbers
     // are what let it look healthy while blind to half the app.
-    expect(result.controls.length).toBeGreaterThanOrEqual(30);
-    expect(checked).toBeGreaterThanOrEqual(25);
+    //
+    // Was 32 and 27. #134 deleted three components/common files that nothing
+    // rendered — EmptyState, ErrorBoundary and LocationPermission, all found
+    // by knip — and the four Pressables they held went with them (one, one,
+    // two). Lowering a floor is normally the wrong move, so the check is that
+    // the loss is accounted for: four controls removed, four fewer counted,
+    // and no screen the user can reach lost a control.
+    expect(result.controls.length).toBeGreaterThanOrEqual(26);
+    expect(checked).toBeGreaterThanOrEqual(22);
   });
 
   it("keeps the unreadable set from growing unnoticed", () => {

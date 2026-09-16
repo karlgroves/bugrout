@@ -79,21 +79,4 @@ export async function getDatabase(): Promise<SQLiteDatabase> {
   }
 }
 
-/**
- * Close the database connection.
- */
-export async function closeDatabase(): Promise<void> {
-  if (db) {
-    await db.closeAsync();
-    db = null;
-  }
-}
-
-/**
- * Check if the database is using the in-memory mock.
- */
-export function isDatabaseMocked(): boolean {
-  return isUsingMockDatabase();
-}
-
 export type { SQLiteDatabase };

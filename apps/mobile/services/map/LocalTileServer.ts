@@ -33,17 +33,20 @@ interface TileNativeModules {
 
 const nativeModules = NativeModules as TileNativeModules;
 
-let serverPort: number | null = null;
-let serverRunning = false;
-
 /**
  * Start a local tile server for a PMTiles file.
  * Returns the port number the server is listening on.
  *
  * On web, this is a no-op (tiles aren't available).
  * On native, this starts a background HTTP server via the native module.
+ *
+ * The module holds no state: the port travels back through getTileSourceUrl's
+ * return value, which is the only caller. A stopLocalTileServer/
+ * getTileServerPort pair used to shadow it in module-level variables, and
+ * nothing ever called either (removed in #134) — so the server was started and
+ * never stopped whichever way you read it.
  */
-export async function startLocalTileServer(
+async function startLocalTileServer(
   pmtilesPath: string,
 ): Promise<number | null> {
   if (Platform.OS === "web") return null;
@@ -60,8 +63,6 @@ export async function startLocalTileServer(
     }
 
     const port = await TileServer.start(pmtilesPath);
-    serverPort = port;
-    serverRunning = true;
     console.log(`[BugRout] Local tile server started on port ${port}`);
     return port;
   } catch (err) {
@@ -71,36 +72,10 @@ export async function startLocalTileServer(
 }
 
 /**
- * Stop the local tile server.
- */
-export async function stopLocalTileServer(): Promise<void> {
-  if (!serverRunning) return;
-
-  try {
-    const TileServer = nativeModules.PMTilesServer;
-    if (TileServer) {
-      await TileServer.stop();
-    }
-  } catch {
-    // No-op: best-effort shutdown; reset local state regardless below.
-  }
-
-  serverPort = null;
-  serverRunning = false;
-}
-
-/**
- * Get the current tile server port, or null if not running.
- */
-export function getTileServerPort(): number | null {
-  return serverPort;
-}
-
-/**
  * Check if MapLibre natively supports pmtiles:// protocol.
  * This varies by MapLibre Native version and the React Native wrapper.
  */
-export async function checkPMTilesProtocolSupport(): Promise<boolean> {
+async function checkPMTilesProtocolSupport(): Promise<boolean> {
   if (Platform.OS === "web") return false;
 
   try {

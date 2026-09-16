@@ -22,11 +22,6 @@ if (Platform.OS !== "web") {
   }
 }
 
-export /**
- *
- */
-const isMapLibreAvailable = MapLibreGL !== null;
-
 // --- Real or mock setAccessToken ---
 
 /**

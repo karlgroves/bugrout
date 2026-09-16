@@ -114,13 +114,3 @@ export async function loadCachedThreats(): Promise<void> {
   const cached = await getCachedThreats();
   useThreatStore.getState().setThreats(cached);
 }
-
-/**
- * Check if any active threats intersect a bounding box.
- * Used to determine if threat overlays should be prominently displayed.
- */
-export function hasActiveThreatsInRegion(_bbox: BBox): boolean {
-  const threats = useThreatStore.getState().threatZones;
-  // Simplified check: any non-expired threat exists
-  return threats.some((t) => t.expiresAt === null || t.expiresAt > Date.now());
-}

@@ -25,7 +25,7 @@ const METERS_TO_DEGREES = 1 / 111320;
 /**
  *
  */
-export interface WaypointCandidate {
+interface WaypointCandidate {
   resource: ResourcePoint;
   /** Distance from the nearest route point to this resource */
   distanceFromRoute: number;
@@ -41,7 +41,7 @@ export interface WaypointCandidate {
  * @param maxDetour - Maximum acceptable detour in meters
  * @returns Best candidate, or null if none found within tolerance
  */
-export async function findBestResourceStop(
+async function findBestResourceStop(
   routeCoordinates: LatLng[],
   type: ResourceType,
   maxDetour: number = DEFAULT_MAX_DETOUR_METERS,

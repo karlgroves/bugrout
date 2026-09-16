@@ -34,7 +34,7 @@ let currentHeading = 0;
  * Request location permissions.
  * Returns true if foreground permission granted.
  */
-export async function requestPermissions(): Promise<{
+async function requestPermissions(): Promise<{
   foreground: boolean;
   background: boolean;
 }> {
@@ -152,11 +152,4 @@ export async function getCurrentPosition(): Promise<LocationUpdate> {
     accuracy: location.coords.accuracy ?? 999,
     timestamp: location.timestamp,
   };
-}
-
-/**
- * Check if location services are enabled on the device.
- */
-export async function isLocationEnabled(): Promise<boolean> {
-  return Location.hasServicesEnabledAsync();
 }

@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS: Required<Omit<RetryOptions, "signal" | "retryIf">> = {
 /**
  * Execute a function with automatic retry on failure.
  */
-export async function withRetry<T>(
+async function withRetry<T>(
   fn: () => Promise<T>,
   options?: RetryOptions,
 ): Promise<T> {

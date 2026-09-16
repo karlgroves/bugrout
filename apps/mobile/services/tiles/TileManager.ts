@@ -15,7 +15,6 @@ import {
 import {
   insertDownloadedRegion,
   getDownloadedRegions as dbGetDownloadedRegions,
-  getDownloadedRegion as dbGetDownloadedRegion,
   deleteDownloadedRegion as dbDeleteDownloadedRegion,
 } from "@/db/queries/regions";
 import { deleteResourcesByRegion } from "@/db/queries/resources";
@@ -254,15 +253,6 @@ export async function deleteRegion(regionId: string): Promise<void> {
  */
 export async function getDownloadedRegions(): Promise<DownloadedRegion[]> {
   return dbGetDownloadedRegions();
-}
-
-/**
- * Get a specific downloaded region.
- */
-export async function getDownloadedRegion(
-  regionId: string,
-): Promise<DownloadedRegion | null> {
-  return dbGetDownloadedRegion(regionId);
 }
 
 /**

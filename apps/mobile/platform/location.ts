@@ -10,7 +10,7 @@ const EXPO_LOCATION = "expo-location";
 /**
  *
  */
-export interface LocationCoords {
+interface LocationCoords {
   latitude: number;
   longitude: number;
   speed: number | null;
@@ -43,16 +43,6 @@ const MOCK_POSITION: LocationResult = {
   timestamp: Date.now(),
 };
 
-let usingMock = false;
-
-/**
- * Reports whether the mock location provider is currently in use (web /
- * Expo Go) rather than real device GPS.
- */
-export function isUsingMockLocation(): boolean {
-  return usingMock;
-}
-
 /**
  * Requests foreground location permission, granting a mock permission when
  * expo-location is unavailable.
@@ -61,7 +51,6 @@ export async function requestForegroundPermissionsAsync(): Promise<{
   status: string;
 }> {
   if (Platform.OS === "web") {
-    usingMock = true;
     return { status: "granted" };
   }
   try {
@@ -69,7 +58,6 @@ export async function requestForegroundPermissionsAsync(): Promise<{
     const Location = require(mod);
     return await Location.requestForegroundPermissionsAsync();
   } catch {
-    usingMock = true;
     return { status: "granted" };
   }
 }

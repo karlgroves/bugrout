@@ -30,22 +30,6 @@ export function init(_options: Record<string, unknown>): void {
 }
 
 /**
- * Records a Sentry breadcrumb; a no-op when Sentry is unavailable.
- */
-export function addBreadcrumb(breadcrumb: Record<string, unknown>): void {
-  if (Platform.OS === "web") {
-    return;
-  }
-  try {
-    const mod = SENTRY_MODULE;
-    const Sentry = require(mod);
-    Sentry.addBreadcrumb(breadcrumb);
-  } catch {
-    // No-op
-  }
-}
-
-/**
  * Reports an exception to Sentry, falling back to console.error when Sentry
  * is unavailable.
  */

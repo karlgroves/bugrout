@@ -143,17 +143,6 @@ async function loadSettings(): Promise<void> {
 }
 
 /**
- * Persist a setting change to SQLite.
- * Call this when a setting changes in the UI.
- */
-export async function persistSetting(
-  key: string,
-  value: string,
-): Promise<void> {
-  await setPreference(key, value);
-}
-
-/**
  * Mark the disclaimer as accepted.
  */
 export async function acceptDisclaimer(): Promise<void> {

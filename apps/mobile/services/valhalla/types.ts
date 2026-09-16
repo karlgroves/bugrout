@@ -22,7 +22,7 @@ export interface ValhallaRouteResponse {
 /**
  *
  */
-export interface ValhallaLocation {
+interface ValhallaLocation {
   lat: number;
   lon: number;
   type: string;
@@ -31,7 +31,7 @@ export interface ValhallaLocation {
 /**
  *
  */
-export interface ValhallaLeg {
+interface ValhallaLeg {
   maneuvers: ValhallaManeuver[];
   summary: {
     length: number;
