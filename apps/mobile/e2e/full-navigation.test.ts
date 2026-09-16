@@ -181,13 +181,31 @@ describe("Full evacuation journey", () => {
     // `toBeVisible`, not `toExist`, and the difference is load-bearing here.
     // This assertion spent one commit as `toExist` because Espresso found the
     // view with this exact text and reported it "0 percent visible": the
-    // preview's info ScrollView was collapsed to zero height, so distance,
-    // ETA, threat warnings and the advisory disclaimer never reached the user
-    // either. That is the bug this suite found on its first real run
-    // (E2E 35137927287), and the styles in app/route-preview/index.tsx now
-    // explain it. Asserting visibility is what keeps it fixed.
+    // preview's info ScrollView was collapsed to zero height. That is the bug
+    // this suite found on its first real run (E2E 35137927287), and the styles
+    // in app/route-preview/index.tsx now explain it. Asserting visibility is
+    // what keeps it fixed.
     await expect(
       element(by.text("via Mock Route (Valhalla unavailable)")),
+    ).toBeVisible();
+
+    // The rest of the panel, because the defect hid all of it and one visible
+    // line would not have caught it. These are the three things spec.md
+    // requires this screen to show — the numbers, and the disclaimer that is a
+    // legal requirement rather than decoration. Threat warnings are the fourth
+    // and cannot be asserted here: an offline CI emulator has no threat data,
+    // so the warning box is correctly absent.
+    //
+    // Labels, not values: the distance and ETA depend on wherever the emulator
+    // thinks it is, which is not something this spec should pin.
+    await expect(element(by.text("Distance"))).toBeVisible();
+    await expect(element(by.text("ETA"))).toBeVisible();
+    await expect(
+      element(
+        by.text(
+          "BugRout provides advisory routing only. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.",
+        ),
+      ),
     ).toBeVisible();
   });
 
