@@ -71,27 +71,36 @@ on:
       # suite depends on them just as hard, so the filter now covers every file
       # it addresses rather than only the ones likeliest to drift.
       #
-      # The three below are the exception, and are deliberately kept while the
-      # suite does NOT address them. #130 narrowed full-navigation.test.ts to
-      # the destination picker because the rest of the journey needs a
-      # geocoding answer, a GPS fix and routing tiles that a headless CI
-      # emulator has none of, so route-preview-go-btn, stop-navigation-btn and
-      # emergency-contact-btn are currently referenced by no spec. Issue #131
-      # restores them behind a deterministic harness; until it lands these
-      # paths buy nothing, and a change under them triggers a 20-30 minute
-      # emulator job that exercises none of it. Kept anyway rather than removed
-      # and forgotten — deleting them would make #131 land silently unguarded.
+      # The first four below were kept here through #130 while no spec
+      # addressed them, on the grounds that deleting them would make #131 land
+      # silently unguarded. #131 has landed: full-navigation.test.ts drives the
+      # whole journey again, so route-preview-go-btn and stop-navigation-btn
+      # are live locators once more. emergency-contact-btn still is not — the
+      # journey stops rather than texting anyone — but it sits on the same
+      # bottom bar as the Stop button that the suite does tap.
       - "apps/mobile/app/route-preview/**"
       - "apps/mobile/app/navigation/**"
       - "apps/mobile/components/navigation/**"
       - "apps/mobile/components/common/StatusIndicator.tsx"
-      # The one locator source that is data rather than markup: the
-      # downloads spec asserts three region names by visible text, and
-      # those strings are defined here, reaching the screen through
-      # useTileManager. Renaming a region breaks downloads.test.ts while
-      # touching none of the paths above. useTileManager itself stays out
+      # The advisory badge, asserted by its visible text during navigation.
+      # Required by spec.md for the whole of a navigation session, which is
+      # why the journey spec uses it as its proof that the screen mounted.
+      - "apps/mobile/components/common/AdvisoryBadge.tsx"
+      # Locator sources that are data rather than markup.
+      #
+      # The downloads spec asserts three region names by visible text, and
+      # those strings are defined in constants/regions.ts, reaching the screen
+      # through useTileManager. Renaming a region breaks downloads.test.ts
+      # while touching none of the paths above. useTileManager itself stays out
       # — it defines nothing the suite addresses, it only passes them on.
+      #
+      # ValhallaModule is here for one string: buildMockRoute's summary, "Mock
+      # Route (Valhalla unavailable)", which full-navigation.test.ts asserts
+      # exactly. That assertion is what proves CI routed offline rather than
+      # against a live service, so the string is load-bearing and a change to
+      # it has to run this job.
       - "apps/mobile/constants/regions.ts"
+      - "apps/mobile/services/valhalla/ValhallaModule.ts"
       # The suite itself.
       - "apps/mobile/e2e/**"
       - ".github/workflows/e2e.yml"
