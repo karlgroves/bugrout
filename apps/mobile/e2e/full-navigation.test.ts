@@ -178,22 +178,17 @@ describe("Full evacuation journey", () => {
     // CI reached over the network. If CI ever gets a real Valhalla, this line
     // is supposed to fail.
     //
-    // `toExist`, not `toBeVisible`, and that is a defect being recorded rather
-    // than a matcher chosen for convenience. Espresso finds the view with this
-    // exact text and reports it "0 percent visible": the preview's info panel
-    // sizes to its content (`maxHeight: "45%"` with no height of its own) while
-    // the ScrollView inside it asks for `flex: 1`, so the ScrollView collapses
-    // to zero and the map's `flex: 1` takes the screen. On a Pixel 6 the whole
-    // preview is a map and two buttons — no distance, no ETA, no threat
-    // warnings and no advisory disclaimer. See the testFnFailure.png artifact
-    // from E2E run 35137927287, which is what found it.
-    //
-    // Restore `toBeVisible` when app/route-preview/index.tsx gives the panel a
-    // measured height. The provenance claim holds either way; what this cannot
-    // currently claim is that a user saw it.
+    // `toBeVisible`, not `toExist`, and the difference is load-bearing here.
+    // This assertion spent one commit as `toExist` because Espresso found the
+    // view with this exact text and reported it "0 percent visible": the
+    // preview's info ScrollView was collapsed to zero height, so distance,
+    // ETA, threat warnings and the advisory disclaimer never reached the user
+    // either. That is the bug this suite found on its first real run
+    // (E2E 35137927287), and the styles in app/route-preview/index.tsx now
+    // explain it. Asserting visibility is what keeps it fixed.
     await expect(
       element(by.text("via Mock Route (Valhalla unavailable)")),
-    ).toExist();
+    ).toBeVisible();
   });
 
   it("starts navigation", async () => {

@@ -194,6 +194,10 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
   },
+  // The panel hugs its content and stops at 45% of the screen. Both halves of
+  // that matter: a short route (the common case — no threats, no resource
+  // stops) should not leave a band of empty sheet above the buttons, and a
+  // route with three threat warnings should not push Go off the bottom.
   infoPanel: {
     backgroundColor: colors.surfaceElevated,
     borderTopLeftRadius: 20,
@@ -204,8 +208,25 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     maxHeight: "45%",
   },
+  // flexShrink, NOT flex: 1. This was `flex: 1` and it rendered the whole
+  // panel — distance, duration, ETA, the route summary, threat warnings and
+  // the advisory disclaimer — at zero height on every device, so the preview
+  // was a full-screen map with two buttons under it (E2E run 35137927287).
+  //
+  // `flex: 1` is shorthand for flexBasis: 0, and infoPanel above has no height
+  // of its own: it sizes to its content. A child contributing a basis of 0
+  // adds nothing to that content height, so the panel collapsed to the height
+  // of the actions row, left no free space for the ScrollView's flexGrow to
+  // claim, and mapContainer's own flex: 1 took the screen. maxHeight capped a
+  // height that was never established.
+  //
+  // flexShrink: 1 with the default flexBasis: auto is what the design wants:
+  // the ScrollView measures its content, so the panel's intrinsic height is
+  // real, and when maxHeight clamps the panel the ScrollView is the one child
+  // that gives way — it scrolls, and the actions row (flexShrink: 0 by
+  // default) keeps its height and stays reachable.
   infoScroll: {
-    flex: 1,
+    flexShrink: 1,
   },
   summaryRow: {
     flexDirection: "row",
