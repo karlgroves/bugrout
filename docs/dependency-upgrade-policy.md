@@ -128,8 +128,18 @@ evidence that a resolved version is the intended one.
 
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
-the resolved versions, not just the manifest, whenever an override changes. All
-23 are bounded as of #126.
+the resolved versions, not just the manifest, whenever an override changes. The
+sweep that bounded every one of them was #126; there are 25 now, and all 25 are
+bounded.
+
+**A bounded override is not finished, it is dated.** Its upper bound records the
+advisories known when it was written, and the next one lands inside it. When
+that happens the entry is tightened in place rather than added to —
+`js-yaml@>=3 <3.15.1` became `>=3 <3.15.2` for CVE-2026-84375, which the
+previous bound predated. Adding a second entry for the same major instead would
+leave two overlapping rules for one package; which of them wins has not been
+tested here, and an override whose effect nobody has established is the thing
+this whole section is about.
 
 ## What runs in CI instead
 
