@@ -139,7 +139,17 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # `packages:` is set because the action's own default is now broken.
+      # It defaults to "tools platform-tools", and Google has withdrawn the
+      # obsolete `tools` package from the SDK repository, so sdkmanager exits 1
+      # with "Failed to find package 'tools'" and this job dies 24 seconds in,
+      # before it checks anything out. v4.0.1 is the newest release, so there
+      # is no version to bump to. platform-tools is what the job actually needs
+      # (adb, for the emulator runner below); everything else comes from the
+      # cmdline-tools bundle the action installs anyway.
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       # The app uses the managed workflow, so android/ does not exist in git.
       # Detox needs a real Gradle project, so generate it first.
