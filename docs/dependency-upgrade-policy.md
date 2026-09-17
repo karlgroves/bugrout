@@ -128,8 +128,45 @@ evidence that a resolved version is the intended one.
 
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
-the resolved versions, not just the manifest, whenever an override changes. All
-23 are bounded as of #126.
+the resolved versions, not just the manifest, whenever an override changes. The
+sweep that bounded every one of them was #126; there are 25 now, and all 25 are
+bounded.
+
+**Bounding an override is half the check. The other half is the consumer.** A
+replacement range can be perfectly bounded and still land outside what the
+package that depends on it asks for — which is what #28 actually was, an
+unbounded `uuid` override resolving past its consumer. Two of the entries here
+cross an _exact_ pin:
+
+| consumer                       | declares          | forced to |
+| ------------------------------ | ----------------- | --------- |
+| `miniflare@5.20260801.0-alpha` | `sharp@0.35.2`    | `0.35.4`  |
+| `markdownlint-cli2@0.23.2`     | `smol-toml@1.7.0` | `1.8.0`   |
+
+Both were exercised rather than argued. `sharp` is a native package, so the
+check is that it loads through the live resolution path — `wrangler` →
+`miniflare` → `sharp@0.35.4`, libvips 8.18.6, API responding — and not merely
+that the lockfile records the version. `smol-toml` is exercised by
+`pnpm run markdownlint`, which passes. The `js-yaml` entries need no such note:
+every consumer declares a caret range that already contains the fixed version.
+
+Two traps when checking this by hand. A naive grep of the store finds
+`wrangler@4.119.0` declaring `smol-toml@1.5.2`, which looks like a third
+crossing — it is a **devDependency**, so it is neither installed nor affected.
+And the store keeps orphaned directories from earlier installs: reading
+`node_modules/.pnpm/miniflare@*` without the peer suffix finds a stale copy
+still linked to the old `sharp`, while the live one carries a
+`_@types+node@25.5.2` suffix. Follow the symlinks from a workspace rather than
+globbing the store.
+
+**A bounded override is not finished, it is dated.** Its upper bound records the
+advisories known when it was written, and the next one lands inside it. When
+that happens the entry is tightened in place rather than added to —
+`js-yaml@>=3 <3.15.1` became `>=3 <3.15.2` for CVE-2026-84375, which the
+previous bound predated. Adding a second entry for the same major instead would
+leave two overlapping rules for one package; which of them wins has not been
+tested here, and an override whose effect nobody has established is the thing
+this whole section is about.
 
 ## What runs in CI instead
 
