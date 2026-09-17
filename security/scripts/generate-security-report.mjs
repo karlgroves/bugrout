@@ -226,7 +226,7 @@ const target =
 const tools = [
   ["semgrep", version("semgrep", ["--version"])],
   ["osv-scanner", version("osv-scanner", ["--version"])],
-  ["gitleaks", version("gitleaks", ["version"])],
+  ["trufflehog", version("trufflehog", ["--version"])],
   ["trivy", version("trivy", ["--version"])],
   ["hadolint", version("hadolint", ["--version"])],
   ["checkov", version("checkov", ["--version"])],

@@ -53,7 +53,7 @@ console.log(
 console.log(
   "- Tests: jest-expo (apps/mobile), Detox e2e; co-located __tests__/",
 );
-console.log("- Hooks: Husky pre-commit lint-staged+gitleaks, pre-push check");
+console.log("- Hooks: Husky pre-commit lint-staged+trufflehog, pre-push check");
 console.log(
   "- Docs: CLAUDE.md (architecture), docs/adr/ (decisions), docs/tech-debt.md (ledger)",
 );

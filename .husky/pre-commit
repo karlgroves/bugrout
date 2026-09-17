@@ -5,4 +5,4 @@
 set -e
 
 pnpm exec lint-staged
-gitleaks protect --staged --no-banner --redact
+node security/scripts/trufflehog.mjs --staged

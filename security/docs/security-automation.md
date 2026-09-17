@@ -54,23 +54,31 @@ warning to a failure, per `security-thresholds.json`.
 
 ## How to update the secrets baseline
 
-There is no baseline file. `gitleaks detect --no-banner --redact` scans full
-history and currently reports nothing, so a baseline would only be a place for
-findings to hide.
+There is no baseline file. `pnpm run security:secrets` scans full history and
+currently reports nothing, so a baseline would only be a place for findings to
+hide.
 
-If gitleaks reports a finding:
+If it reports a finding:
 
 1. **Assume it is real.** Rotate the credential first, then investigate. A
    leaked key is not made safe by concluding it was a test value.
-2. If it is genuinely not a secret, add a narrowly-scoped `gitleaks:allow`
-   comment on the offending line, with a reason. Do not add a global allowlist
-   rule — that suppresses the pattern everywhere, including where it matters.
+2. If it is genuinely not a secret, add a narrowly-scoped `trufflehog:ignore`
+   comment on the offending line, with a reason. Verified to work: a line
+   carrying that comment is not reported. Do not exclude a path or disable a
+   detector — that suppresses the pattern everywhere, including where it
+   matters.
 3. A confirmed secret **may not be excepted**. See `security-exceptions.md`.
+
+The scan prints the detector, the file and a hash, never the credential.
+TruffleHog itself has no `--redact`, so `security/scripts/trufflehog.mjs` reads
+its JSON and withholds the value — a world-readable CI log on a public repo is
+the last place a leaked key should be reproduced.
 
 ## How to audit suspected secrets
 
 ```bash
-gitleaks detect --no-banner --redact --verbose
+pnpm run security:secrets                # full history, values withheld
+node security/scripts/trufflehog.mjs --print   # the exact underlying command
 git log -S '<fragment>' --oneline        # when did it enter?
 git log --all --full-history -- <path>   # is it still reachable on any branch?
 ```
@@ -155,7 +163,7 @@ belongs in `exceptions.json` with an expiry.
 ## How to update tools
 
 Scanner binaries come from `scripts/bootstrap.sh` and are pinned by version in
-the workflows (Trivy, Hadolint, gitleaks). To move one:
+the workflows (Trivy, Hadolint, trufflehog). To move one:
 
 1. Bump the version in `.github/workflows/security.yml`.
 2. Run the full suite locally on the new version first — a scanner upgrade
@@ -177,5 +185,6 @@ usually a new rule rather than new code.
 - **OWASP Dependency-Check.** Reasoning is recorded in `security.yml`.
 - **Scheduled scans.** Every check runs on the pull request that introduces the
   problem. See the CI policy in `CLAUDE.md`.
-- **`gitleaks-action`.** The CLI is used instead; §5.1 forbids the Action by
-  name and this repository is public.
+- **A scanner Action** (`gitleaks-action`, `trufflehog-actions-scan`). The CLI
+  is used instead; §5.1 forbids a scanner Action by name and this repository is
+  public.

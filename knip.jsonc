@@ -11,17 +11,17 @@
   // Binaries this repository calls but deliberately does not vendor. All of
   // these are scanners installed outside the package manager: `bash
   // scripts/bootstrap.sh` puts the first eight on PATH, and CI installs
-  // gitleaks itself from a checksum-verified release (ci.yml). Adding them as
+  // trufflehog itself from a checksum-verified release (ci.yml). Adding them as
   // npm dependencies would mean a second, divergent copy of each.
   "ignoreBinaries": [
     "actionlint",
     "checkov",
-    "gitleaks",
     "hadolint",
     "lychee",
     "osv-scanner",
     "semgrep",
     "trivy",
+    "trufflehog",
     // Not installed by bootstrap.sh either: `serve` is run through npx by
     // usecases:serve, and usecase-runner is an external tool the use-case
     // suite shells out to.

@@ -83,7 +83,7 @@ pnpm run e2e:smoke   # all five specs, against a Pixel_6_API_33 AVD
 # Run a specific backend worker locally
 cd backend/workers/tile-server && pnpm dev
 
-# Install scanner binaries (gitleaks, semgrep, osv-scanner, lychee)
+# Install scanner binaries (trufflehog, semgrep, osv-scanner, lychee)
 bash scripts/bootstrap.sh
 ```
 
@@ -98,7 +98,7 @@ bash scripts/bootstrap.sh
 - **TypeScript:** `tsconfig.base.json` is strict + `noUncheckedIndexedAccess`
   - `exactOptionalPropertyTypes`. All workspaces extend it except `apps/mobile`
     (extends `expo/tsconfig.base`, flags repeated inline).
-- **Hooks (Husky):** pre-commit = lint-staged + gitleaks; commit-msg =
+- **Hooks (Husky):** pre-commit = lint-staged + trufflehog; commit-msg =
   commitlint (Conventional Commits — commit messages MUST be conventional);
   pre-push = `pnpm run check` + dupes/workflow-lint/secrets/licenses.
 - **actionlint:** `pnpm run lint:actions` lints every workflow — syntax,
