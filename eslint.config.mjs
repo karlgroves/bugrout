@@ -274,7 +274,7 @@ export default tseslint.config(
         { definedTags: ["remarks", "public", "internal", "beta"] },
       ],
 
-      // Secrets (complements gitleaks)
+      // Secrets (complements trufflehog)
       "no-secrets/no-secrets": [
         "error",
         { tolerance: 4.5, ignoreContent: ["https?://", "data:image/"] },

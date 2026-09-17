@@ -23,7 +23,7 @@ by Turborepo.
 - Turborepo stays (issue #1 only excludes monorepo tooling "for single-project
   repos"); `lint`/`typecheck`/`test` tasks do not depend on `^build` since
   internal packages are consumed as source.
-- Repo-global scanners (jscpd, gitleaks, semgrep, osv-scanner, lychee, license
+- Repo-global scanners (jscpd, trufflehog, semgrep, osv-scanner, lychee, license
   checker) run once at the root via plain scripts, not through Turbo.
 
 ## Consequences

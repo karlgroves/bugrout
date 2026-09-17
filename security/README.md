@@ -51,7 +51,12 @@ Start with [`docs/security-automation.md`](docs/security-automation.md).
   developer's shell run the identical command.
 - **`trivy.yaml`, `checkov.yaml` and `detect-secrets.filters` are absent.**
   Trivy and Checkov are configured on the command line in `security.yml`;
-  gitleaks is used instead of detect-secrets, per §5.1.
+  trufflehog is used instead of detect-secrets.
+- **trufflehog is used, not gitleaks.** §5.1 names gitleaks, and this repository
+  moved first; the baseline is being updated fleet-wide to match, so this is a
+  leading change rather than a deviation. Two things about the tool drove how it
+  is wired: it has no `--redact`, and it exits 183 rather than 1. Both are
+  handled in `security/scripts/trufflehog.mjs` — see its docblock.
 - **The §10 test templates for authentication, sessions, uploads and business
   logic are absent.** BugRout has no accounts, no sessions, no uploads and no
   commerce. `docs/security-test-matrix.md` lists each one and why, so their

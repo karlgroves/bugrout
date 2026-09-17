@@ -32,7 +32,7 @@
     "security:container": "trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --quiet \"$BUGROUT_IMAGE\"",
     "security:osv": "osv-scanner scan --lockfile pnpm-lock.yaml",
     "security:semgrep": "node security/scripts/semgrep.mjs",
-    "security:secrets": "gitleaks detect --no-banner --redact",
+    "security:secrets": "node security/scripts/trufflehog.mjs",
     "security:tests": "node --import tsx --test security/tests/*.test.ts",
     "security:headers": "node security/scripts/check-headers.js",
     "security:report": "node security/scripts/generate-security-report.mjs",

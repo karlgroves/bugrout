@@ -235,26 +235,34 @@ internally consistent.
 
 ## Pinned scanner binaries
 
-`ci.yml` installs `gitleaks` by downloading a pinned release and verifying its
+`ci.yml` installs `trufflehog` by downloading a pinned release and verifying its
 SHA-256 before running it. A pinned URL on its own still trusts whatever bytes
 the CDN returns; the checksum is what makes the pin mean something.
 
 Two values have to move together when bumping it:
 
 ```yaml
-GITLEAKS_VERSION: 8.30.1
-GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+TRUFFLEHOG_VERSION: 3.97.4
+TRUFFLEHOG_SHA256: dc24007c2f233bd61c05beabeb44aa27ea9b43288166279209abe0458c5ce76b
 ```
+
+Pick the version Homebrew ships as stable rather than the newest release, so
+`scripts/bootstrap.sh` and CI put the same binary on PATH. A scanner that finds
+different things locally than in CI is worse than one a few days old.
 
 To get the new checksum, download the asset and hash it — do not copy a value
 from a release page you have not verified:
 
 ```bash
-V=8.31.0
-A="gitleaks_${V}_linux_x64.tar.gz"
-curl -sSLf -O "https://github.com/gitleaks/gitleaks/releases/download/v${V}/${A}"
+V=3.97.5
+A="trufflehog_${V}_linux_amd64.tar.gz"
+curl -sSLf -O "https://github.com/trufflesecurity/trufflehog/releases/download/v${V}/${A}"
 shasum -a 256 "$A"
 ```
+
+The release also publishes `trufflehog_${V}_checksums.txt` alongside a sigstore
+`.sig`/`.pem` pair, so the value above can be cross-checked against a signed
+manifest rather than only against your own download.
 
 This fails closed: bump the version without the checksum and
 `sha256sum --check --strict` rejects the download before the binary runs. That

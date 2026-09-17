@@ -25,7 +25,7 @@ for the architecture map.
 
 - Node 22 (`.nvmrc` — `nvm use`)
 - pnpm 10 (`corepack enable`)
-- For the full local gate: `semgrep`, `osv-scanner`, `gitleaks`, `lychee`
+- For the full local gate: `semgrep`, `osv-scanner`, `trufflehog`, `lychee`
   (`bash scripts/bootstrap.sh` installs anything missing)
 
 ## Install
@@ -53,12 +53,12 @@ cd apps/mobile && npx jest                # unit tests
 Local hooks (Husky) are the primary gate; GitHub Actions is a safety net for
 anything that bypasses them (`--no-verify`, web-UI merges).
 
-| Hook       | Runs                                                            |
-| ---------- | --------------------------------------------------------------- |
-| pre-commit | lint-staged (ESLint --fix + Prettier on staged files), gitleaks |
-| commit-msg | commitlint (Conventional Commits)                               |
-| pre-push   | `pnpm run check` + duplication/workflow-lint/secrets/licenses   |
-| post-merge | reinstall + audit when `pnpm-lock.yaml` changed                 |
+| Hook       | Runs                                                              |
+| ---------- | ----------------------------------------------------------------- |
+| pre-commit | lint-staged (ESLint --fix + Prettier on staged files), trufflehog |
+| commit-msg | commitlint (Conventional Commits)                                 |
+| pre-push   | `pnpm run check` + duplication/workflow-lint/secrets/licenses     |
+| post-merge | reinstall + audit when `pnpm-lock.yaml` changed                   |
 
 Linting is a single root [`eslint.config.mjs`](eslint.config.mjs)
 (typescript-eslint strict, naming-convention, React Native a11y, security,
