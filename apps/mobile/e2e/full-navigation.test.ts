@@ -70,6 +70,8 @@
 
 import { by, device, element, expect, waitFor } from "detox";
 
+import { DISCLAIMER_SHORT } from "../constants/legal";
+
 import { launchToMapScreen } from "./support/launch";
 import { createScenario } from "./support/scenario";
 
@@ -200,13 +202,14 @@ describe("Full evacuation journey", () => {
     // thinks it is, which is not something this spec should pin.
     await expect(element(by.text("Distance"))).toBeVisible();
     await expect(element(by.text("ETA"))).toBeVisible();
-    await expect(
-      element(
-        by.text(
-          "BugRout provides advisory routing only. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.",
-        ),
-      ),
-    ).toBeVisible();
+
+    // The imported constant, not a copy of its text. A pasted literal would
+    // break this spec the day the wording changes — and constants/legal.ts is
+    // not in e2e.yml's path filter, so that edit would not even run this job
+    // to find out. Importing makes the assertion follow the source instead:
+    // what it pins is that the screen still renders the disclaimer, which is
+    // the part that is a legal requirement rather than the exact words.
+    await expect(element(by.text(DISCLAIMER_SHORT))).toBeVisible();
   });
 
   it("starts navigation", async () => {
