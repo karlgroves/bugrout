@@ -41,9 +41,15 @@
  *   That is #131's option 2, and it turned out to be enough on its own — no
  *   test-only seam in production code, which was option 3 and is still the
  *   thing to resist.
- * - **Route** from `buildMockRoute`, because Valhalla is unreachable: no tiles
- *   on the emulator, and `EXPO_PUBLIC_VALHALLA_URL` is unset in a CI build, so
- *   the HTTP path resolves to localhost:8002 and is refused.
+ * - **Route** from `buildMockRoute`, because Valhalla is never initialised at
+ *   all. AppBootstrap gates `initValhalla` on `hasDownloadedTiles &&
+ *   activeRegion`, and a spec that reinstalls the app has no downloaded tiles,
+ *   so `config` stays null and `calculateRoute` returns the mock on its first
+ *   branch. Measured, not assumed: the device log for E2E run 35141485633
+ *   holds exactly one Valhalla line, "[BugRout] Valhalla not initialized —
+ *   using mock route." No HTTP request is made, and localhost:8002 is never
+ *   contacted — if tiles are ever seeded in CI, that changes and this note is
+ *   the thing to re-check.
  *
  * Nothing here talks to a third-party service, which is the failure this spec
  * exists to stop repeating rather than to work around.

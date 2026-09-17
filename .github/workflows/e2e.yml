@@ -71,13 +71,17 @@ on:
       # suite depends on them just as hard, so the filter now covers every file
       # it addresses rather than only the ones likeliest to drift.
       #
-      # The first four below were kept here through #130 while no spec
+      # The first three below were kept here through #130 while no spec
       # addressed them, on the grounds that deleting them would make #131 land
       # silently unguarded. #131 has landed: full-navigation.test.ts drives the
       # whole journey again, so route-preview-go-btn and stop-navigation-btn
       # are live locators once more. emergency-contact-btn still is not — the
       # journey stops rather than texting anyone — but it sits on the same
       # bottom bar as the Stop button that the suite does tap.
+      #
+      # StatusIndicator is the fourth and was never in that position:
+      # navigation-flow.test.ts has asserted status-indicator since long before
+      # #130, and the journey spec now asserts it during navigation too.
       - "apps/mobile/app/route-preview/**"
       - "apps/mobile/app/navigation/**"
       - "apps/mobile/components/navigation/**"
@@ -142,11 +146,16 @@ jobs:
       # `packages:` is set because the action's own default is now broken.
       # It defaults to "tools platform-tools", and Google has withdrawn the
       # obsolete `tools` package from the SDK repository, so sdkmanager exits 1
-      # with "Failed to find package 'tools'" and this job dies 24 seconds in,
-      # before it checks anything out. v4.0.1 is the newest release, so there
-      # is no version to bump to. platform-tools is what the job actually needs
-      # (adb, for the emulator runner below); everything else comes from the
-      # cmdline-tools bundle the action installs anyway.
+      # with "Failed to find package 'tools'" and takes the job with it. Every
+      # step above this one succeeds first — checkout, the pnpm install, the
+      # JDK — so the run reads as 24 seconds of green followed by a failure
+      # that never reaches a line of app code. v4.0.1 is the newest release, so
+      # there is no version to bump to.
+      #
+      # platform-tools is what this job actually needs from sdkmanager: adb,
+      # which Detox and the emulator runner drive the device through. The
+      # emulator binary and the system image are not sdkmanager's job here at
+      # all — reactivecircus/android-emulator-runner installs those itself.
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
           packages: platform-tools
