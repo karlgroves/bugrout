@@ -35,7 +35,6 @@ export interface ValhallaConfig {
 }
 
 let config: ValhallaConfig | null = null;
-let ready = false;
 const DEFAULT_PORT = 8002;
 
 /** Active integration once init resolves. "native" routes in-process via the
@@ -85,7 +84,6 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
         await native.init(cfg.tileDir);
         nativeModule = native;
         activeApproach = "native";
-        ready = true;
         return;
       }
     } catch (err) {
@@ -97,26 +95,16 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
     }
   }
 
-  activeApproach = "http";
-
   // Approach B: HTTP server. Either a remote service (EXPO_PUBLIC_VALHALLA_URL
   // / cfg.baseUrl) or a local bundled binary started by the config plugin.
-  const baseUrl = resolveBaseUrl(cfg);
-  try {
-    const resp = await fetch(`${baseUrl}/status`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (resp.ok) {
-      ready = true;
-      return;
-    }
-  } catch {
-    // Server not reachable — first route call will fall back to mock
-  }
-
-  // Mark as ready optimistically — the first route call will fail
-  // gracefully if the server isn't actually running
-  ready = true;
+  // Nothing is probed here: init used to GET /status with a 5s timeout purely
+  // to set a `ready` flag that no caller ever read (both removed in #134).
+  // Reachability is decided per request — calculateRoute() falls back to a mock
+  // straight-line route when the server does not answer — so the probe only
+  // cost a network round trip on every boot that reached this function at all,
+  // which is every boot with downloaded tiles (AppBootstrap gates the call on
+  // `hasDownloadedTiles && activeRegion`).
+  activeApproach = "http";
 }
 
 /**
@@ -175,13 +163,6 @@ export async function calculateRoute(
     console.warn("[BugRout] Valhalla unavailable, using mock route:", err);
     return buildMockRoute(origin, destination);
   }
-}
-
-/**
- * Check if Valhalla engine is initialized and ready.
- */
-export function isReady(): boolean {
-  return ready;
 }
 
 /**

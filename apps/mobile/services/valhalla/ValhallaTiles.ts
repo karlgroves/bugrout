@@ -16,21 +16,21 @@ import type { DownloadedRegion } from "@bugrout/shared";
 /**
  *
  */
-export type ValhallaApproach = "native" | "http";
+type ValhallaApproach = "native" | "http";
 
 /**
  * Approach selected at build time via EXPO_PUBLIC_VALHALLA_APPROACH (mirrors
  * app.config.ts `extra.valhallaApproach`). Defaults to "http" so dev/preview
  * builds without the native binaries keep using the remote Fly service.
  */
-export function configuredApproach(): ValhallaApproach {
+function configuredApproach(): ValhallaApproach {
   return process.env.EXPO_PUBLIC_VALHALLA_APPROACH === "native"
     ? "native"
     : "http";
 }
 
 /** True when the region's Valhalla archive is present and non-empty on disk. */
-export async function hasOfflineValhallaTiles(
+async function hasOfflineValhallaTiles(
   region: DownloadedRegion,
 ): Promise<boolean> {
   if (!region.valhallaTilesPath) return false;

@@ -284,46 +284,93 @@ That is one command, in one shell, visible in the transcript — as opposed to
 editing `pnpm-workspace.yaml`, which silently lowers the floor for everybody and
 tends not to get put back.
 
-### `trustPolicy` exempts one verified false positive
+### `trustPolicy` exempts eleven verified false positives
 
-`semver@6.3.1` trips `trustPolicy: no-downgrade`, and it is a false positive.
-The evidence is on the registry — `trustPolicy` compares publish _dates_ across
-the whole package, ignoring release lines:
+`trustPolicy: no-downgrade` refuses any version with weaker trust evidence than
+some earlier-published version of the same package. Eleven packages in this
+lockfile trip it, and all eleven are false positives — checked against the
+registry one at a time, not assumed.
 
-| version | published        | provenance attestation |
-| ------- | ---------------- | ---------------------- |
-| 7.5.1   | 2023-05-12       | yes                    |
-| 7.5.4   | 2023-07-07       | yes                    |
-| 5.7.2   | 2023-07-10 19:57 | **no**                 |
-| 6.3.1   | 2023-07-10 22:38 | **no**                 |
+They are not eleven unrelated judgement calls. They are one defect in the check,
+seen eleven times. **npm provenance attaches to the release path, not to the
+version.** A project whose nightlies and canaries publish from CI and whose
+stable releases are cut by a human will publish an attested prerelease and then
+an unattested release dated after it, every single time. `trustPolicy` compares
+publish _dates_ across the whole package, so it reads that ordinary release
+practice as trust going backwards. It is the entire React Native ecosystem, and
+it is what this app is built on.
 
-`5.7.2` and `6.3.1` are the CVE-2022-25883 backports to the old majors,
-published from a release path that predates provenance. Because they are dated
-_after_ the 7.5.x line that had it, pnpm reads them as trust going backwards.
+| package@version                   | published  | publisher            | what precedes it                                    |
+| --------------------------------- | ---------- | -------------------- | --------------------------------------------------- |
+| `expo@54.0.37`                    | 2026-08-17 | `alanhughes`         | SDK 58 canaries, CI-published, five days earlier    |
+| `expo-constants@18.0.14`          | 2026-08-17 | `alanhughes`         | same canaries                                       |
+| `expo-file-system@19.0.24`        | 2026-08-17 | `alanhughes`         | same canaries                                       |
+| `expo-modules-autolinking@3.0.27` | 2026-08-17 | `alanhughes`         | same canaries                                       |
+| `jest-expo@54.0.18`               | 2026-08-17 | `alanhughes`         | same canaries                                       |
+| `react-native-reanimated@4.1.7`   | 2026-03-20 | `bartlomiejbloniarz` | a CI nightly from the day before                    |
+| `react-native-screens@4.16.0`     | 2025-09-04 | `kligarski`          | a CI nightly from the day before                    |
+| `react-native-worklets@0.5.1`     | 2025-09-09 | `tjzel`              | a CI nightly from the day before                    |
+| `semver@6.3.1`                    | 2023-07-10 | `lukekarrys`         | the CI-published 7.5.x line                         |
+| `ua-parser-js@1.0.41`             | 2025-08-19 | `faisalman`          | the CI-published 2.x line                           |
+| `undici-types@6.21.0`             | 2024-11-13 | `matteo.collina`     | 6.13.0–6.19.2 had provenance; 6.19.3 onward did not |
 
-Two facts from the registry separate this from a real takeover, and both are
-checkable rather than asserted. **`6.3.1` carries a valid npm signature** — what
-it lacks is only the newer provenance attestation. And the publishers line up
-with the story: the backports were published by `lukekarrys`, an npm CLI
-maintainer, while the attestation-bearing 7.5.x releases came from CI
-automation. A manual backport from a human account is exactly why no attestation
-exists.
+Every flagged version is **npm-signed**, and in every case the publisher also
+published attested versions of the same package. None is a takeover.
 
-It is pinned in `pnpm-workspace.yaml`:
+Three of them make the pattern concrete:
 
-```yaml
-trustPolicyExclude:
-  - semver@6.3.1
-```
+- **`expo@54.0.37`** — 4 of expo's 972 published versions carry an attestation
+  and every one of those four is an SDK 58 canary. The stable SDK 54 patch line
+  has never had one.
+- **`react-native-worklets@0.5.1`** — `0.6.0-nightly-20250908` was published
+  from CI with provenance the day before, so a stable release cut by the
+  package's own maintainer reads as a downgrade from a nightly.
+- **`semver@6.3.1`** — the CVE-2022-25883 backport to the 6.x line, published by
+  an npm CLI maintainer alongside the `5.7.2` backport. The 7.5.x line that
+  precedes it was published by `npm-cli-ops` from CI. A manual backport from a
+  human account is exactly why no attestation exists.
 
-**The exemption is one name at one version, and that was verified rather than
-assumed.** Pointing the entry at `semver@6.3.0` and forcing a resolve makes the
-install fail again on `6.3.1` — so `trustPolicy` stays fully in force for every
-other package, and a genuine downgrade anywhere else still fails.
+**None of these versions is ours to move.** The five Expo packages plus
+reanimated and screens are pinned by the SDK 54 set that `pnpm run doctor`
+enforces, worklets 0.5.1 is what reanimated 4.1.7 requires, and `undici-types`
+and `semver` are transitive. So the choice is not "exempt these or upgrade
+them"; it is "exempt these or make no dependency change at all".
 
-#### Why this replaced the per-install flag
+#### How the list was produced
 
-PR #120 chose the visible-per-install form instead:
+`pnpm` reports one violation per install, so discovering eleven this way takes
+eleven installs and tells you nothing about the twelfth. Read the lockfile
+against the registry instead: for each `name@version` in `pnpm-lock.yaml`, fetch
+`https://registry.npmjs.org/<name>` and flag any version whose trust evidence
+(attestation > npm signature > none) is weaker than that of some
+earlier-published version. That is a single pass over 1081 packages, and it is
+what turns "eleven so far" into **eleven of 1081**.
+
+#### This list goes stale silently
+
+The entries are version-pinned, so bumping the Expo SDK invalidates five of them
+and introduces five replacements — and nothing will tell you. Every other
+suppression in this repository is self-policing: `osv-scanner.toml` entries have
+`ignoreUntil` dates _and_ osv-scanner reports an ignore as unused once the
+advisory leaves the tree, and `patchedDependencies` fails the install outright
+with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither — verified, an
+entry naming a package absent from the tree installs silently.
+
+So: **re-run the scan above after any upgrade that moves these packages**, and
+delete the entries that no longer match. The block carries an advisory
+`Review by 2026-11-11` on the same horizon as the osv ignores, because it is the
+one class of suppression here that can rot without saying so.
+
+#### The exemption is narrow, and that was verified
+
+Each entry is an exact name at an exact version, never a package-wide
+relaxation. Pointing the semver entry at `semver@6.3.0` instead and forcing a
+resolve makes the install fail again on `6.3.1` — so `trustPolicy` stays fully
+in force for every other package, and for every other version of these eleven.
+
+#### Why config entries and not a per-install flag
+
+PR #120 chose the visible-per-install form:
 
 ```bash
 pnpm install --trust-policy-exclude "semver@6.3.1"
@@ -338,14 +385,14 @@ occasional exception, it was a precondition of every dependency change — and o
 that fails closed for anyone who does not know to type it, including future
 automation.
 
-A per-install flag that is always required is not more visible than a config
-entry; it is just less reliable. The standing entry above is narrower than it
-looks — one pinned version, with a written retirement condition — and it is in a
-file that is reviewed.
+That argument only got stronger at eleven packages: the command line would now
+carry eleven flags, and every one of them would have to be retyped on every
+dependency change. A per-install flag that is always required is not more
+visible than a config entry; it is just less reliable.
 
-**Do not read the error's package as the cause** if it ever fires again. It
-names `eslint-plugin-import` only because that is where resolution reached
-`semver@6.3.1` first:
+**Do not read the error's package as the cause.** It names whichever package
+resolution reached first — `eslint-plugin-import` for the semver case, and
+`@types/node` for `undici-types`:
 
 ```console
 $ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
@@ -356,19 +403,9 @@ $ awk '/^  [^ ]/{pkg=$0} /semver: 6\.3\.1/{print pkg}' pnpm-lock.yaml
   ... 9 more, incl. eslint-plugin-react, istanbul-lib-instrument
 ```
 
-**Nothing enforces the retirement of this one, so it carries a review date.**
-Every other suppression in this repository is self-policing: `osv-scanner.toml`
-entries have `ignoreUntil` dates _and_ osv-scanner reports an ignore as unused
-once the advisory leaves the tree, and `patchedDependencies` fails the install
-outright with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither —
-verified, an entry naming a package absent from the tree installs silently. That
-makes it the one suppression here that can rot without saying so, which is the
-"permanent suppression" `osv-scanner.toml` warns against. Hence the advisory
-`Review by 2026-11-11` in the config, on the same horizon as the osv ignores.
-
-Retire the entry when npm backfills provenance onto `semver@6.3.1`, or when the
-Babel chain stops depending on `semver` 6. The test is concrete: delete the two
-lines, force a resolve, and see whether it still fails.
+Retire an entry when npm backfills provenance onto that version, or when the
+package leaves the tree. The test is concrete: delete the line, force a resolve
+(any manifest change will do), and see whether it still fails.
 
 ## One known-vulnerable transitive package
 

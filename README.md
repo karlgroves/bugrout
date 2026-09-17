@@ -37,8 +37,9 @@ pnpm install        # also installs the Husky git hooks
 ## Everyday commands
 
 ```sh
-pnpm run check       # format check + lint + typecheck + tests (Turbo-cached)
+pnpm run check       # format check + lint + typecheck + knip + tests
 pnpm run check:all   # check + duplication, links, security scans, licenses
+pnpm run knip        # unused files, exports, and dependencies
 pnpm run lint:fix    # autofix lint
 pnpm run format      # prettier --write
 
@@ -64,6 +65,13 @@ Linting is a single root [`eslint.config.mjs`](eslint.config.mjs)
 sonarjs, import hygiene, TSDoc enforcement). Decisions and deviations from the
 org tooling baseline are documented as ADRs in [`docs/adr/`](docs/adr/);
 grandfathered violations live in [`docs/tech-debt.md`](docs/tech-debt.md).
+
+[Knip](https://knip.dev) covers what ESLint structurally cannot: it reads the
+whole module graph, so it catches files nothing imports, exports nothing
+consumes, dependencies nothing requires, and imports missing from
+`package.json`. It runs inside `pnpm run check` and the gate is **zero
+findings** — every exemption is a named entry with a written reason in
+[`knip.jsonc`](knip.jsonc), never a disabled issue type.
 
 ## Contributing
 

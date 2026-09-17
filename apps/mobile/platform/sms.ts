@@ -13,20 +13,6 @@ export interface SMSResult {
 }
 
 /**
- * Reports whether the device can send SMS messages; always false on web.
- */
-export async function isAvailableAsync(): Promise<boolean> {
-  if (Platform.OS === "web") return false;
-  try {
-    const mod = "expo-sms";
-    const SMS = require(mod);
-    return await SMS.isAvailableAsync();
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Sends an SMS to the given recipients, showing a preview alert on web and
  * gracefully degrading to an alert when SMS is unavailable.
  */

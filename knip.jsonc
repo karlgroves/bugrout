@@ -1,0 +1,109 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+
+  // Every entry below is an exemption for a specific, named reason. None of
+  // them turns off an issue type: `knip --no-progress` reports unused files,
+  // exports, types, dependencies, unlisted dependencies and unlisted binaries,
+  // and the gate is zero findings across all of them. If a new finding turns
+  // out to be a false positive, add it here WITH the reason — never reach for
+  // a category-wide `"exclude"`.
+
+  // Binaries this repository calls but deliberately does not vendor. All of
+  // these are scanners installed outside the package manager: `bash
+  // scripts/bootstrap.sh` puts the first eight on PATH, and CI installs
+  // gitleaks itself from a checksum-verified release (ci.yml). Adding them as
+  // npm dependencies would mean a second, divergent copy of each.
+  "ignoreBinaries": [
+    "actionlint",
+    "checkov",
+    "gitleaks",
+    "hadolint",
+    "lychee",
+    "osv-scanner",
+    "semgrep",
+    "trivy",
+    // Not installed by bootstrap.sh either: `serve` is run through npx by
+    // usecases:serve, and usecase-runner is an external tool the use-case
+    // suite shells out to.
+    "serve",
+    "usecase-runner",
+  ],
+
+  // No entry for the root workspace on purpose. Knip's default `project` for
+  // it is everything at the repo root that is not inside another workspace,
+  // which is wider than any glob worth writing by hand — and a hand-written
+  // one silently shrinks the gate. An explicit
+  //   "project": ["scripts/**", "security/**"]
+  // was tried here and reported zero exactly as the default does, while a dead
+  // file at tools/dead.mjs went from caught (exit 1) to invisible (exit 0).
+  // The scripts themselves need no `entry`: knip reads package.json's scripts
+  // and treats what they execute as reachable.
+  "workspaces": {
+    "apps/mobile": {
+      // Expo Router owns app/**, and knip's expo plugin already reads
+      // app.config.ts. These are the files nothing imports because a tool
+      // loads them by path.
+      "entry": [
+        // detox --configuration reads this, and it names e2e/jest.config.js,
+        // which in turn names the specs and the ts-jest transform.
+        ".detoxrc.js",
+        "e2e/jest.config.js",
+        "e2e/**/*.test.ts",
+      ],
+
+      "ignore": [
+        // Valhalla Approach A (in-process native routing). app.config.ts
+        // references this plugin from a commented-out line on purpose — the
+        // native binaries have to be built first
+        // (native-modules/valhalla/build-scripts, see that directory's
+        // SPIKE.md). Deleting it as "unused" would delete the switch that
+        // turns the approach on.
+        "native-modules/valhalla/config-plugin.js",
+      ],
+
+      "ignoreDependencies": [
+        // The platform/ wrappers require these through a variable specifier
+        // (`const mod = "expo-haptics"; require(mod)`) so that a missing
+        // native module throws at the call site and falls back to the mock,
+        // which is what makes web preview and Expo Go work. A static import
+        // would defeat that, and it is also the reason no analyser — knip,
+        // ESLint, Metro — can see the reference. See CLAUDE.md, "Platform
+        // wrappers". expo-file-system is reached as "expo-file-system/legacy".
+        "expo-battery",
+        "expo-crypto",
+        "expo-file-system",
+        "expo-haptics",
+        "expo-network",
+        "expo-sms",
+        "expo-speech",
+
+        // Named as a string in the e2e jest transform
+        // (e2e/jest.config.js), which knip's jest plugin reads as config data
+        // rather than as a module reference. The e2e specs are TypeScript run
+        // in Node, so ts-jest is what compiles them — see the docblock in that
+        // file for why it is ts-jest and not babel-jest.
+        "ts-jest",
+
+        // Peer of @testing-library/react-native and of the jest-expo preset —
+        // pulled in by name at runtime by the renderer, never imported by a
+        // test file.
+        "react-test-renderer",
+
+        // knip's expo plugin infers these from config keys rather than from
+        // any import: `userInterfaceStyle` suggests expo-system-ui and the
+        // ConfigContext spread suggests expo-updates. Neither needs installing,
+        // and the reason is checkable rather than inferred — Expo ships both as
+        // *unversioned* plugins inside @expo/prebuild-config, which run during
+        // `expo prebuild` whether or not the package is a dependency:
+        //   build/plugins/unversioned/expo-system-ui/withAndroidUserInterfaceStyle.js
+        //   build/plugins/unversioned/expo-system-ui/withIosUserInterfaceStyle.js
+        //   build/plugins/unversioned/expo-updates.js
+        // So `userInterfaceStyle: "dark"` reaches the native projects on both
+        // platforms already. Adding the packages would change nothing but the
+        // install size.
+        "expo-system-ui",
+        "expo-updates",
+      ],
+    },
+  },
+}

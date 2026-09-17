@@ -31,12 +31,16 @@ pnpm workspaces + Turborepo. Four workspace roots:
 # Install all dependencies (also installs Husky git hooks)
 pnpm install
 
-# Everyday quality gate: format check + lint + typecheck + tests + markdownlint
+# Everyday quality gate: format check + lint + typecheck + knip + tests +
+# markdownlint
 pnpm run check
 
 # Full gate: check + duplication, links, workflow lint, security scans,
 # license compliance
 pnpm run check:all
+
+# Find unused files, exports, dependencies, and unlisted dependencies
+pnpm run knip
 
 # Lint the GitHub Actions workflows (actionlint + shellcheck on `run:` blocks)
 pnpm run lint:actions
@@ -106,6 +110,15 @@ bash scripts/bootstrap.sh
   it enforce SHA-pinned `uses:`; the Semgrep rule
   `github-actions-mutable-action-tag` covers that, and the two together are the
   workflow gate.
+- **Knip:** `knip.jsonc` — unused files, exports, exported types, dependencies,
+  and unlisted dependencies/binaries, across every workspace. Runs inside
+  `pnpm run check` (~1s) and in `ci.yml`. **The gate is zero findings.** It is
+  the only check here that reads the whole module graph, so it catches what
+  ESLint cannot see from inside one file: an export nothing imports, a file
+  nothing reaches, a package in `package.json` nothing requires. Exemptions are
+  per-name with a written reason in `knip.jsonc`; never silence an issue type.
+  Dynamic `require(variableSpecifier)` in `platform/` is invisible to it by
+  design — those packages are listed under `ignoreDependencies`.
 - **Grandfathered violations** live in `docs/tech-debt.md` with file-level
   eslint-disables; new code gets no exemptions. Adaptation decisions from the
   org tooling baseline (issue #1) are ADRs in `docs/adr/`.
@@ -177,7 +190,6 @@ Key service modules (`services/` directory):
   deviation → crowd signal
 - `tiles/TileManager.ts` — Resumable tile downloads via expo-file-system, SQLite
   tracking
-- `tiles/DownloadQueue.ts` — Sequential download queue with pause/resume
 - `routing/RouteEngine.ts` — Smart routing: threat avoidance + resource
   waypoints + deviation detection
 - `routing/ThreatAvoidance.ts` — Point-in-polygon tests, Valhalla

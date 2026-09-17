@@ -46,6 +46,13 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      # Unused files, exports, dependencies and unlisted dependencies. ESLint
+      # sees one file at a time and cannot tell that an export is imported
+      # nowhere or that a package in package.json is never required; knip reads
+      # the whole module graph. Config and every exemption: knip.jsonc.
+      - name: Unused code and dependencies (knip)
+        run: pnpm run knip
+
       - name: Test
         run: pnpm run test
 

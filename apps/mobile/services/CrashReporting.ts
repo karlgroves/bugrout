@@ -157,36 +157,6 @@ export function initCrashReporting(optIn: boolean): void {
 }
 
 /**
- * Add a navigation breadcrumb (no coordinates).
- */
-export function addNavigationBreadcrumb(
-  action: string,
-  data?: Record<string, string | number | boolean>,
-): void {
-  Sentry.addBreadcrumb({
-    category: "navigation",
-    message: action,
-    data: data === undefined ? undefined : redactSensitive(data),
-    level: "info",
-  });
-}
-
-/**
- * Add an error breadcrumb.
- */
-export function addErrorBreadcrumb(
-  message: string,
-  data?: Record<string, string | number | boolean>,
-): void {
-  Sentry.addBreadcrumb({
-    category: "error",
-    message,
-    data: data === undefined ? undefined : redactSensitive(data),
-    level: "error",
-  });
-}
-
-/**
  * Capture a non-fatal error.
  */
 export function captureError(

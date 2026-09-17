@@ -7,6 +7,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
 import "react-native-reanimated";
 
+import { useConnectivityTracking } from "@/hooks/useConnectivityTracking";
 import { bootstrap, type BootstrapResult } from "@/services/AppBootstrap";
 
 export { ErrorBoundary } from "expo-router";
@@ -37,6 +38,20 @@ export default function RootLayout(): React.JSX.Element | null {
   const [bootResult, setBootResult] = useState<BootstrapResult | null>(null);
   const router = useRouter();
   const rootNavState = useRootNavigationState();
+
+  // The app's only connectivity subscription. useConnectivityStore is global
+  // and read by StatusIndicator (visible on every screen, a spec requirement)
+  // and by useDataSync's came-online trigger, but nothing wrote to it: the hook
+  // existed and no screen mounted it, so the badge read "Live" forever and the
+  // sync never fired on a connectivity change. Found by knip, which reported
+  // the hook and platform/network.ts as unreachable files (#134), and pinned by
+  // __tests__/hooks/connectivityWiring.test.ts so it cannot come unmounted
+  // again in silence.
+  //
+  // Mounted here, at the root, because one subscription serves every screen —
+  // and before the early return below, so connectivity is tracked while the
+  // splash screen is still up.
+  useConnectivityTracking();
 
   useEffect(() => {
     if (error) throw error;

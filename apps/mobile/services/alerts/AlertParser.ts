@@ -1,46 +1,15 @@
 /**
  * Alert Parser
  *
- * Parses NWS CAP (Common Alerting Protocol) alerts.
- * Determines if alerts intersect the user's active route or visible region.
+ * Determines which threat zones overlap the user's visible map region. The
+ * route-intersection test lives in routing/ThreatAvoidance, which is where
+ * both the route preview and the routing engine already read it from.
  */
 /* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (threatOverlapsBBox: geometric test with many inline coordinate guards) */
 
 import { extractRingCoordinates, pointInPolygon } from "../../utils/geo";
-import { routeIntersectsThreat } from "../routing/ThreatAvoidance";
 
-import type { ThreatZone, LatLng, BBox } from "@bugrout/shared";
-
-/**
- *
- */
-export interface AlertNotification {
-  threatZone: ThreatZone;
-  intersectsRoute: boolean;
-  message: string;
-}
-
-/**
- * Check a list of threat zones against the active route and generate notifications.
- */
-export function checkAlertsAgainstRoute(
-  threats: ThreatZone[],
-  routeCoordinates: LatLng[],
-): AlertNotification[] {
-  return threats
-    .filter((t) => t.expiresAt === null || t.expiresAt > Date.now())
-    .map((t) => {
-      const intersects = routeIntersectsThreat(routeCoordinates, t);
-      return {
-        threatZone: t,
-        intersectsRoute: intersects,
-        message: intersects
-          ? `${t.headline} — your route passes through this area. Reroute recommended.`
-          : t.headline,
-      };
-    })
-    .filter((n) => n.intersectsRoute);
-}
+import type { ThreatZone, BBox } from "@bugrout/shared";
 
 /**
  * Check if a threat zone's geometry overlaps a bounding box.

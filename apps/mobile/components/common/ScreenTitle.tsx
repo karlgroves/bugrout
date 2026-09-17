@@ -49,7 +49,7 @@ export function buildDocumentTitle(title: string): string {
  *
  * @param title - The screen's own title.
  */
-export function useScreenTitle(title: string): void {
+function useScreenTitle(title: string): void {
   useEffect(() => {
     if (Platform.OS !== "web") return;
     // `document` is absent during static prerendering, which runs in Node.
