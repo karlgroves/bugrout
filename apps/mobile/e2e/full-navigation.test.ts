@@ -70,6 +70,8 @@
 
 import { by, device, element, expect, waitFor } from "detox";
 
+import { DISCLAIMER_SHORT } from "../constants/legal";
+
 import { launchToMapScreen } from "./support/launch";
 import { createScenario } from "./support/scenario";
 
@@ -178,22 +180,36 @@ describe("Full evacuation journey", () => {
     // CI reached over the network. If CI ever gets a real Valhalla, this line
     // is supposed to fail.
     //
-    // `toExist`, not `toBeVisible`, and that is a defect being recorded rather
-    // than a matcher chosen for convenience. Espresso finds the view with this
-    // exact text and reports it "0 percent visible": the preview's info panel
-    // sizes to its content (`maxHeight: "45%"` with no height of its own) while
-    // the ScrollView inside it asks for `flex: 1`, so the ScrollView collapses
-    // to zero and the map's `flex: 1` takes the screen. On a Pixel 6 the whole
-    // preview is a map and two buttons — no distance, no ETA, no threat
-    // warnings and no advisory disclaimer. See the testFnFailure.png artifact
-    // from E2E run 35137927287, which is what found it.
-    //
-    // Restore `toBeVisible` when app/route-preview/index.tsx gives the panel a
-    // measured height. The provenance claim holds either way; what this cannot
-    // currently claim is that a user saw it.
+    // `toBeVisible`, not `toExist`, and the difference is load-bearing here.
+    // This assertion spent one commit as `toExist` because Espresso found the
+    // view with this exact text and reported it "0 percent visible": the
+    // preview's info ScrollView was collapsed to zero height. That is the bug
+    // this suite found on its first real run (E2E 35137927287), and the styles
+    // in app/route-preview/index.tsx now explain it. Asserting visibility is
+    // what keeps it fixed.
     await expect(
       element(by.text("via Mock Route (Valhalla unavailable)")),
-    ).toExist();
+    ).toBeVisible();
+
+    // The rest of the panel, because the defect hid all of it and one visible
+    // line would not have caught it. These are the three things spec.md
+    // requires this screen to show — the numbers, and the disclaimer that is a
+    // legal requirement rather than decoration. Threat warnings are the fourth
+    // and cannot be asserted here: an offline CI emulator has no threat data,
+    // so the warning box is correctly absent.
+    //
+    // Labels, not values: the distance and ETA depend on wherever the emulator
+    // thinks it is, which is not something this spec should pin.
+    await expect(element(by.text("Distance"))).toBeVisible();
+    await expect(element(by.text("ETA"))).toBeVisible();
+
+    // The imported constant, not a copy of its text. A pasted literal would
+    // break this spec the day the wording changes — and constants/legal.ts is
+    // not in e2e.yml's path filter, so that edit would not even run this job
+    // to find out. Importing makes the assertion follow the source instead:
+    // what it pins is that the screen still renders the disclaimer, which is
+    // the part that is a legal requirement rather than the exact words.
+    await expect(element(by.text(DISCLAIMER_SHORT))).toBeVisible();
   });
 
   it("starts navigation", async () => {
