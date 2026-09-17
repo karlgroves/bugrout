@@ -29,12 +29,16 @@
     "usecase-runner",
   ],
 
+  // No entry for the root workspace on purpose. Knip's default `project` for
+  // it is everything at the repo root that is not inside another workspace,
+  // which is wider than any glob worth writing by hand — and a hand-written
+  // one silently shrinks the gate. An explicit
+  //   "project": ["scripts/**", "security/**"]
+  // was tried here and reported zero exactly as the default does, while a dead
+  // file at tools/dead.mjs went from caught (exit 1) to invisible (exit 0).
+  // The scripts themselves need no `entry`: knip reads package.json's scripts
+  // and treats what they execute as reachable.
   "workspaces": {
-    ".": {
-      "entry": ["scripts/*.{js,mjs}", "security/scripts/*.{js,mjs}"],
-      "project": ["scripts/**/*.{js,mjs}", "security/**/*.{js,mjs,ts}"],
-    },
-
     "apps/mobile": {
       // Expo Router owns app/**, and knip's expo plugin already reads
       // app.config.ts. These are the files nothing imports because a tool
@@ -87,9 +91,16 @@
 
         // knip's expo plugin infers these from config keys rather than from
         // any import: `userInterfaceStyle` suggests expo-system-ui and the
-        // ConfigContext spread suggests expo-updates. Neither is installed and
-        // neither is needed — expo-doctor is the authority on which packages
-        // this SDK requires, and `pnpm run doctor` passes without them.
+        // ConfigContext spread suggests expo-updates. Neither needs installing,
+        // and the reason is checkable rather than inferred — Expo ships both as
+        // *unversioned* plugins inside @expo/prebuild-config, which run during
+        // `expo prebuild` whether or not the package is a dependency:
+        //   build/plugins/unversioned/expo-system-ui/withAndroidUserInterfaceStyle.js
+        //   build/plugins/unversioned/expo-system-ui/withIosUserInterfaceStyle.js
+        //   build/plugins/unversioned/expo-updates.js
+        // So `userInterfaceStyle: "dark"` reaches the native projects on both
+        // platforms already. Adding the packages would change nothing but the
+        // install size.
         "expo-system-ui",
         "expo-updates",
       ],
