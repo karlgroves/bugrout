@@ -28,6 +28,13 @@
  *    exactly what was about to be committed. The nearest equivalent is to
  *    materialise the staged blobs and scan those, which is what `--staged`
  *    does below.
+ *
+ * The exit code and the parse are cross-checked against each other, because a
+ * wrapper that reads output is a new way for a scanner to fail silently. If
+ * trufflehog says it found secrets and this cannot parse them, that is a
+ * failure, not a clean scan. security/tests/secretScanner.security.test.ts
+ * stubs the disagreement — it is unreachable while the tool behaves, so nothing
+ * else would ever exercise it.
  */
 
 import { spawnSync } from "node:child_process";
@@ -49,10 +56,20 @@ const COMMON = [
   "--no-verification",
   // Never phone home mid-hook; the version is pinned in CI and by brew locally.
   "--no-update",
+  // Exit 183 on findings. Without this the exit code is always 0 and the parse
+  // below is the only signal there is — which is exactly the single point of
+  // failure the cross-check at the bottom exists to remove.
+  "--fail",
+  // A scan that errors partway exits 0 by default, so a repository whose
+  // history cannot be fully read would report clean forever.
+  "--fail-on-scan-errors",
   "--json",
   "--no-color",
-  "--log-level=-1",
 ];
+
+/** trufflehog's exit codes: clean, and "found something". */
+const CLEAN = 0;
+const FOUND = 183;
 
 /**
  * List the paths staged for commit, excluding deletions.
@@ -156,10 +173,17 @@ try {
   });
 
   if (result.error) {
-    console.error(
-      "trufflehog is not installed — run `bash scripts/bootstrap.sh` first.",
-    );
-    process.exit(127);
+    // ENOENT is a missing binary. Anything else — ENOBUFS on a huge history,
+    // EACCES — is a different problem and must not be reported as a missing
+    // install, which would send someone to bootstrap.sh for no reason.
+    if (result.error.code === "ENOENT") {
+      console.error(
+        "trufflehog is not installed — run `bash scripts/bootstrap.sh` first.",
+      );
+      process.exit(127);
+    }
+    console.error(`trufflehog could not be run: ${result.error.message}`);
+    process.exit(1);
   }
 
   const findings = result.stdout
@@ -174,9 +198,25 @@ try {
     })
     .filter(Boolean);
 
-  // 183 is "found something". Anything else non-zero is the tool failing, and
-  // that must not be reported as a clean scan.
-  if (result.status !== 0 && result.status !== 183) {
+  // The exit code is trufflehog's verdict. The parse is only for presentation.
+  // When they disagree, fail — a scanner that reports clean because its output
+  // could not be read is worse than no scanner, because it also stops anyone
+  // looking. This fires if the JSON shape changes, if a line is truncated, or
+  // if the stream is ever something other than NDJSON.
+  if (result.status === FOUND && findings.length === 0) {
+    console.error(
+      `trufflehog exited ${FOUND} (secrets found) but none of its output could\n` +
+        "be parsed, so there is nothing to show you and nothing to trust. Treat\n" +
+        "this as a finding until someone has looked. Run the command directly:\n" +
+        `  node security/scripts/trufflehog.mjs${staged ? " --staged" : ""} --print\n`,
+    );
+    if (result.stderr.trim()) console.error(result.stderr.trim());
+    process.exit(1);
+  }
+
+  // Anything non-zero that is not FOUND is the tool failing — a scan error
+  // (--fail-on-scan-errors), a bad flag, a crash. Never a clean scan.
+  if (result.status !== CLEAN && result.status !== FOUND) {
     console.error(result.stderr.trim() || `trufflehog exited ${result.status}`);
     process.exit(result.status ?? 1);
   }
