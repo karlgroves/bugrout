@@ -312,7 +312,7 @@ it is what this app is built on.
 | `react-native-worklets@0.5.1`     | 2025-09-09 | `tjzel`              | a CI nightly from the day before                    |
 | `semver@6.3.1`                    | 2023-07-10 | `lukekarrys`         | the CI-published 7.5.x line                         |
 | `ua-parser-js@1.0.41`             | 2025-08-19 | `faisalman`          | the CI-published 2.x line                           |
-| `undici-types@6.21.0`             | 2024-11-13 | `matteo.collina`     | 6.13.0–6.19.2, which had provenance; 6.20.0 did not |
+| `undici-types@6.21.0`             | 2024-11-13 | `matteo.collina`     | 6.13.0–6.19.2 had provenance; 6.19.3 onward did not |
 
 Every flagged version is **npm-signed**, and in every case the publisher also
 published attested versions of the same package. None is a takeover.

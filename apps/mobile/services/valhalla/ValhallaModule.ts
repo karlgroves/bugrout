@@ -101,7 +101,9 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
   // to set a `ready` flag that no caller ever read (both removed in #134).
   // Reachability is decided per request — calculateRoute() falls back to a mock
   // straight-line route when the server does not answer — so the probe only
-  // cost an offline-first app a network round trip at every boot.
+  // cost a network round trip on every boot that reached this function at all,
+  // which is every boot with downloaded tiles (AppBootstrap gates the call on
+  // `hasDownloadedTiles && activeRegion`).
   activeApproach = "http";
 }
 
