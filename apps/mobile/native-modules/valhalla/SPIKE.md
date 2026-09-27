@@ -139,8 +139,9 @@ real build to confirm:
    (already in `build-android.sh`).
 5. **Tile path — wired.** Valhalla routing tiles are a separate artifact from
    the PMTiles map tiles. `TileManager.downloadRegion()` already fetches
-   `<id>.valhalla.tar.gz` per region (publishing it is tracked in #146). The
-   flow is now implemented end-to-end:
+   `<id>.valhalla.tar.gz` per region (publishing it is tracked in
+   [#146](https://github.com/karlgroves/bugrout/issues/146)). The flow is now
+   implemented end-to-end:
    - `services/valhalla/ValhallaTiles.ts` (`planValhallaInit`) checks the
      archive is on disk and picks `native` vs `http`; `AppBootstrap` passes the
      result to `initValhalla`.
