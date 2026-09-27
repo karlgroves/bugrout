@@ -1,3 +1,28 @@
+# Secret gate FIRST: pushing a credential is the one irreversible mistake here —
+# once it reaches the remote it must be rotated — and this is the cheapest check
+# (~2s, scoped to exactly what the push publishes). Running it before the test
+# suite means you learn in seconds, not minutes.
+#
+# It is the fleet-wide gate, not a repo script, so it lives outside the tree.
+# Guarded because this file is tracked: on a machine without ~/.fleet-security
+# the missing file would return 127 and block every push. The gate itself warns
+# and skips when trufflehog is not installed.
+#
+# "$@" passes git's <remote-name> <remote-url> through, so the gate scopes the
+# scan to the push's actual target. Without it the gate has to infer the target
+# (fine while this repo has one remote, ambiguous as soon as it has two). The
+# ref list arrives on stdin, which this is the first command to read.
+#
+# This does not duplicate `security:secrets` below. That one runs trufflehog's
+# git source over the full history — the same scan as the pre-commit hook and
+# CI — and that source prints no diff for merge commits, so a secret added in a
+# conflict resolution is invisible to it. This gate builds the pushed content
+# itself, merge commits included.
+FLEET_SECRET_GATE="$HOME/.fleet-security/bin/pre-push-secrets"
+if [ -x "$FLEET_SECRET_GATE" ]; then
+  "$FLEET_SECRET_GATE" "$@" || exit 1
+fi
+
 # Fail on the first failing command. husky's shim already runs hooks as
 # `sh -e` (.husky/_/h), so this changes nothing today — it is here so the
 # hook does not depend on that. Without it, under a plain `sh` a failing

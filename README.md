@@ -53,12 +53,12 @@ cd apps/mobile && npx jest                # unit tests
 Local hooks (Husky) are the primary gate; GitHub Actions is a safety net for
 anything that bypasses them (`--no-verify`, web-UI merges).
 
-| Hook       | Runs                                                              |
-| ---------- | ----------------------------------------------------------------- |
-| pre-commit | lint-staged (ESLint --fix + Prettier on staged files), trufflehog |
-| commit-msg | commitlint (Conventional Commits)                                 |
-| pre-push   | `pnpm run check` + duplication/workflow-lint/secrets/licenses     |
-| post-merge | reinstall + audit when `pnpm-lock.yaml` changed                   |
+| Hook       | Runs                                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------- |
+| pre-commit | lint-staged (ESLint --fix + Prettier on staged files), trufflehog                                   |
+| commit-msg | commitlint (Conventional Commits)                                                                   |
+| pre-push   | fleet secret gate (push-scoped), then `pnpm run check` + duplication/workflow-lint/secrets/licenses |
+| post-merge | reinstall + audit when `pnpm-lock.yaml` changed                                                     |
 
 Linting is a single root [`eslint.config.mjs`](eslint.config.mjs)
 (typescript-eslint strict, naming-convention, React Native a11y, security,
