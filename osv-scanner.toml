@@ -8,7 +8,9 @@
 # Only ignore an advisory whose fix this repository cannot actually reach. That
 # is two cases, and the reason has to say which one applies:
 #
-#   1. **No fixed version is published.** Nothing to pin. (`image-size`, below.)
+#   1. **No fixed version is published.** Nothing to pin. Nothing is in this
+#      category now; `image-size` was until 2.0.3 shipped, and is closed by an
+#      override plus a Metro patch (docs/dependency-upgrade-policy.md).
 #   2. **A fixed version exists but is structurally unreachable** — pinning it
 #      would break the consumer that pulls the package in, no upstream bump
 #      gets there, *and* no patch can bridge the gap. This case needs evidence
@@ -31,34 +33,6 @@
 # Remove an entry the moment it goes green: `osv-scanner` prints an "unused
 # ignores" warning when the advisory is no longer in the tree, and that warning
 # is the signal to delete the block, not to leave it as insurance.
-
-# image-size: no fixed version exists. The advisories cover <=2.0.2 and 2.0.2 is
-# the newest release (first_patched = NONE), so no override or SDK bump reaches
-# a safe version. Every Metro version through the one Expo SDK 54 pins depends
-# on image-size ^1.0.2.
-#
-# Exposure: build-time only. image-size runs inside the Metro bundler to measure
-# local asset dimensions; it is not part of the shipped app bundle and never
-# processes a user-supplied or network-supplied image. The vulnerability is an
-# infinite loop on a malformed ICNS/JXL/HEIF file, so the worst case is a hung
-# local build against an image already in the repo.
-#
-# These two are also accepted for `pnpm audit` via pnpm.auditConfig.ignoreGhsas
-# in package.json — the two scanners have separate ignore mechanisms, so an
-# advisory has to be recorded in both places or the gates disagree.
-
-[[IgnoredVulns]]
-id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-11-11
-reason = """image-size ICNS parser infinite loop. No fixed version exists \
-(<=2.0.2, and 2.0.2 is the newest release). Build-time only: runs in the Metro \
-bundler, not in the shipped app, and only over assets already in the repo."""
-
-[[IgnoredVulns]]
-id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-11-11
-reason = """image-size JXL and HEIF parser infinite loops. Same package, same \
-unpatched range, same build-time-only exposure as GHSA-w3rx-r6r6-pgpr."""
 
 # stream-json: a fixed version exists (3.5.0) but is structurally unreachable —
 # category 2 above. This is the first entry to use that category, so the
@@ -98,8 +72,8 @@ unpatched range, same build-time-only exposure as GHSA-w3rx-r6r6-pgpr."""
 # is the JSONL trace and log files Detox itself just wrote locally. The CVSS
 # vector agrees on the shape: AV:L, C:N/I:N/A:H — local, availability only, 6.2.
 #
-# Not recorded in pnpm.auditConfig.ignoreGhsas, unlike the image-size pair
-# above. That is deliberate rather than an oversight: `security:audit` runs
+# Not recorded in pnpm.auditConfig.ignoreGhsas. That is deliberate rather than
+# an oversight: `security:audit` runs
 # `pnpm audit --prod --audit-level=high`, and this advisory is neither a prod
 # dependency nor high, so the two gates do not disagree here — only OSV-Scanner
 # sees it. Adding a no-op ignore there would imply a finding that gate never

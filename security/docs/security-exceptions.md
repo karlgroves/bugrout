@@ -92,15 +92,19 @@ These may never be excepted, whatever the expiry or the compensating control:
 
 ## Worked example of what does _not_ belong here
 
-`image-size@1.2.1` carries two HIGH advisories with no published fix. They are
-handled by `--ignore-unfixed` on the Trivy gate and
-`pnpm.auditConfig.ignoreGhsas`, with the reasoning written in
+`image-size@1.2.1` carried two HIGH advisories with no published fix. They were
+handled by `--ignore-unfixed` on the Trivy gate and ignore entries for
+`pnpm audit` and OSV-Scanner, with the reasoning written in
 `docs/dependency-upgrade-policy.md`.
 
-That is deliberately **not** an exception, for two reasons. There is no fix to
-schedule, so an expiry date would be theatre — it would come round and be
-renewed unchanged, forever. And `--ignore-unfixed` is self-clearing: the moment
-upstream publishes a fix, the finding becomes actionable and CI goes red on its
-own. An exception with an expiry is the right tool when _you_ can act and have
-chosen not to yet. When you genuinely cannot act, say so in the documentation
-and make the gate notice when that changes.
+That was deliberately **not** an exception, for two reasons. There was no fix to
+schedule, so an expiry date would have been theatre — it would come round and be
+renewed unchanged. And `--ignore-unfixed` is self-clearing: the moment upstream
+publishes a fix, the finding becomes actionable and CI goes red on its own.
+
+It then did exactly that. `image-size@2.0.3` shipped the fix, Trivy failed every
+pull request and `main` the same day, and the advisories were closed with an
+override and a Metro patch rather than an exception. An exception with an expiry
+is the right tool when _you_ can act and have chosen not to yet. When you
+genuinely cannot act, say so in the documentation and make the gate notice when
+that changes.

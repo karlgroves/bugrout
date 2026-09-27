@@ -452,25 +452,28 @@ Retire an entry when npm backfills provenance onto that version, or when the
 package leaves the tree. The test is concrete: delete the line, force a resolve
 (any manifest change will do), and see whether it still fails.
 
-## One known-vulnerable transitive package
+## Known-vulnerable transitive packages
 
 An advisory gets an ignore entry only when this repository cannot reach the fix.
 That is two distinct situations, and the entry has to say which one it is,
 because they retire on different signals:
 
-1. **No fixed version is published** — `image-size`, below. Retires when
-   upstream ships a fix.
+1. **No fixed version is published.** Retires when upstream ships a fix. Nothing
+   is in this case now — see
+   [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how
+   the last entry left it.
 2. **A fixed version exists but is structurally unreachable** — pinning it
    breaks the consumer that pulls the package in, no upstream bump gets there,
    and no patch bridges the gap. Retires when the _consumer_ changes, not when
    the vulnerable package does.
 
-**Nothing is currently in case 2.** `decode-uri-component` was recorded there by
-PR #120, on the grounds that `0.5.0` is ESM-only and its only consumer
-`query-string@7.1.3` is CommonJS. Both of those facts hold. The conclusion did
-not: PR #124 closed the advisory with a two-line `pnpm` patch that unwraps the
-interop, described under
-[One patched transitive package](#one-patched-transitive-package).
+**One entry is in case 2:** `stream-json`, a devDependency of Detox, with the
+evidence for all three grounds recorded in `osv-scanner.toml`.
+`decode-uri-component` was recorded there too, by PR #120, on the grounds that
+`0.5.0` is ESM-only and its only consumer `query-string@7.1.3` is CommonJS. Both
+of those facts hold. The conclusion did not: PR #124 closed the advisory with a
+two-line `pnpm` patch that unwraps the interop, described under
+[Patched transitive packages](#patched-transitive-packages).
 
 The lesson is in the bar, not the entry. "Structurally unreachable" now requires
 showing that a patch cannot bridge the gap either — the two cases above are
@@ -479,33 +482,32 @@ within reach.
 
 Anything else gets a bounded `pnpm.overrides` entry instead.
 
-### `image-size` — no fixed version exists
+### `image-size` — how an unfixed advisory retired
 
-`pnpm audit --prod` reports two HIGH advisories and both are ignored via
-`pnpm.auditConfig.ignoreGhsas` in `package.json`. That list previously held two
-opaque identifiers and no reason, which is the kind of entry nobody can safely
-remove later. For the record:
+`image-size@1.2.1` carried two HIGH advisories — `GHSA-5p2g-fcmc-qvqq`
+(CVE-2025-71329, JXL/HEIF) and `GHSA-w3rx-r6r6-pgpr` (CVE-2025-71330, ICNS),
+both an infinite loop on a zero-valued size field — with no fixed version
+published. They sat in case 1: ignored for `pnpm audit` and OSV-Scanner, and
+passed by Trivy's `--ignore-unfixed`.
 
-| GHSA                  | CVE            | Package            |
-| --------------------- | -------------- | ------------------ |
-| `GHSA-w3rx-r6r6-pgpr` | CVE-2025-71330 | `image-size@1.2.1` |
-| `GHSA-5p2g-fcmc-qvqq` | CVE-2025-71329 | `image-size@1.2.1` |
+`image-size@2.0.3` shipped the fix, and the Trivy gate went red on its own the
+same day, on every pull request and on `main` — which is exactly what
+`--ignore-unfixed` was chosen to do.
 
-Both are denial-of-service via crafted image buffers, in the ICNS and JXL/HEIF
-parsers. `image-size` reaches the tree only through `metro` — the bundler — via
-`@expo/vector-icons → expo-font → expo → @expo/cli`. It runs at build time on
-images in this repository, never in the shipped app and never on input from a
-user. **There is no fixed version published.**
+The retirement condition written at the time was "when `image-size` publishes a
+fix **and Metro takes it**". Upstream went further than that: Metro stopped
+depending on `image-size` altogether and sizes images with its own
+`src/lib/imageSize.js`, from 0.83.8, 0.84.5 and 0.87.1 (0.85.0–0.87.0 still
+declare `^1.0.2`). But the Metro this repository bundles with cannot get there:
+`@expo/metro@54.2.0` pins `metro@0.83.3` exactly, and no SDK 54 release of
+`@expo/metro` pins a later one. Waiting for Expo would have meant waiting on an
+SDK upgrade with the gate red.
 
-`trivy fs` reports the same two, which is why the gating command passes
-`--ignore-unfixed`: a finding with no fix available cannot be acted on, and a
-gate that fails on it teaches people to stop reading the gate. The non-gating
-`security:fs:report` run records them at full severity in the build artifact, so
-they are ignored in one specific sense — not blocking a merge — and not in any
-other.
-
-Both entries come out the moment `image-size` publishes a fix and Metro takes
-it. `--ignore-unfixed` makes that automatic: CI goes red on its own.
+`image-size@2.x` is not a drop-in either — it accepts only a buffer, and Metro
+passes a path. But that is a gap a patch bridges, which is the lesson the case 2
+note above already records. The fix is an override plus a one-line Metro patch,
+described under [Patched transitive packages](#patched-transitive-packages), and
+both ignores were deleted in the same change.
 
 ### Retiring an ignore
 
@@ -516,14 +518,20 @@ found to be dead: the bounded `uuid@<11.1.1` override had already moved
 `xcode@3.0.1` onto `uuid@11.1.1`, so the ignore was suppressing a finding that
 no longer existed.
 
-## One patched transitive package
+## Patched transitive packages
+
+Two transitive packages carry patches in `patches/`, applied through
+`pnpm.patchedDependencies`. Each exists to make a bounded override usable where
+the fixed version is not a drop-in for the package that consumes it.
+
+### `query-string@7.1.3`
 
 `query-string@7.1.3` carries a two-line patch in `patches/`, applied through
 `pnpm.patchedDependencies`. It exists to close `GHSA-vcc3-ghjq-m6fr` — denial of
 service via exponential decoding of malformed percent-encoded input in
 `decode-uri-component`.
 
-Unlike the `image-size` advisories above, this one is **reachable in the shipped
+Unlike the `image-size` advisories below, this one is **reachable in the shipped
 app**. The chain is:
 
 ```text
@@ -544,7 +552,7 @@ a minute** (63–76 s across runs). Patched, that same 2000-character input cost
 `security/tests/deep-link-decoding.security.test.ts` pins all of this, and both
 controls below were mutation-tested against it.
 
-### Why a patch and not just an override
+#### Why a patch and not just an override
 
 `decode-uri-component@0.5.0` is the first patched release, and every earlier
 version is vulnerable (`<= 0.4.2`). The override that pins it is bounded, per
@@ -574,7 +582,7 @@ const decodeComponentModule = require("decode-uri-component");
 const decodeComponent = decodeComponentModule.default || decodeComponentModule;
 ```
 
-### Retirement
+#### Retirement
 
 The patch comes out when `@react-navigation/core` and `expo-router` move to
 `query-string@>=9.5.0`, which depends on a patched `decode-uri-component`
@@ -585,3 +593,69 @@ so if a future resolution moves `query-string` off `7.1.3` the install fails
 with `ERR_PNPM_UNUSED_PATCH` rather than quietly dropping the patch — verified
 by pointing the key at a version not in the tree. A stale patch is therefore a
 loud error, not a silent reintroduction of the advisory.
+
+### `metro@0.83.3` and `metro@0.83.5`
+
+Both Metros carry the same one-line patch to `src/Assets.js`. It exists to make
+the `image-size` override usable:
+
+```json
+"image-size@<2.0.3": ">=2.0.3 <3"
+```
+
+`image-size` reaches the tree only through Metro, which uses it to measure image
+assets at build time. It never runs in the shipped app and never sees input from
+a user, so the exposure was a hung local build on a crafted image committed to
+the repository. Measured: a 16-byte ICNS buffer with a zero-length entry was
+still looping in `image-size@1.2.1` when killed at 5 s; `2.0.4` rejects it
+immediately.
+
+#### Why a patch and not just an override
+
+`image-size@2.x` sizes a buffer and nothing else. Metro's `getAssetData` passes
+it a **file path** for every asset that is not inside a `.zip`, so the override
+alone makes `bundle:check` fail on the first image:
+
+```text
+The "list" argument must be an instance of SharedArrayBuffer, ArrayBuffer or
+ArrayBufferView.
+```
+
+Metro already reads `.zip` assets into a buffer before sizing them. The patch
+does the same for every asset:
+
+```js
+const isImageInput = _fs.default.readFileSync(assetInfo.files[0]);
+```
+
+There are two patches because two consumers load their own Metro —
+`@expo/metro@54.2.0` loads 0.83.3, and `@react-native/community-cli-plugin`
+loads 0.83.5 — and the two `Assets.js` files differ enough elsewhere that one
+patch does not apply to both.
+
+Bumping Metro to 0.83.8, which no longer uses `image-size`, is not available for
+the copy that matters. `@expo/metro@54.2.0` — what `expo export` and the dev
+server run — pins `metro` and thirteen `metro-*` packages to exactly `0.83.3`,
+so reaching 0.83.8 there means overriding a whole family across an exact pin, a
+far larger change than one line. The React Native CLI plugin declares
+`metro@^0.83.1` and _could_ resolve 0.83.8 from a lockfile refresh; it is
+patched on 0.83.5 here so both copies close the advisory the same way, and
+moving it is a reasonable later simplification that drops one patch.
+
+`security/tests/asset-sizing.security.test.ts` pins it, resolving each Metro the
+way its consumer does. Both controls were mutation-tested: dropping the patches
+fails the patch-hash and sizing tests for both Metros (4 of 8, with the error
+above), and dropping the override fails the version check and the hang backstop
+(4 of 8, the latter killed at its 10 s bound).
+
+#### Retirement
+
+The patches and the override come out together when the Expo SDK moves to a
+`@expo/metro` that pins a Metro without the `image-size` dependency. That is not
+simply "any newer Metro": 0.83.8, 0.84.5 and 0.87.1 dropped it, but 0.85.0–
+0.87.0 still declare `^1.0.2`, so check the pinned version's own dependencies
+(`npm view metro@<version> dependencies`). Once `image-size` leaves the tree
+there is nothing left to patch or override. As with `query-string`, this cannot
+rot quietly: `patchedDependencies` pins exact versions, so an SDK upgrade that
+moves Metro off 0.83.3 or 0.83.5 fails install with `ERR_PNPM_UNUSED_PATCH`
+until the patches are revisited.
