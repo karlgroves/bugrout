@@ -75,12 +75,13 @@ Honest list of what is not covered.
   running against a real built image.
 - **DAST against a real deployment.** It runs after every Backend Deploy, but
   its first post-deploy run (2026-09-28) was a false pass: ZAP could not write
-  its report on the runner and exited 3, which the step did not treat as a
-  failure, and the URL exclusions were never passed to it (#161). Both are
-  fixed, and `dast-zap-step.security.test.ts` pins the step's handling of every
-  ZAP outcome. A local run of the fixed step against the live tile worker
-  reported 0 FAIL / 0 WARN / 66 PASS; a report from CI has not yet been
-  observed.
+  its report on the runner (`PermissionError` in the CI log) and failed, which
+  the step did not treat as a failure — the exit code was swallowed there;
+  reproducing it locally with a runner-owned workspace gave exit 3 — and the URL
+  exclusions were never passed to it (#161). Both are fixed, and
+  `dast-zap-step.security.test.ts` pins the step's handling of every ZAP
+  outcome. A local run of the fixed step against the live tile worker reported 0
+  FAIL / 0 WARN / 66 PASS; a report from CI has not yet been observed.
 - **§18's leakage regex is narrower than it looks.** It matches on the words
   `stack`, `trace`, `node_modules` and `syntaxerror` — not on the shape of a
   stack trace. A Node trace through application code
