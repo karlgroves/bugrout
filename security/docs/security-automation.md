@@ -44,7 +44,7 @@ cd backend/workers/tile-server && pnpm dev &
 node security/scripts/check-headers.js http://127.0.0.1:8787/health
 
 # a deployed origin
-node security/scripts/check-headers.js --production https://tiles.bugrout.app/health
+node security/scripts/check-headers.js --production https://bugrout-tile-server.karlgroves.workers.dev/health
 ```
 
 Exit codes: `0` clean, `1` blocking failure, `2` target unreachable.

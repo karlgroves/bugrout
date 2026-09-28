@@ -22,7 +22,11 @@ on:
       target:
         description: "Origin to scan"
         required: false
-        default: https://tiles.bugrout.app
+        # The origin the app actually calls: EXPO_PUBLIC_TILE_SERVER_URL in
+        # apps/mobile/eas.json. security/tests/tile-origin.security.test.ts
+        # fails if the two drift apart. tiles.bugrout.app never resolved, so
+        # every scan against it failed before ZAP started (#158).
+        default: https://bugrout-tile-server.karlgroves.workers.dev
 
 permissions:
   contents: read
@@ -60,7 +64,7 @@ jobs:
           REQUESTED_TARGET: ${{ inputs.target }}
         run: |
           set -euo pipefail
-          echo "url=${REQUESTED_TARGET:-https://tiles.bugrout.app}" >> "$GITHUB_OUTPUT"
+          echo "url=${REQUESTED_TARGET:-https://bugrout-tile-server.karlgroves.workers.dev}" >> "$GITHUB_OUTPUT"
 
       # Cheap and decisive: if the origin is not serving the headers the unit
       # tests say it should, that is worth knowing before spending 20 minutes
