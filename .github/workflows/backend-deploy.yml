@@ -9,7 +9,7 @@ name: Backend Deploy
 #
 # `workflow_run` fires only after CI has finished, and carries its conclusion.
 # The gate job below additionally requires the Security workflow to have
-# succeeded for the same commit, and re-derives the `backend/**` path filter
+# succeeded for the same commit, and re-derives the deploy-input path filter
 # that `workflow_run` cannot express.
 #
 # Not a schedule: `workflow_run` is event-driven, triggered by CI completing.
@@ -135,7 +135,15 @@ jobs:
 
       # `workflow_run` carries no `paths:` filter, so the one the old `push:`
       # trigger had is re-derived here rather than silently dropped.
-      - name: Decide whether backend/ actually changed
+      # Deploy inputs are everything the deployed code is built from, not just
+      # backend/. Every worker and route-tracker imports
+      # @bugrout/worker-utils, and third-party code arrives via the lockfile
+      # (which also records override and patch changes, by hash). Watching only
+      # backend/ skipped #155, which changed the resolved dependency tree and
+      # nothing under backend/, and would skip any change made only in
+      # packages/worker-utils. Over-deploying is a no-op redeploy;
+      # under-deploying ships stale code silently.
+      - name: Decide whether a deploy input changed
         id: decide
         env:
           RESOLVED_SHA: ${{ steps.commit.outputs.sha }}
@@ -149,10 +157,11 @@ jobs:
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --name-only "$sha^" "$sha" | grep -q '^backend/'; then
+          if git diff --name-only "$sha^" "$sha" \
+            | grep -q -E '^(backend/|packages/worker-utils/|pnpm-lock\.yaml$)'; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No backend/ changes in $sha — nothing to deploy."
+            echo "No deploy input changed in $sha — nothing to deploy."
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -162,6 +171,10 @@ jobs:
     if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     strategy:
+      # One worker failing must not cancel the others. alert-aggregator and
+      # crowd-signal cannot deploy until they have real KV namespace ids
+      # (#144); with the default fail-fast they would cancel tile-server too.
+      fail-fast: false
       matrix:
         worker: [tile-server, alert-aggregator, crowd-signal]
     steps:
@@ -175,6 +188,17 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      # Wrangler's own message for a missing token is about "non-interactive
+      # environments". Say what is actually wrong, before spending an install.
+      - name: Require the Cloudflare deploy token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::The CLOUDFLARE_API_TOKEN repository secret is not set, so no worker can deploy."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -200,6 +224,15 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+
+      - name: Require the Fly deploy token
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::The FLY_API_TOKEN repository secret is not set, so route-tracker cannot deploy."
+            exit 1
+          fi
 
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
