@@ -81,15 +81,36 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p reports/security
+          # The ZAP image runs as its own user (zap, uid 1000); the checkout
+          # belongs to the runner's. Without this ZAP scans, then dies writing
+          # its report with EACCES — which is what the first real scan did
+          # (#161). Only this directory is opened; ZAP writes nothing else.
+          chmod 0777 reports/security
 
           # Exclusions are read from the file rather than inlined, so adding a
-          # destructive endpoint later does not need a workflow edit.
-          exclude_args=""
+          # destructive endpoint later does not need a workflow edit. Each
+          # pattern needs its own index: written to the same index, every
+          # entry overwrites the last and only the final one applies
+          # (measured: two exclusions at index 0 removed one URL, at 0 and 1
+          # removed two). zap-baseline.py splits -z on whitespace, so a
+          # pattern containing any is rejected rather than silently mangled.
+          zap_options=""
+          index=0
           while IFS= read -r pattern; do
             case "$pattern" in ''|'#'*) continue ;; esac
-            exclude_args="$exclude_args -config globalexcludeurl.url_list.url\\(0\\).regex='$pattern'"
+            case "$pattern" in *[[:space:]]*)
+              echo "::error::ZAP exclusion contains whitespace: '$pattern'"
+              exit 1 ;;
+            esac
+            entry="globalexcludeurl.url_list.url($index)"
+            zap_options="$zap_options -config $entry.regex=$pattern"
+            zap_options="$zap_options -config $entry.description=zap-exclusions.txt"
+            zap_options="$zap_options -config $entry.enabled=true"
+            index=$((index + 1))
           done < security/config/zap-exclusions.txt
+          echo "Excluding $index URL pattern(s) from the scan."
 
+          zap_status=0
           docker run --rm \
             -v "$PWD:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
@@ -99,15 +120,29 @@ jobs:
               -r reports/security/zap-report.html \
               -J reports/security/zap-report.json \
               -l WARN \
+              -z "$zap_options" \
             || zap_status=$?
 
-          # zap-baseline.py exits 1 on FAIL-level findings and 2 on WARN-level.
-          # Only the former blocks; §19 says medium findings warn.
-          if [ "${zap_status:-0}" = "1" ]; then
-            echo "::error::ZAP reported high-confidence high-risk findings."
+          # zap-baseline.py exits 0 when clean, 1 on FAIL-level findings, 2 on
+          # WARN-level, and 3 on any other failure. Only FAIL blocks; §19 says
+          # medium findings warn. Anything else means there is no scan result,
+          # and that must not read as a pass.
+          case "$zap_status" in
+            0|2) ;;
+            1)
+              echo "::error::ZAP reported high-confidence high-risk findings."
+              exit 1 ;;
+            *)
+              echo "::error::ZAP did not complete (exit $zap_status); there is no scan result."
+              exit 1 ;;
+          esac
+
+          # Belt and braces: a scan that produced no report did not happen,
+          # whatever the exit code said.
+          if [ ! -s reports/security/zap-report.json ]; then
+            echo "::error::ZAP exited $zap_status but wrote no reports/security/zap-report.json."
             exit 1
           fi
-          exit 0
 
       - name: Generate security summary
         if: always()
