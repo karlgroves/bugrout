@@ -90,7 +90,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         "349ad664-e0c0-4dbc-8315-3cb661f94196",
     },
     tileServerUrl:
-      process.env.EXPO_PUBLIC_TILE_SERVER_URL ?? "https://tiles.bugrout.app",
+      process.env.EXPO_PUBLIC_TILE_SERVER_URL ??
+      "https://bugrout-tile-server.karlgroves.workers.dev",
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",
     valhallaApproach: process.env.EXPO_PUBLIC_VALHALLA_APPROACH ?? "http",
   },

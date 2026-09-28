@@ -25,7 +25,8 @@ import { fetchWithRetry } from "@/utils/retry";
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
 const TILE_SERVER_BASE =
-  process.env.EXPO_PUBLIC_TILE_SERVER_URL ?? "https://tiles.bugrout.app";
+  process.env.EXPO_PUBLIC_TILE_SERVER_URL ??
+  "https://bugrout-tile-server.karlgroves.workers.dev";
 const TILES_DIR = `${FileSystem.documentDirectory}tiles/`;
 const STALE_THRESHOLD_DAYS = 90;
 

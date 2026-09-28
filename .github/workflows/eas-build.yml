@@ -90,5 +90,5 @@ jobs:
           BUILD_PLATFORM: ${{ github.event.inputs.platform || 'all' }}
           EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
           EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          EXPO_PUBLIC_TILE_SERVER_URL: ${{ vars.TILE_SERVER_URL || 'https://tiles.bugrout.app' }}
+          EXPO_PUBLIC_TILE_SERVER_URL: ${{ vars.TILE_SERVER_URL || 'https://bugrout-tile-server.karlgroves.workers.dev' }}
           EXPO_PUBLIC_VALHALLA_APPROACH: http
