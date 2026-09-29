@@ -8,6 +8,7 @@
  */
 
 import { upsertResourcePoints } from "@/db/queries/resources";
+import { timeoutSignal } from "@/utils/abort";
 
 import type { ResourcePoint } from "@bugrout/shared";
 
@@ -62,7 +63,7 @@ export async function fetchFuelStations(
 
   const resp = await fetch(`${NREL_BASE}?${params}`, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(15000),
+    signal: timeoutSignal(15000),
   });
 
   if (!resp.ok) {

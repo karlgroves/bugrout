@@ -322,6 +322,25 @@ export default tseslint.config(
       // Expo
       "expo/no-env-var-destructuring": "error",
       "expo/no-dynamic-env-var": "error",
+
+      // Hermes has no native AbortSignal; React Native polyfills it with
+      // abort-controller@3, which lacks the static helpers. They type-check
+      // (lib.dom) and pass Jest (Node has them), then throw on device — which
+      // silently disabled every network call that used them.
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "AbortSignal",
+          property: "timeout",
+          message:
+            "AbortSignal.timeout does not exist on Hermes. Use timeoutSignal() from @/utils/abort.",
+        },
+        {
+          object: "AbortSignal",
+          property: "any",
+          message: "AbortSignal.any does not exist on Hermes.",
+        },
+      ],
     },
   },
 

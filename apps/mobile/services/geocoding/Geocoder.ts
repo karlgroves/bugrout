@@ -13,6 +13,7 @@
  */
 
 import { getPreference } from "@/db/queries/preferences";
+import { timeoutSignal } from "@/utils/abort";
 
 /** Nominatim search endpoint. US results only, capped at 8. */
 const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
@@ -143,7 +144,7 @@ export async function searchDestinations(
 
   const resp = await fetch(`${NOMINATIM_SEARCH}?${params.toString()}`, {
     headers: { "User-Agent": "BugRout/1.0" },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: timeoutSignal(REQUEST_TIMEOUT_MS),
   });
   if (!resp.ok) return [];
 
