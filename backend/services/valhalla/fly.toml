@@ -13,12 +13,41 @@ primary_region = 'iad'
     PBF_URL = 'https://download.geofabrik.de/north-america/us/maryland-latest.osm.pbf'
     REGION_NAME = 'maryland'
 
-[http_service]
+# A TLS-only service, not `[http_service]` (#141). Fly's HTTP handler adds
+# `Fly-Tracestate:` with an EMPTY value to every request it forwards, and
+# valhalla_service (prime_server) answers any header with an empty value with
+# `400 Malformed HTTP request` — so under `[http_service]` every /route and
+# /status request failed, and the app silently fell back to mock routes.
+# With only the `tls` handler, Fly terminates TLS and passes the client's bytes
+# through untouched; no headers are injected.
+#
+# ALPN is pinned to http/1.1: with raw passthrough, a client that negotiated h2
+# would send HTTP/2 frames that valhalla_service cannot parse.
+#
+# There is deliberately no port 80. Forcing HTTPS needs the `http` handler,
+# which is the thing being avoided; every client uses the https:// URL.
+[[services]]
+  protocol = 'tcp'
   internal_port = 8002
-  force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
+
+  [[services.ports]]
+    port = 443
+    handlers = ['tls']
+
+    [services.ports.tls_options]
+      alpn = ['http/1.1']
+
+  # Checked on the machine's own address, not through the edge proxy.
+  [[services.http_checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'get'
+    path = '/status'
+    protocol = 'http'
 
 [[vm]]
   size = 'shared-cpu-1x'
