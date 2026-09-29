@@ -1,16 +1,42 @@
 /**
  * FileSystem platform abstraction.
- * Falls back to no-op mock in Expo Go.
+ *
+ * On a native build this is `expo-file-system/legacy`, and its errors propagate.
+ * Only where the module is genuinely unavailable — web, or Expo Go without the
+ * native module — does it fall back to no-op mocks.
+ *
+ * `documentDirectory` used to be the mock path on every platform, so on device
+ * every directory was created under `/mock-documents/` (which fails, silently)
+ * and offline map downloads could never start.
  */
 
 import { Platform } from "react-native";
 
 const FILE_SYSTEM_MODULE = "expo-file-system/legacy";
 
-export /**
- *
- */
-const documentDirectory = "/mock-documents/";
+/** Path used where there is no real file system (web, Expo Go). */
+const MOCK_DOCUMENT_DIRECTORY = "/mock-documents/";
+
+/** The subset of `expo-file-system/legacy` this wrapper uses. */
+interface ExpoFileSystem {
+  documentDirectory: string | null;
+  getInfoAsync(path: string): Promise<{ exists: boolean; size?: number }>;
+  makeDirectoryAsync(
+    path: string,
+    options?: { intermediates?: boolean },
+  ): Promise<void>;
+  deleteAsync(path: string, options?: { idempotent?: boolean }): Promise<void>;
+  getFreeDiskStorageAsync(): Promise<number>;
+  createDownloadResumable(
+    url: string,
+    destPath: string,
+    options?: Record<string, unknown>,
+    onProgress?: (progress: {
+      totalBytesWritten: number;
+      totalBytesExpectedToWrite: number;
+    }) => void,
+  ): DownloadResumable;
+}
 
 /**
  * Result of a resumable download's `downloadAsync` call.
@@ -28,83 +54,74 @@ export interface DownloadResumable {
 }
 
 /**
- * Returns information about a file or directory, reporting "does not exist"
- * when the file system module is unavailable.
+ * Load the native file-system module.
+ *
+ * @returns The module, or `null` on web or when it is not in this binary.
+ */
+function loadFileSystem(): ExpoFileSystem | null {
+  if (Platform.OS === "web") return null;
+  try {
+    const mod = FILE_SYSTEM_MODULE;
+    return require(mod) as ExpoFileSystem;
+  } catch {
+    return null;
+  }
+}
+
+const nativeFileSystem = loadFileSystem();
+
+export /**
+ * The app's documents directory, with a trailing slash. The real sandbox path
+ * on a native build; a mock path where there is no file system.
+ */
+const documentDirectory: string =
+  nativeFileSystem?.documentDirectory ?? MOCK_DOCUMENT_DIRECTORY;
+
+/**
+ * Returns information about a file or directory; reports "does not exist"
+ * where there is no file system.
  */
 export async function getInfoAsync(
   path: string,
 ): Promise<{ exists: boolean; size?: number }> {
-  if (Platform.OS === "web") {
-    return { exists: false };
-  }
-  try {
-    const mod = FILE_SYSTEM_MODULE;
-    const FS = require(mod);
-    return await FS.getInfoAsync(path);
-  } catch {
-    return { exists: false };
-  }
+  if (!nativeFileSystem) return { exists: false };
+  return nativeFileSystem.getInfoAsync(path);
 }
 
 /**
- * Creates a directory; a no-op when the file system module is unavailable.
+ * Creates a directory; a no-op where there is no file system.
  */
 export async function makeDirectoryAsync(
   path: string,
   options?: { intermediates?: boolean },
 ): Promise<void> {
-  if (Platform.OS === "web") {
-    return;
-  }
-  try {
-    const mod = FILE_SYSTEM_MODULE;
-    const FS = require(mod);
-    await FS.makeDirectoryAsync(path, options);
-  } catch {
-    // No-op in Expo Go
-  }
+  if (!nativeFileSystem) return;
+  await nativeFileSystem.makeDirectoryAsync(path, options);
 }
 
 /**
- * Deletes a file or directory; a no-op when the file system module is
- * unavailable.
+ * Deletes a file or directory; a no-op where there is no file system.
  */
 export async function deleteAsync(
   path: string,
   options?: { idempotent?: boolean },
 ): Promise<void> {
-  if (Platform.OS === "web") {
-    return;
-  }
-  try {
-    const mod = FILE_SYSTEM_MODULE;
-    const FS = require(mod);
-    await FS.deleteAsync(path, options);
-  } catch {
-    // No-op
-  }
+  if (!nativeFileSystem) return;
+  await nativeFileSystem.deleteAsync(path, options);
 }
 
 /**
- * Returns the free disk space in bytes, falling back to a mock 10 GB when the
- * file system module is unavailable.
+ * Returns the free disk space in bytes; a mock 10 GB where there is no file
+ * system.
  */
 export async function getFreeDiskStorageAsync(): Promise<number> {
-  if (Platform.OS === "web") {
-    return 10 * 1024 * 1024 * 1024; // Mock: 10 GB
-  }
-  try {
-    const mod = FILE_SYSTEM_MODULE;
-    const FS = require(mod);
-    return await FS.getFreeDiskStorageAsync();
-  } catch {
-    return 10 * 1024 * 1024 * 1024; // Mock: 10 GB
-  }
+  if (!nativeFileSystem) return 10 * 1024 * 1024 * 1024; // Mock: 10 GB
+  return nativeFileSystem.getFreeDiskStorageAsync();
 }
 
 /**
- * Creates a resumable download, returning a mock that completes instantly
- * when the file system module is unavailable.
+ * Creates a resumable download; a mock that "completes" instantly where there
+ * is no file system.
  */
 export function createDownloadResumable(
   url: string,
@@ -115,23 +132,17 @@ export function createDownloadResumable(
     totalBytesExpectedToWrite: number;
   }) => void,
 ): DownloadResumable {
-  if (Platform.OS === "web") {
+  if (!nativeFileSystem) {
     return {
       downloadAsync(): Promise<DownloadResult> {
         return Promise.resolve({ uri: destPath, status: 200 });
       },
     };
   }
-  try {
-    const mod = FILE_SYSTEM_MODULE;
-    const FS = require(mod);
-    return FS.createDownloadResumable(url, destPath, options, onProgress);
-  } catch {
-    // Mock download that "completes" instantly
-    return {
-      downloadAsync(): Promise<DownloadResult> {
-        return Promise.resolve({ uri: destPath, status: 200 });
-      },
-    };
-  }
+  return nativeFileSystem.createDownloadResumable(
+    url,
+    destPath,
+    options,
+    onProgress,
+  );
 }

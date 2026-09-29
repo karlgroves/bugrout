@@ -20,6 +20,7 @@ import {
 import { deleteResourcesByRegion } from "@/db/queries/resources";
 import { track, Events } from "@/platform/analytics";
 import * as FileSystem from "@/platform/fileSystem";
+import { timeoutSignal } from "@/utils/abort";
 import { fetchWithRetry } from "@/utils/retry";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
@@ -57,7 +58,7 @@ async function ensureTilesDir(): Promise<void> {
 export async function fetchManifest(): Promise<Region[]> {
   const resp = await fetchWithRetry(
     `${TILE_SERVER_BASE}/v1/tiles/manifest`,
-    { signal: AbortSignal.timeout(15000) },
+    { signal: timeoutSignal(15000) },
     { maxAttempts: 3, baseDelay: 2000 },
   );
   if (!resp.ok) throw new Error(`Failed to fetch manifest: ${resp.status}`);
@@ -190,38 +191,40 @@ export async function downloadRegion(
 }
 
 /**
- * Download a file with resume support.
+ * Download a file, replacing any partial copy.
+ *
+ * The previous "resume" sent a `Range` header for the bytes already on disk,
+ * but `downloadAsync` writes the response to `destPath` rather than appending —
+ * so a resumed download left only the tail of the file and was then marked
+ * complete. Until resume is done properly (via the handle's resume data), a
+ * restart is the only correct option.
+ *
+ * @throws When the server answers with anything but a 2xx, after removing the
+ *   file it wrote — otherwise an error page would be kept as tile data.
  */
 async function downloadFileResumable(
   url: string,
   destPath: string,
   onProgress?: (bytesWritten: number) => void,
 ): Promise<void> {
-  // Check for existing partial download
-  const fileInfo = await FileSystem.getInfoAsync(destPath);
-  let existingBytes = 0;
-  if (
-    fileInfo.exists &&
-    "size" in fileInfo &&
-    typeof fileInfo.size === "number"
-  ) {
-    existingBytes = fileInfo.size;
-  }
+  await FileSystem.deleteAsync(destPath, { idempotent: true });
 
   const downloadResumable = FileSystem.createDownloadResumable(
     url,
     destPath,
-    {
-      headers: existingBytes > 0 ? { Range: `bytes=${existingBytes}-` } : {},
-    },
+    {},
     (progress) => {
-      onProgress?.(existingBytes + progress.totalBytesWritten);
+      onProgress?.(progress.totalBytesWritten);
     },
   );
 
   const result = await downloadResumable.downloadAsync();
   if (!result) {
     throw new Error(`Download failed for ${url}`);
+  }
+  if (result.status < 200 || result.status >= 300) {
+    await FileSystem.deleteAsync(destPath, { idempotent: true });
+    throw new Error(`Download failed for ${url}: HTTP ${result.status}`);
   }
 }
 

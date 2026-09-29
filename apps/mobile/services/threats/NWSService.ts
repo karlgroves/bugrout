@@ -9,6 +9,7 @@
  */
 
 import { upsertThreatZones } from "@/db/queries/threats";
+import { timeoutSignal } from "@/utils/abort";
 import { extractRingCoordinates } from "@/utils/geo";
 
 import type { ThreatZone, BBox } from "@bugrout/shared";
@@ -79,7 +80,7 @@ async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
           "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
           Accept: "application/geo+json",
         },
-        signal: AbortSignal.timeout(10000),
+        signal: timeoutSignal(10000),
       },
     );
 
@@ -98,7 +99,7 @@ async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
           "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
           Accept: "application/geo+json",
         },
-        signal: AbortSignal.timeout(15000),
+        signal: timeoutSignal(15000),
       },
     );
 

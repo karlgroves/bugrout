@@ -25,6 +25,7 @@ import * as Battery from "@/platform/battery";
 import { CsprngUnavailableError, secureRandomUUID } from "@/platform/crypto";
 import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { timeoutSignal } from "@/utils/abort";
 
 import type { LatLng } from "@bugrout/shared";
 
@@ -101,7 +102,7 @@ export async function sendSignal(
         ts: now,
         token: acquired,
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: timeoutSignal(5000),
     });
     lastSentAt = now;
   } catch {

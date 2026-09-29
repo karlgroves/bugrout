@@ -13,6 +13,8 @@
 import { NativeModules } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 
+import { timeoutSignal } from "@/utils/abort";
+
 import { boundAvoidancePolygons } from "../routing/AvoidanceBudget";
 
 import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
@@ -151,7 +153,7 @@ export async function calculateRoute(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10000),
+      signal: timeoutSignal(10000),
     });
 
     if (!resp.ok) {

@@ -6,7 +6,8 @@
  *
  * Error recovery:
  * - Falls back to in-memory mock when expo-sqlite is unavailable
- * - On corruption, deletes the database and recreates
+ * - On corruption (and only corruption), deletes the database and its WAL
+ *   files and recreates it; other init errors retry without deleting
  * - All queries are wrapped in try/catch at the caller level
  */
 
@@ -53,20 +54,16 @@ export async function getDatabase(): Promise<SQLiteDatabase> {
     );
 
     if (initAttempts < MAX_INIT_ATTEMPTS) {
-      // Database may be corrupt — try to recover by recreating
-      console.warn("[BugRout] Attempting database recovery...");
       db = null;
 
-      try {
-        // Delete the corrupt database
-        await deleteAsync(`${documentDirectory}SQLite/${DB_NAME}`, {
-          idempotent: true,
-        });
-      } catch {
-        // Can't delete — proceed with fresh open
+      // Only a corrupt file is deleted. It holds the user's scenarios,
+      // contacts, settings and downloaded-maps index, so a transient failure
+      // (a lock, a full disk, a bad migration) retries without touching it.
+      if (isCorruptionError(error)) {
+        console.warn("[BugRout] Database is corrupt; recreating it.");
+        await deleteDatabaseFiles();
       }
 
-      // Retry
       return getDatabase();
     }
 
@@ -76,6 +73,33 @@ export async function getDatabase(): Promise<SQLiteDatabase> {
     db = await openMock("mock-recovery.db");
     await db.execAsync(CREATE_TABLES_SQL);
     return db;
+  }
+}
+
+/**
+ * Whether an error means the database file itself is unreadable, as opposed
+ * to a failure the next attempt might not hit.
+ *
+ * @param error - The error from opening or initializing the database.
+ * @returns `true` for SQLite's corrupt / not-a-database conditions.
+ */
+function isCorruptionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /SQLITE_CORRUPT|SQLITE_NOTADB|malformed|not a database/i.test(message);
+}
+
+/**
+ * Delete the database and its WAL sidecar files. Removing the main file alone
+ * leaves `-wal`/`-shm` behind, and SQLite would replay them into the new one.
+ */
+async function deleteDatabaseFiles(): Promise<void> {
+  const base = `${documentDirectory}SQLite/${DB_NAME}`;
+  for (const path of [base, `${base}-wal`, `${base}-shm`]) {
+    try {
+      await deleteAsync(path, { idempotent: true });
+    } catch {
+      // Can't delete — the retry will surface it.
+    }
   }
 }
 
