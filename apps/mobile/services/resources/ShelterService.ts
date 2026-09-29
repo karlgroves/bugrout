@@ -9,6 +9,7 @@
  */
 
 import { upsertResourcePoints } from "@/db/queries/resources";
+import { timeoutSignal } from "@/utils/abort";
 
 import type { ResourcePoint, BBox } from "@bugrout/shared";
 
@@ -62,7 +63,7 @@ async function fetchRedCrossShelters(
       "https://www.redcross.org/content/dam/redcross/get-help/find-open-shelter/shelter-data.json",
       {
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(15000),
+        signal: timeoutSignal(15000),
       },
     );
 

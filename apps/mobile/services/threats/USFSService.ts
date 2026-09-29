@@ -6,6 +6,8 @@
  * Cached in SQLite with 12-hour TTL.
  */
 
+import { timeoutSignal } from "@/utils/abort";
+
 import type { ThreatZone } from "@bugrout/shared";
 
 const NIFC_URL =
@@ -29,7 +31,7 @@ interface NIFCResponse {
  * map them to ThreatZone records.
  */
 export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
-  const resp = await fetch(NIFC_URL, { signal: AbortSignal.timeout(15000) });
+  const resp = await fetch(NIFC_URL, { signal: timeoutSignal(15000) });
   if (!resp.ok) return [];
 
   const data = (await resp.json()) as NIFCResponse;

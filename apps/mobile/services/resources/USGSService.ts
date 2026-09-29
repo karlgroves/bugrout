@@ -10,6 +10,7 @@
 /* eslint-disable complexity, sonarjs/cognitive-complexity -- pre-existing; tracked in docs/tech-debt.md (parseUSGSRdb: tab-delimited RDB parser with header/column detection) */
 
 import { upsertResourcePoints } from "@/db/queries/resources";
+import { timeoutSignal } from "@/utils/abort";
 
 import type { ResourcePoint, BBox } from "@bugrout/shared";
 
@@ -65,7 +66,7 @@ async function fetchUSGSSites(
 
   const resp = await fetch(`${USGS_BASE}?${params}`, {
     headers: { Accept: "text/plain" },
-    signal: AbortSignal.timeout(15000),
+    signal: timeoutSignal(15000),
   });
 
   if (!resp.ok) return [];
@@ -171,7 +172,7 @@ async function fetchOSMWaterSources(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `data=${encodeURIComponent(query)}`,
-    signal: AbortSignal.timeout(30000),
+    signal: timeoutSignal(30000),
   });
 
   if (!resp.ok) return [];
