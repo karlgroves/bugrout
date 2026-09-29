@@ -14,6 +14,19 @@ flyctl deploy
 
 Health check: `curl https://bugrout-valhalla.fly.dev/status`
 
+`fly.toml` uses a TLS-only `[[services]]` block, not `[http_service]`. Fly's
+HTTP handler adds an empty `Fly-Tracestate:` header to every request, and
+`valhalla_service` rejects any empty header with `400 Malformed HTTP request` —
+which broke every route request (#141). Don't switch it back.
+
+To change only the Fly config without rebuilding tiles, redeploy the running
+image:
+
+```bash
+flyctl image show -a bugrout-valhalla   # note the deployment-… tag
+flyctl deploy --image registry.fly.io/bugrout-valhalla:<tag>
+```
+
 ## Swap regions
 
 1. Pick a PBF from <https://download.geofabrik.de/north-america/us/>
