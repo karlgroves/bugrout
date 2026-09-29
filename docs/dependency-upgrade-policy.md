@@ -129,7 +129,7 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 28 now, and all 28 are
+sweep that bounded every one of them was #126; there are 29 now, and all 29 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
@@ -168,6 +168,23 @@ And the store keeps orphaned directories from earlier installs: reading
 still linked to the old `sharp`, while the live one carries a
 `_@types+node@25.5.2` suffix. Follow the symlinks from a workspace rather than
 globbing the store.
+
+**Bound the selector too, not just the replacement.** `@xmldom/xmldom@<0.9.12`
+had a perfectly bounded replacement (`>=0.9.12 <0.10`), but its _selector_ had
+no floor, so it also caught `@expo/plist`'s `^0.8.8` and forced it onto 0.9 — a
+breaking release line for a 0.x package. 0.9 made `DOMParser.parseFromString`
+reject a missing MIME type, which `@expo/plist` never passes, so
+`expo prebuild --platform ios` failed outright:
+
+```text
+TypeError: [ios.infoPlist]: withIosInfoPlistBaseMod: DOMParser.parseFromString:
+the provided mimeType "undefined" is not valid.
+```
+
+Nothing in the gate runs an iOS prebuild, so it went unnoticed. The fix is one
+entry per release line — `<0.8.15 → >=0.8.15 <0.9` (0.8.15 carries every 0.8
+advisory fix) and `>=0.9 <0.9.12 → >=0.9.12 <0.10` for `plist`'s `^0.9.10`.
+Write every selector with the same major as its replacement.
 
 **A bounded override is not finished, it is dated.** Its upper bound records the
 advisories known when it was written, and the next one lands inside it. When
