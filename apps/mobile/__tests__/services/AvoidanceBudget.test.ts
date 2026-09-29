@@ -1,9 +1,10 @@
+import { boundAvoidancePolygons } from "@/services/routing/AvoidanceBudget";
 import {
-  boundAvoidancePolygons,
   clipRingToBBox,
   ringPerimeterMeters,
   simplifyRing,
-} from "@/services/routing/AvoidanceBudget";
+  thinVertices,
+} from "@/services/routing/ringGeometry";
 import { pointInPolygon } from "@/utils/geo";
 
 import type { GeoJSONPolygon, LatLng } from "@bugrout/shared";
@@ -125,9 +126,57 @@ describe("simplifyRing", () => {
     expect(simplifyRing(fire, 0)).toBe(fire);
   });
 
+  it("handles an adversarial 100 000-vertex ring without overflowing the stack", () => {
+    // Every vertex is the farthest from the previous chord: recursive
+    // Douglas-Peucker overflowed the call stack at 10 000 vertices, and an
+    // uncapped iterative one takes seconds per pass on the JS thread.
+    const comb: number[][] = [];
+    for (let i = 0; i < 100_000; i++) {
+      comb.push([
+        ON_ROUTE.lng + i * 1e-5,
+        ON_ROUTE.lat + (i % 2 ? 0.02 : 0) + i * 1e-7,
+      ]);
+    }
+    comb.push([ON_ROUTE.lng + 1, ON_ROUTE.lat - 0.05]);
+    const [first] = comb;
+    if (first) comb.push(first);
+
+    const simplified = simplifyRing(comb, 50);
+    expect(simplified.length).toBeGreaterThanOrEqual(4);
+    expect(simplified.length).toBeLessThanOrEqual(2001);
+  });
+
   it("never collapses a small ring below a triangle", () => {
     const tiny = square(ON_ROUTE, 50);
     expect(simplifyRing(tiny, 1000).length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("thinVertices", () => {
+  const dense = Array.from({ length: 100_000 }, (_, i) => ({
+    lng: ON_ROUTE.lng + i * 1e-4, // ~8.6 m apart
+    lat: ON_ROUTE.lat + (i % 2 ? 0.02 : 0),
+  }));
+
+  it("caps what Douglas-Peucker has to rank, keeping a subset in order", () => {
+    const thinned = thinVertices(dense);
+
+    expect(thinned.length).toBeLessThanOrEqual(2000);
+    let last = -1;
+    for (const v of thinned) {
+      const index = dense.indexOf(v);
+      expect(index).toBeGreaterThan(last);
+      last = index;
+    }
+  });
+
+  it("drops vertices closer than 10 m to the previous one", () => {
+    const close = [
+      { lng: -76.6, lat: 39.1 },
+      { lng: -76.6, lat: 39.10005 }, // ~5.6 m north
+      { lng: -76.6, lat: 39.1002 }, // ~22 m north
+    ];
+    expect(thinVertices(close)).toEqual([close[0], close[2]]);
   });
 });
 

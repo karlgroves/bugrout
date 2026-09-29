@@ -22,7 +22,17 @@
  *    when it passes through one.
  */
 
-import { expandBBox, haversineDistance, pointInPolygon } from "../../utils/geo";
+import { expandBBox, pointInPolygon } from "../../utils/geo";
+
+import {
+  clipRingToBBox,
+  filterBySignificance,
+  pointToSegment,
+  projector,
+  rankVertices,
+  ringPerimeterMeters,
+  toVertices,
+} from "./ringGeometry";
 
 import type { BBox, GeoJSONPolygon, LatLng } from "@bugrout/shared";
 
@@ -41,9 +51,9 @@ const CORRIDOR_MARGIN_M = 25_000;
 /** Douglas-Peucker tolerances tried in turn, in meters. 0 means unsimplified. */
 const SIMPLIFY_TOLERANCES_M = [0, 50, 100, 250, 500, 1000] as const;
 
-const METERS_PER_DEGREE = 111_320;
-
-/** The outcome of fitting avoidance polygons to the budget. */
+/**
+ *
+ */
 export interface BoundedAvoidance {
   /** Polygons to send, each a single closed outer ring. */
   polygons: GeoJSONPolygon[];
@@ -54,114 +64,6 @@ export interface BoundedAvoidance {
 }
 
 /** A vertex as named longitude/latitude. */
-interface Vertex {
-  lng: number;
-  lat: number;
-}
-
-/** A point in a local planar projection, in meters. */
-interface XY {
-  x: number;
-  y: number;
-}
-
-/**
- * Perimeter of a ring of `[lng, lat]` pairs, in meters.
- *
- * @param ring - Closed or open ring of `[lng, lat]` pairs.
- * @returns The summed great-circle length of its edges.
- */
-export function ringPerimeterMeters(ring: number[][]): number {
-  return perimeter(toVertices(ring));
-}
-
-/**
- * Clip a ring to an axis-aligned bounding box (Sutherland-Hodgman).
- *
- * @param ring - Closed ring of `[lng, lat]` pairs.
- * @param bbox - The clip box.
- * @returns The clipped closed ring, or `[]` when nothing of it lies inside.
- */
-export function clipRingToBBox(ring: number[][], bbox: BBox): number[][] {
-  let vertices = openRing(toVertices(ring));
-  vertices = clipEdge(
-    vertices,
-    (v) => v.lng >= bbox.west,
-    (a, b) => atLng(a, b, bbox.west),
-  );
-  vertices = clipEdge(
-    vertices,
-    (v) => v.lng <= bbox.east,
-    (a, b) => atLng(a, b, bbox.east),
-  );
-  vertices = clipEdge(
-    vertices,
-    (v) => v.lat >= bbox.south,
-    (a, b) => atLat(a, b, bbox.south),
-  );
-  vertices = clipEdge(
-    vertices,
-    (v) => v.lat <= bbox.north,
-    (a, b) => atLat(a, b, bbox.north),
-  );
-  return vertices.length >= 3 ? fromVertices(closeRing(vertices)) : [];
-}
-
-/**
- * Douglas-Peucker simplification of a closed ring.
- *
- * Kept vertices are a subset of the input, and every dropped vertex lies within
- * `toleranceMeters` of the simplified boundary.
- *
- * @param ring - Closed ring of `[lng, lat]` pairs.
- * @param toleranceMeters - Maximum distance a dropped vertex may lie from the
- *   simplified boundary.
- * @returns The simplified closed ring; the input when simplifying would leave
- *   fewer than three distinct vertices.
- */
-export function simplifyRing(
-  ring: number[][],
-  toleranceMeters: number,
-): number[][] {
-  const open = openRing(toVertices(ring));
-  const [first] = open;
-  if (toleranceMeters <= 0 || open.length <= 3 || !first) return ring;
-
-  const project = projector(first);
-  const points = open.map(project);
-  const start = project(first);
-
-  // Split the ring at its first vertex and the vertex farthest from it, so the
-  // two halves are open polylines Douglas-Peucker can work on.
-  let farIndex = 0;
-  let farDistance = -1;
-  points.forEach((p, i) => {
-    const d = Math.hypot(p.x - start.x, p.y - start.y);
-    if (d > farDistance) {
-      farDistance = d;
-      farIndex = i;
-    }
-  });
-  if (farIndex === 0) return ring;
-
-  // The closing vertex of the ring is the first one again.
-  const closed = [...points, start];
-  const keep = new Set<number>([0, farIndex]);
-  douglasPeucker(
-    { points: closed, tolerance: toleranceMeters, keep },
-    0,
-    farIndex,
-  );
-  douglasPeucker(
-    { points: closed, tolerance: toleranceMeters, keep },
-    farIndex,
-    open.length,
-  );
-
-  const kept = open.filter((_, i) => keep.has(i));
-  return kept.length >= 3 ? fromVertices(closeRing(kept)) : ring;
-}
-
 /**
  * Fit avoidance polygons inside the exclude-polygon perimeter budget.
  *
@@ -182,9 +84,13 @@ export function boundAvoidancePolygons(
     .map((ring) => (corridor ? clipRingToBBox(ring, corridor) : ring))
     .filter((ring) => ring.length >= 4);
 
+  // Rank each ring's vertices once; every tolerance is then a linear filter.
+  const ranked = clipped.map((ring) => ({ ring, ranks: rankVertices(ring) }));
   let rings = clipped;
   for (const tolerance of SIMPLIFY_TOLERANCES_M) {
-    rings = clipped.map((ring) => simplifyRing(ring, tolerance));
+    rings = ranked.map(({ ring, ranks }) =>
+      tolerance > 0 && ranks ? filterBySignificance(ranks, tolerance) : ring,
+    );
     const total = sumPerimeters(rings);
     if (total <= budgetMeters) {
       return {
@@ -196,7 +102,7 @@ export function boundAvoidancePolygons(
   }
 
   // Still over budget at the coarsest tolerance: keep the nearest threats.
-  const ranked = rings
+  const byDistance = rings
     .map((ring) => ({
       ring,
       perimeter: ringPerimeterMeters(ring),
@@ -206,7 +112,7 @@ export function boundAvoidancePolygons(
 
   const kept: number[][][] = [];
   let total = 0;
-  for (const { ring, perimeter: ringPerimeter } of ranked) {
+  for (const { ring, perimeter: ringPerimeter } of byDistance) {
     if (total + ringPerimeter <= budgetMeters) {
       kept.push(ring);
       total += ringPerimeter;
@@ -268,194 +174,6 @@ function distanceToTrip(ring: number[][], tripPoints: LatLng[]): number {
       best = Math.min(best, pointToSegment(v, a, b));
   }
   return best;
-}
-
-/**
- * Local equirectangular projection to meters, centred on `origin`.
- *
- * @param origin - The projection centre.
- * @returns A function projecting a vertex to planar meters.
- */
-function projector(origin: Vertex): (v: Vertex) => XY {
-  const cosLat = Math.cos((origin.lat * Math.PI) / 180);
-  return (v) => ({
-    x: (v.lng - origin.lng) * METERS_PER_DEGREE * cosLat,
-    y: (v.lat - origin.lat) * METERS_PER_DEGREE,
-  });
-}
-
-/** State shared by one Douglas-Peucker pass. */
-interface SimplifyPass {
-  /** Projected ring, with the closing vertex repeated at the end. */
-  points: XY[];
-  tolerance: number;
-  /** Indices of vertices to keep. */
-  keep: Set<number>;
-}
-
-/**
- * Recursive Douglas-Peucker step over `points[first..last]`.
- *
- * @param pass - The shared pass state; kept indices are added to `pass.keep`.
- * @param first - Index of the span's first vertex.
- * @param last - Index of the span's last vertex.
- */
-function douglasPeucker(pass: SimplifyPass, first: number, last: number): void {
-  const start = pass.points.at(first);
-  const end = pass.points.at(last);
-  if (!start || !end || last - first < 2) return;
-
-  let maxDistance = -1;
-  let maxIndex = first;
-  pass.points.slice(first + 1, last).forEach((p, offset) => {
-    const d = pointToSegment(p, start, end);
-    if (d > maxDistance) {
-      maxDistance = d;
-      maxIndex = first + 1 + offset;
-    }
-  });
-
-  if (maxDistance > pass.tolerance) {
-    pass.keep.add(maxIndex);
-    douglasPeucker(pass, first, maxIndex);
-    douglasPeucker(pass, maxIndex, last);
-  }
-}
-
-/**
- * Planar distance from a point to a segment.
- *
- * @param p - The point.
- * @param a - Segment start.
- * @param b - Segment end.
- * @returns The distance, in the projection's units.
- */
-function pointToSegment(p: XY, a: XY, b: XY): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-  if (lengthSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  const t = Math.max(
-    0,
-    Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq),
-  );
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
-
-/**
- * One Sutherland-Hodgman pass against a single clip edge.
- *
- * @param vertices - Open ring.
- * @param inside - Whether a vertex is on the kept side of the edge.
- * @param intersect - Where segment `a`-`b` crosses the edge.
- * @returns The clipped open ring.
- */
-function clipEdge(
-  vertices: Vertex[],
-  inside: (v: Vertex) => boolean,
-  intersect: (a: Vertex, b: Vertex) => Vertex,
-): Vertex[] {
-  const output: Vertex[] = [];
-  let previous = vertices.at(-1);
-  for (const current of vertices) {
-    if (previous && inside(current) !== inside(previous)) {
-      output.push(intersect(previous, current));
-    }
-    if (inside(current)) output.push(current);
-    previous = current;
-  }
-  return output;
-}
-
-/**
- * The point where segment `a`-`b` crosses a meridian.
- *
- * @param a - Segment start.
- * @param b - Segment end.
- * @param lng - The meridian.
- * @returns The crossing vertex.
- */
-function atLng(a: Vertex, b: Vertex, lng: number): Vertex {
-  const t = (lng - a.lng) / (b.lng - a.lng);
-  return { lng, lat: a.lat + t * (b.lat - a.lat) };
-}
-
-/**
- * The point where segment `a`-`b` crosses a parallel.
- *
- * @param a - Segment start.
- * @param b - Segment end.
- * @param lat - The parallel.
- * @returns The crossing vertex.
- */
-function atLat(a: Vertex, b: Vertex, lat: number): Vertex {
-  const t = (lat - a.lat) / (b.lat - a.lat);
-  return { lng: a.lng + t * (b.lng - a.lng), lat };
-}
-
-/**
- * Great-circle perimeter of a vertex sequence.
- *
- * @param vertices - The ring, closed or open.
- * @returns The summed edge length in meters.
- */
-function perimeter(vertices: Vertex[]): number {
-  let total = 0;
-  let previous: Vertex | undefined;
-  for (const v of vertices) {
-    if (previous) total += haversineDistance(previous, v);
-    previous = v;
-  }
-  return total;
-}
-
-/**
- * Drop the closing vertex of a closed ring.
- *
- * @param vertices - A ring, closed or open.
- * @returns The open ring.
- */
-function openRing(vertices: Vertex[]): Vertex[] {
-  const first = vertices.at(0);
-  const last = vertices.at(-1);
-  if (vertices.length < 2 || !first || !last) return vertices;
-  const closed = first.lng === last.lng && first.lat === last.lat;
-  return closed ? vertices.slice(0, -1) : vertices;
-}
-
-/**
- * Close an open ring by repeating its first vertex.
- *
- * @param vertices - An open ring.
- * @returns The closed ring.
- */
-function closeRing(vertices: Vertex[]): Vertex[] {
-  const first = vertices.at(0);
-  return first ? [...vertices, first] : vertices;
-}
-
-/**
- * Convert `[lng, lat]` pairs to vertices.
- *
- * @param ring - Coordinate pairs.
- * @returns The vertices; malformed pairs are skipped.
- */
-function toVertices(ring: number[][]): Vertex[] {
-  const vertices: Vertex[] = [];
-  for (const [lng, lat] of ring) {
-    if (lng !== undefined && lat !== undefined) vertices.push({ lng, lat });
-  }
-  return vertices;
-}
-
-/**
- * Convert vertices back to `[lng, lat]` pairs.
- *
- * @param vertices - The vertices.
- * @returns Coordinate pairs.
- */
-function fromVertices(vertices: Vertex[]): number[][] {
-  return vertices.map((v) => [v.lng, v.lat]);
 }
 
 /**

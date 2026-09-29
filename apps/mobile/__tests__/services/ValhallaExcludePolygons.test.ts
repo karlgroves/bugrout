@@ -3,7 +3,8 @@
  * engine's perimeter limit (#168). Checked through calculateRoute() and the
  * body handed to fetch, not the helper in isolation, so the wiring is covered.
  */
-import { ringPerimeterMeters } from "@/services/routing/AvoidanceBudget";
+import * as AvoidanceBudget from "@/services/routing/AvoidanceBudget";
+import { ringPerimeterMeters } from "@/services/routing/ringGeometry";
 import {
   calculateRoute,
   initValhalla,
@@ -85,6 +86,21 @@ describe("ValhallaModule exclude_polygons", () => {
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("1 threat polygon(s) exceed"),
     );
+  });
+
+  it("still sends the request, without avoidance, if bounding throws", async () => {
+    jest
+      .spyOn(AvoidanceBudget, "boundAvoidancePolygons")
+      .mockImplementation(() => {
+        throw new RangeError("Maximum call stack size exceeded");
+      });
+
+    await expect(
+      calculateRoute(BALTIMORE, ANNAPOLIS, { avoidPolygons: [fire(1200)] }),
+    ).resolves.toBeDefined();
+
+    expect(sentBodies).toHaveLength(1);
+    expect(sentBodies[0]).not.toHaveProperty("exclude_polygons");
   });
 
   it("omits exclude_polygons when nothing is left to avoid", async () => {

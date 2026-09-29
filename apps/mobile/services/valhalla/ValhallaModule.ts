@@ -220,11 +220,23 @@ function buildExcludePolygons(
   const polygons = options?.avoidPolygons ?? [];
   if (polygons.length === 0) return [];
 
-  const bounded = boundAvoidancePolygons(polygons, [
-    origin,
-    ...(options?.waypoints ?? []),
-    destination,
-  ]);
+  let bounded;
+  try {
+    bounded = boundAvoidancePolygons(polygons, [
+      origin,
+      ...(options?.waypoints ?? []),
+      destination,
+    ]);
+  } catch (err) {
+    // This runs before calculateRoute's try: a throw here would escape route
+    // calculation entirely. Route without avoidance instead — the preview still
+    // warns when the route crosses a threat.
+    console.warn(
+      "[BugRout] Could not fit threat polygons; routing without avoidance:",
+      err,
+    );
+    return [];
+  }
   if (bounded.dropped > 0) {
     console.warn(
       `[BugRout] ${bounded.dropped} threat polygon(s) exceed the routing engine's avoidance limit and were not avoided.`,
