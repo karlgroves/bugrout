@@ -51,26 +51,41 @@ describe("threatsToAvoidancePolygons", () => {
     expect(polygons).toHaveLength(0);
   });
 
-  it("handles MultiPolygon by extracting first polygon", () => {
-    const threat: ThreatZone = {
-      id: "multi",
-      type: "wildfire",
-      severity: "severe",
-      geometry: {
-        type: "MultiPolygon",
-        coordinates: [squarePolygon, squarePolygon],
-      },
-      headline: "Multi",
-      description: "",
-      source: "usfs",
-      fetchedAt: Date.now(),
-      expiresAt: null,
-    };
-    const polygons = threatsToAvoidancePolygons([threat]);
-    expect(polygons).toHaveLength(1);
-    expect(polygons[0]!.type).toBe("Polygon");
+  it("avoids every part of a MultiPolygon, not just the first", () => {
+    const polygons = threatsToAvoidancePolygons([multiPartFire]);
+    expect(polygons).toHaveLength(2);
+    expect(polygons.map((p) => p.coordinates)).toEqual([
+      squarePolygon,
+      secondPart,
+    ]);
   });
 });
+
+// A second, disjoint square well east of `squarePolygon`.
+const secondPart: number[][][] = [
+  [
+    [-121.5, 37.5],
+    [-121.5, 38.0],
+    [-121.0, 38.0],
+    [-121.0, 37.5],
+    [-121.5, 37.5],
+  ],
+];
+
+const multiPartFire: ThreatZone = {
+  id: "multi",
+  type: "wildfire",
+  severity: "severe",
+  geometry: {
+    type: "MultiPolygon",
+    coordinates: [squarePolygon, secondPart],
+  },
+  headline: "Multi",
+  description: "",
+  source: "usfs",
+  fetchedAt: Date.now(),
+  expiresAt: null,
+};
 
 describe("routeIntersectsThreat", () => {
   const threat = makeThreat("wildfire", squarePolygon);
@@ -92,5 +107,10 @@ describe("routeIntersectsThreat", () => {
 
   it("returns false for empty route", () => {
     expect(routeIntersectsThreat([], threat)).toBe(false);
+  });
+
+  it("detects a route through the second part of a MultiPolygon", () => {
+    const route = [{ lat: 37.7, lng: -121.3 }]; // inside secondPart only
+    expect(routeIntersectsThreat(route, multiPartFire)).toBe(true);
   });
 });
