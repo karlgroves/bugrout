@@ -31,7 +31,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 RUN curl -fL "$PBF_URL" -o "${REGION_NAME}.osm.pbf"
 
 # Generate Valhalla config + build tiles.
+#
+# --service-limits-max-exclude-polygons-length: Valhalla's default caps the
+# TOTAL perimeter of a request's exclude_polygons at 10 km and rejects the whole
+# request past it (#168) — smaller than most real fire or flood perimeters.
+# 250 km was chosen by timing a Baltimore -> Annapolis route on this image's
+# tiles: latency grows roughly with total perimeter (~1.7 s at 250 km, ~5.7 s at
+# 1000 km under amd64 emulation) and the app gives up after 10 s. The app's
+# MAX_EXCLUDE_POLYGONS_PERIMETER_M must match; a test compares the two.
 RUN valhalla_build_config \
+      --service-limits-max-exclude-polygons-length 250000 \
       --mjolnir-tile-dir /custom_files/valhalla_tiles \
       --mjolnir-tile-extract /custom_files/valhalla_tiles.tar \
       --mjolnir-timezone /custom_files/timezones.sqlite \

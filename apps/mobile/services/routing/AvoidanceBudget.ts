@@ -36,14 +36,14 @@ import {
 
 import type { BBox, GeoJSONPolygon, LatLng } from "@bugrout/shared";
 
-/**
+export /**
  * Total exclude-polygon perimeter the routing engine accepts, in meters.
  *
- * Must match `service_limits.max_exclude_polygons_length` in the Valhalla
- * config the app routes against. 10 000 m is Valhalla's default, which is what
- * `backend/services/valhalla/Dockerfile` builds today.
+ * Must match `--service-limits-max-exclude-polygons-length` in
+ * `backend/services/valhalla/Dockerfile`; `ExcludePolygonLimitSync.test.ts`
+ * fails when they differ. Valhalla's own default is 10 000 m.
  */
-const MAX_EXCLUDE_POLYGONS_PERIMETER_M = 10_000;
+const MAX_EXCLUDE_POLYGONS_PERIMETER_M = 250_000;
 
 /** How far beyond the trip's bounding box threat geometry is still kept. */
 const CORRIDOR_MARGIN_M = 25_000;
