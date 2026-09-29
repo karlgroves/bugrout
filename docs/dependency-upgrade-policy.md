@@ -129,29 +129,39 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 25 now, and all 25 are
+sweep that bounded every one of them was #126; there are 28 now, and all 28 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
 replacement range can be perfectly bounded and still land outside what the
 package that depends on it asks for — which is what #28 actually was, an
-unbounded `uuid` override resolving past its consumer. Two of the entries here
+unbounded `uuid` override resolving past its consumer. Five of the entries here
 cross an _exact_ pin:
 
-| consumer                       | declares          | forced to |
-| ------------------------------ | ----------------- | --------- |
-| `miniflare@5.20260801.0-alpha` | `sharp@0.35.2`    | `0.35.4`  |
-| `markdownlint-cli2@0.23.2`     | `smol-toml@1.7.0` | `1.8.0`   |
+| consumer                       | declares             | forced to |
+| ------------------------------ | -------------------- | --------- |
+| `miniflare@5.20260801.0-alpha` | `sharp@0.35.2`       | `0.35.4`  |
+| `miniflare@5.20260801.0-alpha` | `undici@7.28.0`      | `7.29.1`  |
+| `markdownlint-cli2@0.23.2`     | `smol-toml@1.7.0`    | `1.8.0`   |
+| `markdownlint-cli2@0.23.2`     | `js-yaml@5.2.2`      | `5.4.2`   |
+| `markdownlint-cli2@0.23.2`     | `markdown-it@14.3.0` | `14.3.2`  |
 
-Both were exercised rather than argued. `sharp` is a native package, so the
+All five were exercised rather than argued. `sharp` is a native package, so the
 check is that it loads through the live resolution path — `wrangler` →
 `miniflare` → `sharp@0.35.4`, libvips 8.18.6, API responding — and not merely
-that the lockfile records the version. `smol-toml` is exercised by
-`pnpm run markdownlint`, which passes. The `js-yaml` entries need no such note:
-every consumer declares a caret range that already contains the fixed version.
+that the lockfile records the version. `undici` is checked the same way: with
+the live `miniflare` directory linked to `undici@7.29.1`, `wrangler dev` serves
+the tile-server's `/health` and `check-headers.js` passes against it. The
+`undici@>=7` override crossed this pin before it was recorded here — at 7.29.0,
+also above the declared 7.28.0 — which is the drift this section warns about.
+The three `markdownlint-cli2` pins are exercised by `pnpm run markdownlint`,
+which passes, and by loading `js-yaml` and `markdown-it` through
+`markdownlint-cli2`'s own `node_modules` links. The other `js-yaml` entries (3.x
+and 4.x) need no such note: every consumer of those majors declares a caret
+range that already contains the fixed version.
 
 Two traps when checking this by hand. A naive grep of the store finds
-`wrangler@4.119.0` declaring `smol-toml@1.5.2`, which looks like a third
+`wrangler@4.119.0` declaring `smol-toml@1.5.2`, which looks like a sixth
 crossing — it is a **devDependency**, so it is neither installed nor affected.
 And the store keeps orphaned directories from earlier installs: reading
 `node_modules/.pnpm/miniflare@*` without the peer suffix finds a stale copy
