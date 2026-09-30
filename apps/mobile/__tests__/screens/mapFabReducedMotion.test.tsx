@@ -77,7 +77,7 @@ jest.mock("@/components/map/ScenarioChips", () => ({
 jest.mock("@/components/map/ResourceFilterBar", () => ({
   ResourceFilterBar: () => null,
 }));
-jest.mock("@/services/tiles/TileManager", () => ({
+jest.mock("@/services/tiles/TileVersions", () => ({
   isRegionStale: () => false,
 }));
 jest.mock("@/platform/haptics", () => ({

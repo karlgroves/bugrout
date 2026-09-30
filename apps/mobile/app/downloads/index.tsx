@@ -21,7 +21,9 @@ import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { getCountyGroups } from "@/constants/counties";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useTileManager } from "@/hooks/useTileManager";
-import { isRegionStale, isExpoGo } from "@/services/tiles/TileManager";
+import { isExpoGo } from "@/services/tiles/TileManager";
+import { isRegionStale } from "@/services/tiles/TileVersions";
+import { useMapStore } from "@/stores/useMapStore";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
@@ -30,6 +32,80 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024 * 1024)
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/** Props for {@link DownloadedRegionRow}. */
+interface DownloadedRegionRowProps {
+  region: DownloadedRegion;
+  stale: boolean;
+  /** The published region to update to; absent when no update can be offered. */
+  update: Region | undefined;
+  isUpdating: boolean;
+  onUpdate: (update: Region) => void;
+  onDelete: (region: DownloadedRegion) => void;
+}
+
+/** A downloaded region: size and date, an "Update available" badge, Update and Delete actions. */
+function DownloadedRegionRow({
+  region,
+  stale,
+  update,
+  isUpdating,
+  onUpdate,
+  onDelete,
+}: DownloadedRegionRowProps): React.JSX.Element {
+  return (
+    <View style={styles.regionCard}>
+      <View style={styles.regionInfo}>
+        <View style={styles.regionHeader}>
+          <Text style={styles.regionName}>{region.name}</Text>
+          {stale ? (
+            <View style={styles.staleBadge}>
+              <Text style={styles.staleText}>Update available</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.regionMeta}>
+          {formatBytes(region.sizeBytes)} · Downloaded{" "}
+          {new Date(region.downloadedAt).toLocaleDateString()}
+        </Text>
+      </View>
+      {update ? (
+        <Pressable
+          testID={`update-region-${region.id}`}
+          style={[
+            styles.downloadButton,
+            isUpdating && styles.downloadButtonDisabled,
+          ]}
+          onPress={() => {
+            if (!isUpdating) onUpdate(update);
+          }}
+          disabled={isUpdating}
+          accessibilityLabel={`Update ${region.name} offline map`}
+          accessibilityHint="Downloads the newer version; the current map stays usable until it finishes"
+          accessibilityRole="button"
+        >
+          <FontAwesome
+            name="refresh"
+            size={18}
+            color={isUpdating ? colors.textMuted : colors.textPrimary}
+          />
+        </Pressable>
+      ) : null}
+      <Pressable
+        testID={`delete-region-${region.id}`}
+        style={styles.deleteButton}
+        onPress={() => {
+          onDelete(region);
+        }}
+        accessibilityLabel={`Delete ${region.name} offline map`}
+        accessibilityHint="Removes this region's offline maps to free up storage"
+        accessibilityRole="button"
+      >
+        <FontAwesome name="trash-o" size={18} color={colors.danger} />
+      </Pressable>
+    </View>
+  );
 }
 
 /** Offline tile download manager with progress, storage info, and stale warnings. */
@@ -44,6 +120,7 @@ function DownloadsScreen(): React.JSX.Element {
     deleteRegion,
   } = useTileManager();
 
+  const publishedVersions = useMapStore((s) => s.publishedVersions);
   const downloadedIds = new Set(downloadedRegions.map((r) => r.id));
   const notDownloaded = availableRegions.filter(
     (r) => !downloadedIds.has(r.id),
@@ -157,36 +234,24 @@ function DownloadsScreen(): React.JSX.Element {
 
         if (item._type === "downloaded") {
           const region = item as DownloadedRegion & { _type: string };
-          const stale = isRegionStale(region);
+          const stale = isRegionStale(region, publishedVersions);
           return (
-            <View style={styles.regionCard}>
-              <View style={styles.regionInfo}>
-                <View style={styles.regionHeader}>
-                  <Text style={styles.regionName}>{region.name}</Text>
-                  {stale ? (
-                    <View style={styles.staleBadge}>
-                      <Text style={styles.staleText}>Update available</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.regionMeta}>
-                  {formatBytes(region.sizeBytes)} · Downloaded{" "}
-                  {new Date(region.downloadedAt).toLocaleDateString()}
-                </Text>
-              </View>
-              <Pressable
-                testID={`delete-region-${region.id}`}
-                style={styles.deleteButton}
-                onPress={() => {
-                  handleDelete(region);
-                }}
-                accessibilityLabel={`Delete ${region.name} offline map`}
-                accessibilityHint="Removes this region's offline maps to free up storage"
-                accessibilityRole="button"
-              >
-                <FontAwesome name="trash-o" size={18} color={colors.danger} />
-              </Pressable>
-            </View>
+            <DownloadedRegionRow
+              region={region}
+              stale={stale}
+              // Only a real manifest can be updated from — not the offline
+              // fallback list, whose entries carry no published version.
+              update={
+                stale && publishedVersions
+                  ? availableRegions.find((r) => r.id === region.id)
+                  : undefined
+              }
+              isUpdating={activeDownload?.regionId === region.id}
+              onUpdate={(update) => {
+                void handleDownload(update);
+              }}
+              onDelete={handleDelete}
+            />
           );
         }
 

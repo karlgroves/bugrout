@@ -26,6 +26,7 @@ interface ExpoFileSystem {
     options?: { intermediates?: boolean },
   ): Promise<void>;
   deleteAsync(path: string, options?: { idempotent?: boolean }): Promise<void>;
+  moveAsync(options: { from: string; to: string }): Promise<void>;
   getFreeDiskStorageAsync(): Promise<number>;
   createDownloadResumable(
     url: string,
@@ -108,6 +109,18 @@ export async function deleteAsync(
 ): Promise<void> {
   if (!nativeFileSystem) return;
   await nativeFileSystem.deleteAsync(path, options);
+}
+
+/**
+ * Moves (renames) a file, replacing whatever is at `to`; a no-op where there is
+ * no file system. Used to swap a fully downloaded file into place.
+ */
+export async function moveAsync(options: {
+  from: string;
+  to: string;
+}): Promise<void> {
+  if (!nativeFileSystem) return;
+  await nativeFileSystem.moveAsync(options);
 }
 
 /**

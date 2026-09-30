@@ -1,7 +1,7 @@
 /**
  * Hook that manages background data synchronization.
  *
- * Triggers threat and resource data refresh when:
+ * Triggers threat, resource and published-tile-version refresh when:
  * - App comes online after being offline
  * - Active map region changes
  * - TTL expires for cached data
@@ -14,6 +14,7 @@ import { AppState, type AppStateStatus } from "react-native";
 
 import { refreshResources } from "@/services/resources/ResourceSync";
 import { refreshThreats } from "@/services/threats/ThreatSync";
+import { refreshPublishedVersions } from "@/services/tiles/TileManager";
 import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useMapStore } from "@/stores/useMapStore";
 
@@ -48,6 +49,8 @@ export function useDataSync(): DataSyncHandle {
     await Promise.allSettled([
       refreshThreats(activeRegion.bbox, activeRegion.id),
       refreshResources(activeRegion.id, activeRegion.bbox),
+      // So the map's stale banner reflects newly published tiles (#179).
+      refreshPublishedVersions(),
     ]);
   }, [activeRegion]);
 
