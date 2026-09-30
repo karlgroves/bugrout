@@ -61,6 +61,17 @@ export interface Route {
 
 /**
  * Lifecycle state of an active or pending route.
+ *
+ * `previewing` is a calculated route the user has not started; only Go makes
+ * it `active`. A calculated route used to be `active` straight away, so
+ * backing out of the preview left the map mid-"trip" with the Bug Out button
+ * hidden and no way to end it (#189).
  */
 export type RouteStatus =
-  "idle" | "calculating" | "active" | "rerouting" | "completed" | "error";
+  | "idle"
+  | "calculating"
+  | "previewing"
+  | "active"
+  | "rerouting"
+  | "completed"
+  | "error";

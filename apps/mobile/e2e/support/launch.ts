@@ -34,6 +34,13 @@ import { by, device, element } from "detox";
  */
 export async function launchToMapScreen(): Promise<void> {
   await device.launchApp({ newInstance: true, delete: true });
+  // Routing goes to localhost:8002, which on an emulator is the emulator
+  // itself. Forward it to the host, where the Valhalla replay server runs
+  // (support/valhalla-replay-server.js). The iOS simulator shares the host's
+  // network and needs nothing.
+  if (device.getPlatform() === "android") {
+    await device.reverseTcpPort(8002);
+  }
 
   await element(by.id("onboarding-accept-btn")).tap();
   await element(by.text("Skip for now")).tap();

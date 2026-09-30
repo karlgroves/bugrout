@@ -16,7 +16,6 @@
 interface StyleOptions {
   /** Local path to PMTiles file, or null for fallback mode */
   pmtilesPath: string | null;
-  /** Port for local tile server (if using localhost approach) */
 }
 
 /**

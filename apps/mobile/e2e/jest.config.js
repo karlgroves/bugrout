@@ -4,8 +4,10 @@ module.exports = {
   testMatch: ["<rootDir>/e2e/**/*.test.ts"],
   testTimeout: 120000,
   maxWorkers: 1,
-  globalSetup: "detox/runners/jest/globalSetup",
-  globalTeardown: "detox/runners/jest/globalTeardown",
+  // Detox's own setup and teardown, wrapped to start and stop the Valhalla
+  // replay server the specs route through (support/valhalla-replay-server.js).
+  globalSetup: "<rootDir>/e2e/globalSetup.js",
+  globalTeardown: "<rootDir>/e2e/globalTeardown.js",
   reporters: ["detox/runners/jest/reporter"],
   testEnvironment: "detox/runners/jest/testEnvironment",
   verbose: true,

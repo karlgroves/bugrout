@@ -26,46 +26,39 @@
  * fix` added and then removed made no difference to either run. The assertion
  * that survives that experiment is still below.
  *
- * **Routing tiles — fixable, and fixed by not needing them.** ValhallaModule
- * has a mock-route fallback; what was missing was any evidence it worked
- * through the UI. It does, and both the preview and the navigation screen say
- * so in as many words, so the assertions on them are exact rather than
- * tolerant.
+ * **Routing — now a recorded real route.** This spec used to get its route
+ * from ValhallaModule's made-up straight-line fallback, and asserted "via Mock
+ * Route (Valhalla unavailable)" to prove it. That fallback was the product
+ * defect in #190 — it presented an invented route as real — and it is gone.
  *
  * ## How it runs offline now
  *
- * The journey needs a destination and a route. Both now come from the device:
+ * The journey needs a destination and a route. Neither touches a third-party
+ * service:
  *
  * - **Destination** from a saved scenario the spec creates itself
  *   (support/scenario.ts), which reaches `selectedDest` with no network at all.
- *   That is #131's option 2, and it turned out to be enough on its own — no
- *   test-only seam in production code, which was option 3 and is still the
- *   thing to resist.
- * - **Route** from `buildMockRoute`, because Valhalla is never initialised at
- *   all. AppBootstrap gates `initValhalla` on `hasDownloadedTiles &&
- *   activeRegion`, and a spec that reinstalls the app has no downloaded tiles,
- *   so `config` stays null and `calculateRoute` returns the mock on its first
- *   branch. Measured, not assumed: the device log for E2E run 35141485633
- *   holds exactly one Valhalla line, "[BugRout] Valhalla not initialized —
- *   using mock route." No HTTP request is made, and localhost:8002 is never
- *   contacted — if tiles are ever seeded in CI, that changes and this note is
- *   the thing to re-check.
- *
- * Nothing here talks to a third-party service, which is the failure this spec
- * exists to stop repeating rather than to work around.
+ *   That is #131's option 2.
+ * - **Route** from the Valhalla replay server (support/valhalla-replay-server.js),
+ *   which globalSetup.js starts on the host and launchToMapScreen forwards the
+ *   emulator's localhost:8002 to. It returns a response recorded from the live
+ *   routing server when the request's endpoints match a recording, and the
+ *   live server's out-of-coverage error otherwise. The emulator is placed at
+ *   the recording's origin and the scenario at its destination, so the app
+ *   sends exactly the recorded request.
  *
  * ## The assertion that pins all of it
  *
- * The route preview reads "via Mock Route (Valhalla unavailable)", and this
- * spec asserts that string exactly. It is the whole point: it proves the
- * offline fallback is what produced the route, and it fails loudly the day
- * something gives CI a live routing service, which would quietly turn this
- * back into a test of somebody else's uptime.
+ * The route preview reads "via North Calvert Street" — the summary the app
+ * builds from the recorded Baltimore route. It proves the route came through
+ * the real parsing path from a real response, rather than being invented, and
+ * it fails if the app ever routes somewhere other than the recording.
  *
- * What is NOT covered, and is covered off-device instead: real Valhalla
- * responses and maneuver parsing (ValhallaModule.test.ts,
- * RouteEngine.test.ts, RouteEngineIntegration.test.ts), deviation and voice
- * (NavigationController.test.ts), and geocoding (Geocoder.test.ts).
+ * What is NOT covered, and is covered off-device instead: each routing
+ * failure reason (RouteUnavailable.test.ts; the out-of-coverage one also
+ * end-to-end in routing-unavailable.test.ts), maneuver positions and advance
+ * along a real route (ValhallaManeuvers.test.ts), and geocoding
+ * (Geocoder.test.ts).
  */
 
 import { by, device, element, expect, waitFor } from "detox";
@@ -77,9 +70,16 @@ import { createScenario } from "./support/scenario";
 
 const SCENARIO_NAME = "Inland Refuge";
 
+/** The recorded route's endpoints — e2e/fixtures/valhalla-routes.json. */
+const ORIGIN = { lat: 39.2904, lng: -76.6122 };
+const DESTINATION = { lat: 39.3138, lng: -76.6021 };
+
 describe("Full evacuation journey", () => {
   beforeAll(async () => {
     await launchToMapScreen();
+    // At the recorded route's origin, so the app asks the replay server for
+    // exactly the recorded request.
+    await device.setLocation(ORIGIN.lat, ORIGIN.lng);
   });
 
   it("shows the map screen with Bug Out FAB", async () => {
@@ -87,10 +87,8 @@ describe("Full evacuation journey", () => {
   });
 
   it("saves a scenario to route to", async () => {
-    // The destination, obtained without geocoding. Los Angeles, matching
-    // scenarios.test.ts — the coordinates only have to be somewhere the
-    // straight-line mock route can run to.
-    await createScenario(SCENARIO_NAME, 34.0522, -118.2437);
+    // The destination, obtained without geocoding: the recorded route's end.
+    await createScenario(SCENARIO_NAME, DESTINATION.lat, DESTINATION.lng);
     await waitFor(element(by.id("bug-out-fab")))
       .toBeVisible()
       .withTimeout(10000);
@@ -168,17 +166,15 @@ describe("Full evacuation journey", () => {
 
     // Longer than the screens above: this waits on the whole routing pass —
     // the recent-destination write, the threat-avoidance polygons, and the
-    // Valhalla call timing out against localhost:8002 before the mock route is
-    // built. None of it is slow, but none of it is a single React render.
+    // request to the replay server. None of it is slow, but none of it is a
+    // single React render.
     await waitFor(element(by.id("route-preview-go-btn")))
       .toBeVisible()
       .withTimeout(30000);
 
-    // Exactly the string ValhallaModule's buildMockRoute puts in `summary`.
-    // This is the assertion the whole spec is arranged around: it proves the
-    // route came from the offline fallback rather than from a routing service
-    // CI reached over the network. If CI ever gets a real Valhalla, this line
-    // is supposed to fail.
+    // The summary the app builds from the recorded route: its one street
+    // longer than a kilometre. This is the assertion the spec is arranged
+    // around — the route came from a real response through the real parser.
     //
     // `toBeVisible`, not `toExist`, and the difference is load-bearing here.
     // This assertion spent one commit as `toExist` because Espresso found the
@@ -187,9 +183,7 @@ describe("Full evacuation journey", () => {
     // this suite found on its first real run (E2E 35137927287), and the styles
     // in app/route-preview/index.tsx now explain it. Asserting visibility is
     // what keeps it fixed.
-    await expect(
-      element(by.text("via Mock Route (Valhalla unavailable)")),
-    ).toBeVisible();
+    await expect(element(by.text("via North Calvert Street"))).toBeVisible();
 
     // The rest of the panel, because the defect hid all of it and one visible
     // line would not have caught it. These are the three things spec.md
@@ -223,20 +217,19 @@ describe("Full evacuation journey", () => {
       .toBeVisible()
       .withTimeout(20000);
 
-    // The mock route's street name, shown by the maneuver card. Two things at
-    // once: the route survived the store round trip into the card rather than
-    // leaving it on its "Calculating route..." empty state, and — since only
-    // buildMockRoute writes "Mock Route" — the offline fallback is what the
-    // user is being navigated along. That is the visible half of the claim the
-    // preview step can currently only assert exists.
+    // The maneuver card's street: the route survived the store round trip
+    // into the card rather than leaving it on "Calculating route...".
     //
-    // Not the instruction text. The first maneuver is `depart`, positioned at
-    // the origin, so the first GPS update is already within the 30m
-    // MANEUVER_PASSED_THRESHOLD and the controller advances to "Continue
-    // straight" before this line runs — which E2E run 35137927287 caught by
-    // failing on "Head toward your destination". The street name is the same
-    // on both, so it does not race the advance.
-    await expect(element(by.text("Mock Route"))).toBeVisible();
+    // Either of the first two maneuvers. The first is `depart` on East Fayette
+    // Street, at the snapped origin; once a GPS update lands within 30 m of it,
+    // the controller advances to "Bear right onto North Calvert Street". Which
+    // one is showing depends on when the first update arrives (and a standard
+    // AVD's missing magnetometer can stop updates altogether — see below), so
+    // pinning one would race it. The regex is a full match in Espresso, so it
+    // does not also match the instruction sentence.
+    await waitFor(element(by.text(/^(East Fayette|North Calvert) Street$/)))
+      .toBeVisible()
+      .withTimeout(10000);
 
     // Deliberately nothing here asserts on position, distance or ETA. A
     // standard AVD has no magnetometer, so watchHeadingAsync can reject and

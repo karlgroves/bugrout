@@ -1,0 +1,134 @@
+{
+  "trip": {
+    "legs": [
+      {
+        "maneuvers": [
+          {
+            "type": 1,
+            "instruction": "Drive west on East Fayette Street.",
+            "street_names": ["East Fayette Street"],
+            "length": 0.015,
+            "time": 1.125,
+            "begin_shape_index": 0,
+            "end_shape_index": 2
+          },
+          {
+            "type": 9,
+            "instruction": "Bear right onto North Calvert Street.",
+            "street_names": ["North Calvert Street"],
+            "length": 0.928,
+            "time": 80.481,
+            "begin_shape_index": 2,
+            "end_shape_index": 40
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto East Madison Street.",
+            "street_names": ["East Madison Street"],
+            "length": 0.23,
+            "time": 24.946,
+            "begin_shape_index": 40,
+            "end_shape_index": 51
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto North Charles Street.",
+            "street_names": ["North Charles Street"],
+            "length": 0.048,
+            "time": 5.718,
+            "begin_shape_index": 51,
+            "end_shape_index": 53
+          },
+          {
+            "type": 6,
+            "instruction": "Your destination is on the left.",
+            "length": 0.0,
+            "time": 0.0,
+            "begin_shape_index": 53,
+            "end_shape_index": 53
+          }
+        ],
+        "summary": {
+          "length": 1.221,
+          "time": 112.272
+        },
+        "shape": "kab}iAzd`cqCKbB}@pFsD`Fg@Xo@`@wAf@{CT_CJ{BFeDCiAGaBKgBS}A]uA_@}ByAuBJcRr@sn@bBoCFeB?aw@xBmKZS@_CFcBD_ABkr@hBmj@bBwOd@wKZui@`ByCHwADsADi_AtCqCH_CHiy@|BeCHF|D`@x\\^f\\@|@FjEDtCp@ff@DfDf@tb@BxAFdEaE`EgRb@"
+      },
+      {
+        "maneuvers": [
+          {
+            "type": 3,
+            "instruction": "Drive north on North Charles Street.",
+            "street_names": ["North Charles Street"],
+            "length": 0.07,
+            "time": 6.396,
+            "begin_shape_index": 0,
+            "end_shape_index": 3
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto East Read Street.",
+            "street_names": ["East Read Street"],
+            "length": 0.237,
+            "time": 30.626,
+            "begin_shape_index": 3,
+            "end_shape_index": 12
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto North Calvert Street/MD 2.",
+            "street_names": ["North Calvert Street", "MD 2"],
+            "length": 1.268,
+            "time": 115.642,
+            "begin_shape_index": 12,
+            "end_shape_index": 47
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto East North Avenue/US 1/US 40 Truck.",
+            "street_names": ["East North Avenue", "US 1", "US 40 Truck"],
+            "length": 0.837,
+            "time": 76.549,
+            "begin_shape_index": 47,
+            "end_shape_index": 75
+          },
+          {
+            "type": 15,
+            "instruction": "Turn left onto Kennedy Avenue.",
+            "street_names": ["Kennedy Avenue"],
+            "length": 0.157,
+            "time": 27.143,
+            "begin_shape_index": 75,
+            "end_shape_index": 80
+          },
+          {
+            "type": 10,
+            "instruction": "Turn right onto Worsley Street.",
+            "street_names": ["Worsley Street"],
+            "length": 0.194,
+            "time": 40.549,
+            "begin_shape_index": 80,
+            "end_shape_index": 83
+          },
+          {
+            "type": 4,
+            "instruction": "You have arrived at your destination.",
+            "length": 0.0,
+            "time": 0.0,
+            "begin_shape_index": 83,
+            "end_shape_index": 83
+          }
+        ],
+        "summary": {
+          "length": 2.764,
+          "time": 296.907
+        },
+        "shape": "_{r}iAxcgcqC}KV_U^aD@GaEe@}]O_Lu@ej@GoEEmDe@u]e@{\\EuDyCH_kApC_CFsCHyfAlC_DHwCFcCHil@hBsJ\\sDH_CHsk@fBiKVoCHkDHyn@|AaDFwEJ}CFcCFwSh@eKVo\\x@gp@bB}KZyaApCs_@hAkHRiWv@}b@lAsHTaBDgUj@oCFGwDkAo}@MoJEmE_Akf@s@}h@GuDEeDKuEa@kQUwG[uJUwL[wLMyEEiAKqAiCaFcA}EMyAg@sScAei@eCegAJs@eBm}@cBy|@IwD}Aux@sEfAmANkOp@wg@~B{Tl@w@_s@u@e`@u`@oa@"
+      }
+    ],
+    "summary": {
+      "length": 3.986,
+      "time": 409.179
+    }
+  }
+}

@@ -91,7 +91,8 @@ export function BugroutMap({
   // `defaultSettings` apply once, on first render — usually before the first
   // GPS fix. Move to the user when a fix first arrives, unless the camera is
   // already following them.
-  const centredOnUser = useRef(false);
+  // A fix known at first render is already where `defaultSettings` opened.
+  const centredOnUser = useRef(userLocation != null);
   useEffect(() => {
     if (!userLocation || followUser || centredOnUser.current) return;
     centredOnUser.current = true;

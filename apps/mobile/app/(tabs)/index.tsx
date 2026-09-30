@@ -21,11 +21,13 @@ import { ResourceFilterBar } from "@/components/map/ResourceFilterBar";
 import { ResourceMarkers } from "@/components/map/ResourceMarkers";
 import { ScenarioChips } from "@/components/map/ScenarioChips";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
+import { TripInProgressBanner } from "@/components/navigation/TripInProgressBanner";
 import { colors, fab, spacing, statusIndicator } from "@/constants/theme";
 import { useDataSync } from "@/hooks/useDataSync";
 import { useLocation } from "@/hooks/useLocation";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import * as Haptics from "@/platform/haptics";
+import * as NavController from "@/services/navigation/NavigationController";
 import { isRegionStale } from "@/services/tiles/TileVersions";
 import { useMapStore } from "@/stores/useMapStore";
 import { useRouteStore } from "@/stores/useRouteStore";
@@ -34,7 +36,7 @@ function MapScreen(): React.JSX.Element {
   const router = useRouter();
   const { position } = useLocation(true);
   useDataSync(); // Background threat/resource refresh
-  const { activeRoute, status } = useRouteStore();
+  const { activeRoute, status, clearRoute } = useRouteStore();
   const { tilesLoaded, activeRegion, publishedVersions } = useMapStore();
   const tileStale = activeRegion
     ? isRegionStale(activeRegion, publishedVersions)
@@ -158,6 +160,20 @@ function MapScreen(): React.JSX.Element {
           <ScenarioChips />
         </View>
       )}
+
+      {/* During a trip the FAB is hidden; say so and offer both ways out,
+          rather than leave the user with no Bug Out and no Stop (#189). */}
+      {isNavigating && activeRoute ? (
+        <TripInProgressBanner
+          onResume={() => {
+            router.push(`/navigation/${activeRoute.id}`);
+          }}
+          onEnd={() => {
+            void NavController.stop();
+            clearRoute();
+          }}
+        />
+      ) : null}
 
       {/* Bug Out FAB — hidden during active navigation */}
       {!isNavigating && (

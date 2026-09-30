@@ -113,6 +113,21 @@ describe("BugroutMap", () => {
     expect(mockSetCamera).toHaveBeenCalledTimes(1);
   });
 
+  it("does not re-centre when the fix is known at first render", async () => {
+    // defaultSettings already opened on it; a setCamera would only animate
+    // to the same place.
+    await render(<BugroutMap userLocation={BALTIMORE} />);
+
+    const { defaultSettings } = firstCameraProps() as {
+      defaultSettings: { centerCoordinate: [number, number] };
+    };
+    expect(defaultSettings.centerCoordinate).toEqual([
+      BALTIMORE.lng,
+      BALTIMORE.lat,
+    ]);
+    expect(mockSetCamera).not.toHaveBeenCalled();
+  });
+
   it("reports a tap from the GeoJSON Point MapView delivers", async () => {
     const onMapPress = jest.fn();
     await render(
