@@ -257,18 +257,19 @@ function parseValhallaResponse(
 ): Route {
   const trip = response.trip;
 
-  const legs: RouteLeg[] = trip.legs.map((leg) => ({
+  // Maneuver shape indices are into their own leg's shape, so each leg is
+  // decoded once and shared by its maneuvers and the route geometry.
+  const legShapes = trip.legs.map((leg) => decodePolyline(leg.shape));
+
+  const legs: RouteLeg[] = trip.legs.map((leg, i) => ({
     distance: leg.summary.length * 1000, // km to meters
     duration: leg.summary.time,
-    maneuvers: leg.maneuvers.map((m) => parseManeuver(m)),
+    maneuvers: leg.maneuvers.map((m) =>
+      parseManeuver(m, legShapes.at(i) ?? []),
+    ),
   }));
 
-  // Decode all leg shapes into coordinate arrays
-  const allCoordinates: LatLng[] = [];
-  for (const leg of trip.legs) {
-    const decoded = decodePolyline(leg.shape);
-    allCoordinates.push(...decoded);
-  }
+  const allCoordinates: LatLng[] = legShapes.flat();
 
   return {
     id: uuidv4(),
@@ -283,15 +284,31 @@ function parseValhallaResponse(
 
 /**
  * Parse a Valhalla maneuver into our RouteManeuver type.
+ *
+ * The position is the leg shape's point at `begin_shape_index`, where the
+ * maneuver happens. It used to be left at (0, 0), so the distance to the next
+ * turn read thousands of miles and NavigationController, which advances when
+ * the user is within 30 m of a maneuver, never advanced on a real route (#194).
+ *
+ * @param m - The maneuver from Valhalla's response.
+ * @param legShape - The decoded shape of the leg the maneuver belongs to.
  */
-function parseManeuver(m: ValhallaManeuver): RouteManeuver {
+function parseManeuver(m: ValhallaManeuver, legShape: LatLng[]): RouteManeuver {
+  // Out of range means a malformed response. Fail rather than guess: a turn
+  // placed at the wrong point is the silent wrong answer this fixes.
+  const position = legShape[m.begin_shape_index];
+  if (!position) {
+    throw new Error(
+      `Valhalla maneuver shape index ${String(m.begin_shape_index)} is outside its leg's ${String(legShape.length)}-point shape`,
+    );
+  }
   return {
     type: VALHALLA_MANEUVER_TYPES[m.type] ?? "continue",
     instruction: m.instruction,
     streetName: m.street_names?.[0] ?? "",
     distance: m.length * 1000, // km to meters
     duration: m.time,
-    position: { lat: 0, lng: 0 }, // Will be populated from shape index
+    position,
     bearingAfter: 0,
   };
 }
