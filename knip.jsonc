@@ -49,6 +49,10 @@
         ".detoxrc.js",
         "e2e/jest.config.js",
         "e2e/**/*.test.ts",
+        // Local config plugin: app.config.ts names it by path in `plugins`
+        // ("./plugins/withMapGlyphs"), which expo prebuild resolves and knip
+        // does not follow. It bundles the map's label glyphs (#183).
+        "plugins/withMapGlyphs.js",
       ],
 
       "ignore": [
