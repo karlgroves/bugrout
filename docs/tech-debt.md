@@ -34,15 +34,14 @@ code gets no exemptions. Remove the disable when the item is resolved.
 
 ## Algorithmic complexity (`complexity`, `sonarjs/cognitive-complexity`)
 
-| File                                                      | Notes                                                                         |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `apps/mobile/services/valhalla/ValhallaModule.ts`         | `max-lines`: dual-approach bridge (native + HTTP + mock) — split per approach |
-| `apps/mobile/services/navigation/NavigationController.ts` | Voice-announcement distance/interval rules                                    |
-| `apps/mobile/services/alerts/AlertParser.ts`              | Geometric intersection tests                                                  |
-| `apps/mobile/services/resources/USGSService.ts`           | RDB (tab-delimited) parser                                                    |
-| `apps/mobile/services/routing/RouteEngine.ts`             | Two-pass smart routing                                                        |
-| `apps/mobile/services/threats/ThreatSync.ts`              | Per-source TTL/connectivity branching                                         |
-| `apps/mobile/__tests__/packages/elf-model.test.ts`        | Inlined weight-table scoring                                                  |
+| File                                                      | Notes                                      |
+| --------------------------------------------------------- | ------------------------------------------ |
+| `apps/mobile/services/navigation/NavigationController.ts` | Voice-announcement distance/interval rules |
+| `apps/mobile/services/alerts/AlertParser.ts`              | Geometric intersection tests               |
+| `apps/mobile/services/resources/USGSService.ts`           | RDB (tab-delimited) parser                 |
+| `apps/mobile/services/routing/RouteEngine.ts`             | Two-pass smart routing                     |
+| `apps/mobile/services/threats/ThreatSync.ts`              | Per-source TTL/connectivity branching      |
+| `apps/mobile/__tests__/packages/elf-model.test.ts`        | Inlined weight-table scoring               |
 
 ## Other
 
