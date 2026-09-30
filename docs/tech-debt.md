@@ -29,7 +29,6 @@ code gets no exemptions. Remove the disable when the item is resolved.
 | `apps/mobile/components/navigation/ManeuverIcon.tsx` | Icon mapping switch                |
 | `apps/mobile/services/MockDemoData.ts`               | Inline fixtures                    |
 | `apps/mobile/services/map/StyleBuilder.ts`           | Declarative MapLibre style JSON    |
-| `apps/mobile/hooks/useRoute.ts`                      | Bundled memoized route actions     |
 | `apps/mobile/app.config.ts`                          | Single Expo config object          |
 
 ## Algorithmic complexity (`complexity`, `sonarjs/cognitive-complexity`)
