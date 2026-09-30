@@ -10,7 +10,15 @@
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { Alert, StyleSheet, View, Text, Pressable } from "react-native";
+import { useEffect } from "react";
+import {
+  AccessibilityInfo,
+  Alert,
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+} from "react-native";
 
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { routeUnavailableMessage } from "@/services/routing/RouteUnavailable";
@@ -56,12 +64,17 @@ export function RouteUnavailableNotice({
   const router = useRouter();
   const { title, body, suggestDownloads } = routeUnavailableMessage(error);
 
+  // The alert role and live region announce this on Android. iOS VoiceOver
+  // does not announce a view just because it appeared, so say it: the user
+  // has just pressed Route & Go and silence would read as "still working".
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(`${title}. ${body}`);
+  }, [title, body]);
+
   return (
     <View
       style={styles.card}
       testID="route-unavailable"
-      // Announced when it appears: the user just pressed a button and is
-      // waiting on a route, so silence would read as "still working".
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
     >

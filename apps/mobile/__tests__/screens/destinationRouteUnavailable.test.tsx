@@ -10,6 +10,7 @@
  */
 
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
 
 import DestinationScreen from "@/app/destination/index";
 import { RouteUnavailableError } from "@/services/routing/RouteUnavailable";
@@ -98,6 +99,25 @@ describe("destination picker — no route", () => {
     expect(screen.queryByText("Ready to route")).toBeNull();
     // No preview of a route that doesn't exist.
     expect(mockReplace).not.toHaveBeenCalledWith("/route-preview");
+  });
+
+  it("announces the explanation, which iOS VoiceOver would not do on its own", async () => {
+    const announce = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockImplementation(() => undefined);
+    mockCalculateRoute.mockRejectedValue(
+      new RouteUnavailableError("out_of_coverage", "test"),
+    );
+
+    const screen = await routeToLouisville();
+
+    await screen.findByTestId("route-unavailable");
+    expect(announce).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Outside your offline maps\. .*Follow official evacuation routes/,
+      ),
+    );
+    announce.mockRestore();
   });
 
   it("offers Offline Maps when the destination is outside the road data", async () => {
