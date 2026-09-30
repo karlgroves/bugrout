@@ -3,6 +3,7 @@
  * engine's perimeter limit (#168). Checked through calculateRoute() and the
  * body handed to fetch, not the helper in isolation, so the wiring is covered.
  */
+
 import * as AvoidanceBudget from "@/services/routing/AvoidanceBudget";
 import { MAX_EXCLUDE_POLYGONS_PERIMETER_M } from "@/services/routing/AvoidanceBudget";
 import { ringPerimeterMeters } from "@/services/routing/ringGeometry";
@@ -10,6 +11,8 @@ import {
   calculateRoute,
   initValhalla,
 } from "@/services/valhalla/ValhallaModule";
+
+import fixture from "./fixtures/valhalla-baltimore-route.json";
 
 import type { GeoJSONPolygon } from "@bugrout/shared";
 
@@ -57,7 +60,11 @@ describe("ValhallaModule exclude_polygons", () => {
       sentBodies.push(
         JSON.parse(init?.body as string) as Record<string, unknown>,
       );
-      return Promise.resolve(new Response("{}", { status: 400 }));
+      // A real route, so calculateRoute resolves: these tests read only the
+      // request, and a failure no longer falls back to a made-up route (#190).
+      return Promise.resolve(
+        new Response(JSON.stringify(fixture), { status: 200 }),
+      );
     }) as typeof fetch;
     jest.spyOn(console, "warn").mockImplementation(() => undefined);
     await initValhalla({ tileDir: "/tiles", approach: "http" });
