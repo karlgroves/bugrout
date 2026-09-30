@@ -39,7 +39,14 @@ RUN curl -fL "$PBF_URL" -o "${REGION_NAME}.osm.pbf"
 # tiles: latency grows roughly with total perimeter (~1.7 s at 250 km, ~5.7 s at
 # 1000 km under amd64 emulation) and the app gives up after 10 s. The app's
 # MAX_EXCLUDE_POLYGONS_PERIMETER_M must match; a test compares the two.
+#
+# --mjolnir-concurrency 1: the multi-threaded tile build intermittently aborts
+# with "double free or corruption" just after ReclassifyFerryEdges (#178) — 2 of
+# 3 builds on 2026-09-29, on native amd64 as well as under emulation, while an
+# identical retry passed. A single thread avoids the race at the cost of build
+# time; see #178 for the measurements behind this choice.
 RUN valhalla_build_config \
+      --mjolnir-concurrency 1 \
       --service-limits-max-exclude-polygons-length 250000 \
       --mjolnir-tile-dir /custom_files/valhalla_tiles \
       --mjolnir-tile-extract /custom_files/valhalla_tiles.tar \
