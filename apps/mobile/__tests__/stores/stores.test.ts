@@ -103,9 +103,27 @@ describe("useRouteStore", () => {
     summary: "Test",
   };
 
-  it("sets route and status", () => {
+  it("holds a calculated route as previewing, not as a trip", () => {
+    // A calculated route used to be "active" at once, so backing out of the
+    // preview left the map mid-trip with no Bug Out and no Stop (#189).
+    useRouteStore.getState().clearRoute();
     useRouteStore.getState().setRoute(mockRoute);
     expect(useRouteStore.getState().activeRoute?.id).toBe("r1");
+    expect(useRouteStore.getState().status).toBe("previewing");
+  });
+
+  it("starts the trip only on Go", () => {
+    useRouteStore.getState().setRoute(mockRoute);
+    useRouteStore.getState().startNavigation();
+    expect(useRouteStore.getState().status).toBe("active");
+  });
+
+  it("keeps a reroute's new route active", () => {
+    useRouteStore.getState().setRoute(mockRoute);
+    useRouteStore.getState().startNavigation();
+    useRouteStore.getState().setStatus("rerouting");
+    useRouteStore.getState().setRoute({ ...mockRoute, id: "r2" });
+    expect(useRouteStore.getState().activeRoute?.id).toBe("r2");
     expect(useRouteStore.getState().status).toBe("active");
   });
 
