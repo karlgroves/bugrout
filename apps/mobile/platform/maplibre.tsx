@@ -67,9 +67,13 @@ const MockMapView = ({
   <View
     style={[mockStyles.map, style]}
     onTouchEnd={() => {
+      // The shape MapView's onPress delivers: a GeoJSON Point at the tap.
+      // This used to send the `{ coordinates }` layer-press event, which
+      // BugroutMap no longer reads, so a tap on the placeholder threw.
       onPress?.({
-        coordinates: { latitude: 37.7749, longitude: -122.4194 },
-        features: [],
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [-122.4194, 37.7749] },
+        properties: {},
       });
     }}
   >
