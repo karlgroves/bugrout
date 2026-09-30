@@ -126,6 +126,23 @@ describe("bootstrap — the app starts", () => {
     expect(useMapStore.getState().tilesLoaded).toBe(false);
   });
 
+  it("sets up routing even with no region downloaded", async () => {
+    // Routing goes through the HTTP service, which never needed downloaded
+    // tiles. Leaving Valhalla uninitialised on a fresh install is what used to
+    // hand every route to the made-up fallback; with the fallback gone it
+    // would mean no route at all, even online (#190).
+    const { initValhalla } = jest.requireMock<{ initValhalla: jest.Mock }>(
+      "@/services/valhalla/ValhallaModule",
+    );
+
+    await bootstrap();
+
+    expect(initValhalla).toHaveBeenCalledWith({
+      tileDir: "",
+      approach: "http",
+    });
+  });
+
   it("flips the store to loaded when a region is present", async () => {
     // The fresh-install case above cannot pin setTilesLoaded on its own: the
     // store already defaults to false, so it passes whether the call happens

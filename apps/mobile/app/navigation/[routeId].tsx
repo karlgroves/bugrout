@@ -20,6 +20,7 @@ import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
 import { ManeuverCard } from "@/components/navigation/ManeuverCard";
 import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
+import { alertRouteUnavailable } from "@/components/routing/RouteUnavailableNotice";
 import { colors, spacing, statusIndicator } from "@/constants/theme";
 import { getEmergencyContacts } from "@/db/queries/preferences";
 import { useBattery } from "@/hooks/useBattery";
@@ -142,11 +143,18 @@ function NavigationScreen(): React.JSX.Element {
       useRouteStore.getState().setRoute(newRoute);
       NavController.updateRoute(newRoute);
       deviationAlertShown.current = false;
-    } catch {
-      Alert.alert("Reroute Failed", "Could not calculate a new route.");
+    } catch (err) {
+      // The current route stays; say why a new one isn't available (#190).
       setStatus("active");
+      alertRouteUnavailable(
+        err,
+        () => {
+          router.push("/downloads");
+        },
+        "Keep current route",
+      );
     }
-  }, [position, activeRoute, setStatus]);
+  }, [position, activeRoute, setStatus, router]);
 
   const handleEmergencyContact = useCallback(async () => {
     if (!position) return;

@@ -97,6 +97,16 @@ export async function bootstrap(): Promise<BootstrapResult> {
     // Load cached data for the active region
     await loadCachedThreats();
     await loadCachedResources(activeRegion.id);
+  } else {
+    // No region downloaded: route through the HTTP service. Routing never
+    // depended on downloaded tiles on that path, but leaving Valhalla
+    // uninitialised here is what used to hand every route to the made-up
+    // fallback (#190). An unreachable service now reports "offline" instead.
+    try {
+      await initValhalla({ tileDir: "", approach: "http" });
+    } catch (err) {
+      console.warn("Valhalla init failed (routing will be unavailable):", err);
+    }
   }
 
   // 5. Load mock demo data when no tiles downloaded (preview mode)
