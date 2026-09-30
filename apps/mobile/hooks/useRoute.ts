@@ -27,11 +27,9 @@ export type UseRouteResult = ReturnType<typeof useRouteStore.getState> & {
     resourcePreferences: ResourceStopPreference[],
     options?: RouteOptions,
   ) => Promise<Route>;
-  reroute: (currentPosition: LatLng) => Promise<Route | undefined>;
   checkDeviation: (currentPosition: LatLng) => boolean;
 };
 
-/* eslint-disable max-lines-per-function -- pre-existing; tracked in docs/tech-debt.md (useRoute bundles several memoized route actions) */
 /**
  * Expose route-store state together with route calculation, rerouting,
  * and deviation-check helpers.
@@ -94,16 +92,6 @@ export function useRoute(): UseRouteResult {
     [store],
   );
 
-  const reroute = useCallback(
-    async (currentPosition: LatLng) => {
-      if (!store.destination) return;
-      store.setStatus("rerouting");
-      store.setDeviated(false);
-      return calculateRoute(currentPosition, store.destination);
-    },
-    [store, calculateRoute],
-  );
-
   const checkDeviation = useCallback(
     (currentPosition: LatLng) => {
       if (!store.activeRoute) return false;
@@ -121,7 +109,6 @@ export function useRoute(): UseRouteResult {
     ...store,
     calculateRoute,
     calculateRouteWithStops,
-    reroute,
     checkDeviation,
   };
 }
