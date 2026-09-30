@@ -72,4 +72,11 @@ describe("offline labels (#183)", () => {
       expect(existsSync(join(GLYPHS_DIR, stack, "0-255.pbf"))).toBe(true);
     }
   });
+
+  it("needs no network at all once a region is downloaded", () => {
+    // Any remote URL — glyphs, a sprite, a source — is one MapLibre fetches
+    // before it draws, and with no network a failed fetch can blank the map.
+    // (The no-region fallback uses online raster tiles on purpose.)
+    expect(JSON.stringify(style)).not.toMatch(/https?:\/\//);
+  });
 });
