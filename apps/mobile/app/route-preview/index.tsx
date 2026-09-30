@@ -14,7 +14,7 @@
 /* eslint-disable max-lines-per-function -- pre-existing oversized route preview screen with inline summary, warnings, and actions; tracked in docs/tech-debt.md (decompose route preview screen) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -32,7 +32,20 @@ import { formatDistance, formatDuration } from "@/utils/geo";
 /** Route confirmation screen showing distance, ETA, threats, and Go/Back actions. */
 function RoutePreviewScreen(): React.JSX.Element | null {
   const router = useRouter();
-  const { activeRoute } = useRouteStore();
+  const { activeRoute, startNavigation } = useRouteStore();
+
+  // However the preview closes without Go — its Back button, an iOS swipe, the
+  // Android back button — the route was never started, so drop it. It used to
+  // stay "active", leaving the map with the Bug Out button hidden, a route
+  // drawn, and no way to end a trip that had never begun (#189). Go marks the
+  // route active before leaving, so this does not clear a started trip.
+  useEffect(
+    () => () => {
+      const { status, clearRoute } = useRouteStore.getState();
+      if (status === "previewing") clearRoute();
+    },
+    [],
+  );
   const { threatZones } = useThreatStore();
   const { units } = useSettingsStore();
 
@@ -56,8 +69,9 @@ function RoutePreviewScreen(): React.JSX.Element | null {
 
   const handleGo = useCallback(() => {
     if (!activeRoute) return;
+    startNavigation();
     router.replace(`/navigation/${activeRoute.id}`);
-  }, [activeRoute, router]);
+  }, [activeRoute, router, startNavigation]);
 
   const handleBack = useCallback(() => {
     router.back();

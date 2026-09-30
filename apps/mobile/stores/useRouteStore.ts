@@ -15,7 +15,14 @@ interface RouteState {
   /** Destination for the current route */
   destination: LatLng | null;
 
+  /**
+   * Store a calculated route. It is `previewing` until {@link startNavigation},
+   * except while rerouting, when the new route replaces the one being driven
+   * and stays `active`.
+   */
   setRoute: (route: Route) => void;
+  /** The user pressed Go: the previewed route becomes the active trip. */
+  startNavigation: () => void;
   setStatus: (status: RouteStatus) => void;
   setCurrentManeuverIndex: (index: number) => void;
   setDeviated: (deviated: boolean) => void;
@@ -34,7 +41,14 @@ const useRouteStore = create<RouteState>((set) => ({
   destination: null,
 
   setRoute: (route) => {
-    set({ activeRoute: route, status: "active", currentManeuverIndex: 0 });
+    set((state) => ({
+      activeRoute: route,
+      status: state.status === "rerouting" ? "active" : "previewing",
+      currentManeuverIndex: 0,
+    }));
+  },
+  startNavigation: () => {
+    set({ status: "active" });
   },
   setStatus: (status) => {
     set({ status });
