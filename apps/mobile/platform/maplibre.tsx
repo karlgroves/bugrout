@@ -30,7 +30,8 @@ if (Platform.OS !== "web") {
  */
 export function setAccessToken(token: string | null): void {
   if (MapLibreGL) {
-    MapLibreGL.setAccessToken(token);
+    // Resolves once the native side has the token; nothing waits on it.
+    void MapLibreGL.setAccessToken(token);
   }
 }
 
@@ -52,56 +53,69 @@ function MockHidden(_props: Record<string, unknown>) {
 }
 
 // --- MapView ---
+/** Mock map for web / Expo Go: a dark placeholder with grid lines. */
+const MockMapView = ({
+  children,
+  style,
+  onPress,
+}: {
+  children?: React.ReactNode;
+  style?: object;
+  onPress?: (event: unknown) => void;
+  [key: string]: unknown;
+}) => (
+  <View
+    style={[mockStyles.map, style]}
+    onTouchEnd={() => {
+      // The shape MapView's onPress delivers: a GeoJSON Point at the tap.
+      // This used to send the `{ coordinates }` layer-press event, which
+      // BugroutMap no longer reads, so a tap on the placeholder threw.
+      onPress?.({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [-122.4194, 37.7749] },
+        properties: {},
+      });
+    }}
+  >
+    {/* Grid lines to suggest a map */}
+    <View style={mockStyles.gridH} />
+    <View style={[mockStyles.gridH, { top: "33%" }]} />
+    <View style={[mockStyles.gridH, { top: "66%" }]} />
+    <View style={mockStyles.gridV} />
+    <View style={[mockStyles.gridV, { left: "33%" }]} />
+    <View style={[mockStyles.gridV, { left: "66%" }]} />
+
+    {/* Crosshair center */}
+    <View style={mockStyles.crosshair}>
+      <View style={mockStyles.crosshairDot} />
+    </View>
+
+    {/* Label */}
+    <View style={mockStyles.labelBox}>
+      <Text style={mockStyles.label}>Map Preview</Text>
+      <Text style={mockStyles.sublabel}>
+        Install a dev build for full MapLibre rendering
+      </Text>
+    </View>
+
+    {/* Children (ShapeSources etc. render invisibly) */}
+    {children}
+  </View>
+);
 
 export /**
+ * The MapLibre map view, or a placeholder where the native module is absent.
  *
+ * Typed as the real component so an unsupported prop fails typecheck. It used
+ * to be the union with the mock, whose `[key: string]: unknown` props accepted
+ * anything — which is how `styleURL`, a prop maplibre-react-native 10 does not
+ * have, went unnoticed and the app's style was never applied (#183).
  */
-const MapView =
-  MapLibreGL?.MapView ??
-  (({
-    children,
-    style,
-    onPress,
-  }: {
-    children?: React.ReactNode;
-    style?: object;
-    onPress?: (event: unknown) => void;
-    [key: string]: unknown;
-  }) => (
-    <View
-      style={[mockStyles.map, style]}
-      onTouchEnd={() => {
-        onPress?.({
-          coordinates: { latitude: 37.7749, longitude: -122.4194 },
-          features: [],
-        });
-      }}
-    >
-      {/* Grid lines to suggest a map */}
-      <View style={mockStyles.gridH} />
-      <View style={[mockStyles.gridH, { top: "33%" }]} />
-      <View style={[mockStyles.gridH, { top: "66%" }]} />
-      <View style={mockStyles.gridV} />
-      <View style={[mockStyles.gridV, { left: "33%" }]} />
-      <View style={[mockStyles.gridV, { left: "66%" }]} />
+const MapView = (MapLibreGL?.MapView ??
+  MockMapView) as unknown as typeof MapLibreModule.MapView;
 
-      {/* Crosshair center */}
-      <View style={mockStyles.crosshair}>
-        <View style={mockStyles.crosshairDot} />
-      </View>
-
-      {/* Label */}
-      <View style={mockStyles.labelBox}>
-        <Text style={mockStyles.label}>Map Preview</Text>
-        <Text style={mockStyles.sublabel}>
-          Install a dev build for full MapLibre rendering
-        </Text>
-      </View>
-
-      {/* Children (ShapeSources etc. render invisibly) */}
-      {children}
-    </View>
-  ));
+/** Imperative handle of {@link Camera} (setCamera, flyTo, …). */
+export type CameraRef = MapLibreModule.CameraRef;
 
 // --- Camera ---
 export /**
@@ -143,25 +157,15 @@ const SymbolLayer = MapLibreGL?.SymbolLayer ?? MockHidden;
 export /**
  *
  */
-const UserTrackingMode = MapLibreGL?.UserTrackingMode ?? {
+const UserTrackingMode = (MapLibreGL?.UserTrackingMode ?? {
   Follow: "normal",
   FollowWithHeading: "compass",
   FollowWithCourse: "course",
-};
+}) as typeof MapLibreModule.UserTrackingMode;
 
 // --- OnPressEvent type ---
-/**
- *
- */
-export interface OnPressEvent {
-  features: {
-    type: string;
-    geometry: { type: string; coordinates: number[] };
-    properties: Record<string, unknown>;
-  }[];
-  // Optional: taps on empty map areas may arrive without coordinates.
-  coordinates?: { latitude: number; longitude: number };
-}
+/** A map or layer press: the pressed coordinate and the features under it. */
+export type OnPressEvent = MapLibreModule.OnPressEvent;
 
 // --- Styles ---
 const mockStyles = StyleSheet.create({
