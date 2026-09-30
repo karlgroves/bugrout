@@ -129,7 +129,7 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 29 now, and all 29 are
+sweep that bounded every one of them was #126; there are 30 now, and all 30 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
