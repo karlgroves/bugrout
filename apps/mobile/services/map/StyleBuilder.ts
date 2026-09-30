@@ -41,7 +41,7 @@ export function buildMapStyle(options: StyleOptions): object {
         maxzoom: 14,
       },
     },
-    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+    glyphs: "asset://glyphs/{fontstack}/{range}.pbf",
     layers: [
       // Background
       {

@@ -76,6 +76,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // instrumentation WebSocket back to Detox and every test times out at
     // launchApp(). Prebuild-time only; no effect on the shipped app.
     "@config-plugins/detox",
+    // Bundles the map's label glyphs so labels render offline (#183).
+    "./plugins/withMapGlyphs",
     // Valhalla in-process routing (Approach A). Enable after building native
     // binaries (native-modules/valhalla/build-scripts) — see that dir's SPIKE.md.
     // ["./native-modules/valhalla/config-plugin", { approach: "native" }],
