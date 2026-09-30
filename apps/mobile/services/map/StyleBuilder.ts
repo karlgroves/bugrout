@@ -17,23 +17,20 @@ interface StyleOptions {
   /** Local path to PMTiles file, or null for fallback mode */
   pmtilesPath: string | null;
   /** Port for local tile server (if using localhost approach) */
-  tileServerPort?: number | undefined;
 }
 
 /**
  * Build a complete MapLibre style for BugRout's dark map theme.
  */
 export function buildMapStyle(options: StyleOptions): object {
-  const { pmtilesPath, tileServerPort } = options;
+  const { pmtilesPath } = options;
 
   if (!pmtilesPath) {
     return buildFallbackStyle();
   }
 
-  // Determine tile source URL based on available method
-  const tileSource = tileServerPort
-    ? `http://localhost:${tileServerPort}/tiles/{z}/{x}/{y}.pbf`
-    : `pmtiles://${pmtilesPath}`;
+  // MapLibre Native reads the downloaded file directly (6.17 on iOS).
+  const tileSource = `pmtiles://${pmtilesPath}`;
 
   return {
     version: 8,
@@ -265,11 +262,4 @@ function buildFallbackStyle(): object {
       },
     ],
   };
-}
-
-/**
- * Serialize a style object to a data URI for MapLibre's styleURL prop.
- */
-export function styleToDataUri(style: object): string {
-  return `data:application/json,${encodeURIComponent(JSON.stringify(style))}`;
 }

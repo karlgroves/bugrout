@@ -38,7 +38,7 @@ export function ThreatOverlay(): React.JSX.Element | null {
 
   const handleThreatPress = useCallback(
     (event: MapLibreGL.OnPressEvent) => {
-      const threatId = event.features[0]?.properties.threatId as
+      const threatId = event.features[0]?.properties?.threatId as
         string | undefined;
       if (threatId) {
         const threat = threatZones.find((t) => t.id === threatId);

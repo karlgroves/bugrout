@@ -49,7 +49,8 @@ export function ResourceMarkers({
 
   const handlePress = useCallback(
     (event: MapLibreGL.OnPressEvent) => {
-      const resourceId = event.features[0]?.properties.id as string | undefined;
+      const resourceId = event.features[0]?.properties?.id as
+        string | undefined;
       if (resourceId) {
         const resource = resources.find((r) => r.id === resourceId);
         if (resource) setSelectedResource(resource);

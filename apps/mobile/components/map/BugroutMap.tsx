@@ -7,13 +7,13 @@
  * resource markers, and route polylines.
  */
 
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { colors } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
-import { getTileSourceUrl } from "@/services/map/LocalTileServer";
-import { buildMapStyle, styleToDataUri } from "@/services/map/StyleBuilder";
+import { cameraStart, LOCATED_ZOOM } from "@/services/map/cameraStart";
+import { buildMapStyle } from "@/services/map/StyleBuilder";
 import { useMapStore } from "@/stores/useMapStore";
 
 import type { LatLng } from "@bugrout/shared";
@@ -59,17 +59,19 @@ export function BugroutMap({
   children,
 }: BugroutMapProps): React.JSX.Element {
   const mapRef = useRef(null);
-  const cameraRef = useRef(null);
+  const cameraRef = useRef<MapLibreGL.CameraRef>(null);
   const { activeRegion } = useMapStore();
 
   const handlePress = useCallback(
-    (event: unknown) => {
-      const e = event as MapLibreGL.OnPressEvent;
-      if (onMapPress && e.coordinates) {
-        onMapPress({
-          lat: e.coordinates.latitude,
-          lng: e.coordinates.longitude,
-        });
+    // MapView's onPress delivers a GeoJSON Point at the tapped location — not
+    // the `{ coordinates: { latitude, longitude } }` layer-press event this used
+    // to read, whose missing `coordinates` meant a tap never reached
+    // onMapPress (#183).
+    (feature: GeoJSON.Feature) => {
+      if (!onMapPress || feature.geometry.type !== "Point") return;
+      const [lng, lat] = feature.geometry.coordinates;
+      if (lng !== undefined && lat !== undefined) {
+        onMapPress({ lat, lng });
       }
     },
     [onMapPress],
@@ -79,38 +81,33 @@ export function BugroutMap({
     // Visible bounds are read by MapLibre via the ref when needed
   }, []);
 
-  // Detect best tile source and build style URL
-  const [tileServerPort, setTileServerPort] = useState<number | undefined>(
-    undefined,
-  );
-
-  useEffect(() => {
-    if (!activeRegion?.pmtilesPath) return;
-
-    void getTileSourceUrl(activeRegion.pmtilesPath)
-      .then((result) => {
-        if (result?.port) {
-          setTileServerPort(result.port);
-        }
-        return result;
-      })
-      .catch(() => {
-        // Tile server unavailable — fall back to bundled style without it
-      });
-  }, [activeRegion?.pmtilesPath]);
-
+  // The style must go through `mapStyle`: maplibre-react-native 10 has no
+  // `styleURL` prop, and passing one left MapLibre on its default demo style
+  // (#183). MapLibre Native reads the downloaded file via pmtiles:// itself.
   const style = buildMapStyle({
     pmtilesPath: activeRegion?.pmtilesPath ?? null,
-    tileServerPort,
   });
-  const styleUrl = styleToDataUri(style);
+
+  // `defaultSettings` apply once, on first render — usually before the first
+  // GPS fix. Move to the user when a fix first arrives, unless the camera is
+  // already following them.
+  const centredOnUser = useRef(false);
+  useEffect(() => {
+    if (!userLocation || followUser || centredOnUser.current) return;
+    centredOnUser.current = true;
+    cameraRef.current?.setCamera({
+      centerCoordinate: [userLocation.lng, userLocation.lat],
+      zoomLevel: LOCATED_ZOOM,
+      animationDuration: 600,
+    });
+  }, [userLocation, followUser]);
 
   return (
     <View style={styles.container}>
       <MapLibreGL.MapView
         ref={mapRef}
         style={styles.map}
-        styleURL={styleUrl}
+        mapStyle={style}
         onPress={handlePress}
         onRegionDidChange={handleRegionDidChange}
         attributionEnabled={false}
@@ -120,12 +117,7 @@ export function BugroutMap({
       >
         <MapLibreGL.Camera
           ref={cameraRef}
-          defaultSettings={{
-            centerCoordinate: userLocation
-              ? [userLocation.lng, userLocation.lat]
-              : [-119.4179, 36.7783], // California center as default
-            zoomLevel: 10,
-          }}
+          defaultSettings={cameraStart(userLocation, activeRegion?.bbox)}
           followUserLocation={followUser}
           {...(followUser
             ? { followUserMode: MapLibreGL.UserTrackingMode.FollowWithHeading }

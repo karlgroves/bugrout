@@ -1,4 +1,4 @@
-import { buildMapStyle, styleToDataUri } from "@/services/map/StyleBuilder";
+import { buildMapStyle } from "@/services/map/StyleBuilder";
 
 describe("buildMapStyle", () => {
   it("returns fallback style when no pmtiles path", () => {
@@ -26,17 +26,7 @@ describe("buildMapStyle", () => {
     expect(style.layers.length).toBeGreaterThan(5); // Multiple road/water/label layers
   });
 
-  it("uses localhost URL when tileServerPort provided", () => {
-    const style = buildMapStyle({
-      pmtilesPath: "/data/ca.pmtiles",
-      tileServerPort: 3000,
-    }) as {
-      sources: Record<string, { url: string }>;
-    };
-    expect(style.sources.openmaptiles!.url).toContain("localhost:3000");
-  });
-
-  it("uses pmtiles:// protocol when no port", () => {
+  it("points the vector source at the downloaded file via pmtiles://", () => {
     const style = buildMapStyle({
       pmtilesPath: "/data/ca.pmtiles",
     }) as {
@@ -45,33 +35,3 @@ describe("buildMapStyle", () => {
     expect(style.sources.openmaptiles!.url).toContain("pmtiles://");
   });
 });
-
-describe("styleToDataUri", () => {
-  it("encodes style to data URI", () => {
-    const style = { version: 8, layers: [] };
-    const uri = styleToDataUri(style);
-    expect(uri).toStartWith("data:application/json,");
-    expect(uri).toContain(encodeURIComponent('"version":8'));
-  });
-});
-
-// Polyfill for toStartWith (jest doesn't have it by default)
-expect.extend({
-  toStartWith(received: string, prefix: string) {
-    const pass = received.startsWith(prefix);
-    return {
-      pass,
-      message: () =>
-        `expected "${received.slice(0, 50)}..." to ${pass ? "not " : ""}start with "${prefix}"`,
-    };
-  },
-});
-
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace jest {
-    interface Matchers<R> {
-      toStartWith(prefix: string): R;
-    }
-  }
-}
