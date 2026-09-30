@@ -6,6 +6,23 @@ import { by, element, expect, waitFor } from "detox";
 
 import { launchToMapScreen } from "./support/launch";
 
+/** The tile server the app build talks to; same default as TileManager. */
+const TILE_SERVER_BASE =
+  process.env.EXPO_PUBLIC_TILE_SERVER_URL ??
+  "https://bugrout-tile-server.karlgroves.workers.dev";
+
+/**
+ * The region names the manifest publishes, in the order the screen lists them.
+ *
+ * @returns Region display names.
+ */
+async function publishedRegionNames(): Promise<string[]> {
+  const resp = await fetch(`${TILE_SERVER_BASE}/v1/tiles/manifest`);
+  if (!resp.ok) throw new Error(`manifest: HTTP ${String(resp.status)}`);
+  const manifest = (await resp.json()) as { regions: { name: string }[] };
+  return manifest.regions.map((r) => r.name);
+}
+
 describe("Offline Maps", () => {
   beforeAll(async () => {
     await launchToMapScreen();
@@ -40,11 +57,18 @@ describe("Offline Maps", () => {
   });
 
   it("shows available regions", async () => {
-    // The catalogue is all 50 states in alphabetical order, so only the first
-    // few fit on screen: "California" was visible and passed, "Texas" was ~35
-    // rows below the fold and could not be. Scroll to each one instead, in
+    // The catalogue is whatever the tile server's manifest publishes, so read
+    // it rather than naming states. A hard-coded California/Florida/Texas
+    // failed on every run once the live manifest was cut down to Maryland —
+    // the screen was right, the test was pinned to production data.
+    const names = await publishedRegionNames();
+    // Detox's `expect` is the one in scope here, so check this by hand: an
+    // empty manifest must fail rather than pass the loop below vacuously.
+    if (names.length === 0) throw new Error("manifest lists no regions");
+
+    // A long catalogue does not fit on screen, so scroll to each region, in
     // list order so the scrolling stays monotonic.
-    for (const name of ["California", "Florida", "Texas"]) {
+    for (const name of names) {
       await waitFor(element(by.text(name)))
         .toBeVisible()
         .whileElement(by.id("downloads-screen"))
