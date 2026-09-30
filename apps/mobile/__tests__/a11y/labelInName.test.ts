@@ -407,8 +407,11 @@ describe("WCAG 2.5.3 — every accessible name contains its visible label", () =
   it("keeps the unreadable set from growing unnoticed", () => {
     // Names and text the walk cannot reduce to a fixed string are excluded
     // from the comparison below, so a rising count is a growing blind spot.
-    // Measured, not guessed: 10 and 3 as this lands.
-    expect(result.unreadableNames).toBeLessThanOrEqual(10);
+    // Measured, not guessed: 10 and 3 as this lands. Names went to 11 with the
+    // offline-maps Update button (#179), `Update ${region.name} offline map` —
+    // icon-only, so it has no visible label for 2.5.3 to compare, like the
+    // Delete button beside it.
+    expect(result.unreadableNames).toBeLessThanOrEqual(11);
     expect(result.unreadableText).toBeLessThanOrEqual(3);
   });
 

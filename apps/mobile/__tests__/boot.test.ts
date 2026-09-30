@@ -38,7 +38,6 @@ jest.mock("@/db/queries/scenarios", () => ({
 jest.mock("@/services/tiles/TileManager", () => ({
   getDownloadedRegions: jest.fn().mockResolvedValue([]),
   getStaleRegions: jest.fn().mockResolvedValue([]),
-  isRegionStale: jest.fn().mockReturnValue(false),
 }));
 jest.mock("@/services/MockDemoData", () => ({
   loadMockDemoData: jest.fn(),

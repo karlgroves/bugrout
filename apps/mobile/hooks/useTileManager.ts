@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from "react";
 
 import { DEFAULT_REGIONS } from "@/constants/regions";
 import * as TileManager from "@/services/tiles/TileManager";
+import { useMapStore } from "@/stores/useMapStore";
 
 import type { DownloadProgress } from "@/services/tiles/TileManager";
 import type { Region, DownloadedRegion } from "@bugrout/shared";
@@ -73,10 +74,14 @@ export function useTileManager(): UseTileManagerResult {
   const downloadRegion = useCallback(
     async (region: Region) => {
       try {
-        await TileManager.downloadRegion(region, (progress) => {
-          setActiveDownload(progress);
-        });
+        const downloaded = await TileManager.downloadRegion(
+          region,
+          (progress) => {
+            setActiveDownload(progress);
+          },
+        );
         setActiveDownload(null);
+        syncActiveRegion(downloaded);
         await refresh();
       } catch (error) {
         setActiveDownload(null);
@@ -105,4 +110,18 @@ export function useTileManager(): UseTileManagerResult {
     deleteRegion,
     refresh,
   };
+}
+
+/**
+ * Point the map at a freshly downloaded region when it is the one on screen.
+ * An update replaces the region the map is showing; without this, the map's
+ * stale banner keeps judging the old record's version.
+ *
+ * @param downloaded - The region record just written.
+ */
+function syncActiveRegion(downloaded: DownloadedRegion): void {
+  const mapStore = useMapStore.getState();
+  if (mapStore.activeRegion?.id === downloaded.id) {
+    mapStore.setActiveRegion(downloaded);
+  }
 }

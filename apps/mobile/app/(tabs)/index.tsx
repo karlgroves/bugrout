@@ -26,7 +26,7 @@ import { useDataSync } from "@/hooks/useDataSync";
 import { useLocation } from "@/hooks/useLocation";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import * as Haptics from "@/platform/haptics";
-import { isRegionStale } from "@/services/tiles/TileManager";
+import { isRegionStale } from "@/services/tiles/TileVersions";
 import { useMapStore } from "@/stores/useMapStore";
 import { useRouteStore } from "@/stores/useRouteStore";
 
@@ -35,8 +35,10 @@ function MapScreen(): React.JSX.Element {
   const { position } = useLocation(true);
   useDataSync(); // Background threat/resource refresh
   const { activeRoute, status } = useRouteStore();
-  const { tilesLoaded, activeRegion } = useMapStore();
-  const tileStale = activeRegion ? isRegionStale(activeRegion) : false;
+  const { tilesLoaded, activeRegion, publishedVersions } = useMapStore();
+  const tileStale = activeRegion
+    ? isRegionStale(activeRegion, publishedVersions)
+    : false;
   const [showDownloadGuide, setShowDownloadGuide] = useState(!tilesLoaded);
 
   const isNavigating = status === "active" || status === "rerouting";

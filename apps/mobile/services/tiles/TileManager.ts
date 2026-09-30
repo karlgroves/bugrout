@@ -2,7 +2,8 @@
  * Tile Download & Storage Manager
  *
  * Handles downloading, storing, and managing offline tile packages.
- * Supports resumable downloads via HTTP Range headers.
+ * Downloads land in a `.part` file and replace the previous copy only once
+ * complete, so a failed update never leaves a region without a map.
  * Tracks download state in SQLite.
  */
 
@@ -20,8 +21,11 @@ import {
 import { deleteResourcesByRegion } from "@/db/queries/resources";
 import { track, Events } from "@/platform/analytics";
 import * as FileSystem from "@/platform/fileSystem";
+import { useMapStore } from "@/stores/useMapStore";
 import { timeoutSignal } from "@/utils/abort";
 import { fetchWithRetry } from "@/utils/retry";
+
+import { isRegionStale, publishedVersionsFrom } from "./TileVersions";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
@@ -29,7 +33,6 @@ const TILE_SERVER_BASE =
   process.env.EXPO_PUBLIC_TILE_SERVER_URL ??
   "https://bugrout-tile-server.karlgroves.workers.dev";
 const TILES_DIR = `${FileSystem.documentDirectory}tiles/`;
-const STALE_THRESHOLD_DAYS = 90;
 
 /**
  *
@@ -63,7 +66,22 @@ export async function fetchManifest(): Promise<Region[]> {
   );
   if (!resp.ok) throw new Error(`Failed to fetch manifest: ${resp.status}`);
   const data = (await resp.json()) as { regions: Region[] };
+  useMapStore
+    .getState()
+    .setPublishedVersions(publishedVersionsFrom(data.regions));
   return data.regions;
+}
+
+/**
+ * Refresh the published tile versions from the manifest, for stale checks.
+ * Offline is expected, so a failure leaves the last known versions in place.
+ */
+export async function refreshPublishedVersions(): Promise<void> {
+  try {
+    await fetchManifest();
+  } catch {
+    // Offline or unreachable: stale checks fall back to download age.
+  }
 }
 
 /** Subset of the expo-constants module shape used to detect the runtime. */
@@ -191,50 +209,52 @@ export async function downloadRegion(
 }
 
 /**
- * Download a file, replacing any partial copy.
+ * Download a file and swap it in only once it is complete.
  *
- * The previous "resume" sent a `Range` header for the bytes already on disk,
- * but `downloadAsync` writes the response to `destPath` rather than appending —
- * so a resumed download left only the tail of the file and was then marked
- * complete. Until resume is done properly (via the handle's resume data), a
- * restart is the only correct option.
+ * The body is written to `<destPath>.part`; `destPath` — the copy the map may
+ * be reading — is replaced only after a 2xx response, so a failed or cancelled
+ * update leaves the previous file intact (#179). The swap is a rename: atomic
+ * on Android, and on iOS a remove-then-move with nothing in between.
  *
- * @throws When the server answers with anything but a 2xx, after removing the
- *   file it wrote — otherwise an error page would be kept as tile data.
+ * There is no resume. An earlier "resume" sent a `Range` header, but
+ * `downloadAsync` overwrites rather than appends, which kept only the tail of
+ * the file; a restart is the only correct option until real resume data is used.
+ *
+ * @throws When the download fails or the server answers with anything but a
+ *   2xx; the `.part` file is removed and `destPath` is untouched.
  */
 async function downloadFileResumable(
   url: string,
   destPath: string,
   onProgress?: (bytesWritten: number) => void,
 ): Promise<void> {
-  await FileSystem.deleteAsync(destPath, { idempotent: true });
+  const partPath = `${destPath}.part`;
+  await FileSystem.deleteAsync(partPath, { idempotent: true });
 
   const downloadResumable = FileSystem.createDownloadResumable(
     url,
-    destPath,
+    partPath,
     {},
     (progress) => {
       onProgress?.(progress.totalBytesWritten);
     },
   );
 
-  const result = await downloadResumable.downloadAsync();
-  if (!result) {
-    throw new Error(`Download failed for ${url}`);
+  let result: Awaited<ReturnType<typeof downloadResumable.downloadAsync>>;
+  try {
+    result = await downloadResumable.downloadAsync();
+  } catch (error) {
+    await FileSystem.deleteAsync(partPath, { idempotent: true });
+    throw error;
   }
-  if (result.status < 200 || result.status >= 300) {
-    await FileSystem.deleteAsync(destPath, { idempotent: true });
-    throw new Error(`Download failed for ${url}: HTTP ${result.status}`);
+  if (!result || result.status < 200 || result.status >= 300) {
+    await FileSystem.deleteAsync(partPath, { idempotent: true });
+    throw new Error(
+      `Download failed for ${url}${result ? `: HTTP ${result.status}` : ""}`,
+    );
   }
-}
 
-/**
- * Check if a downloaded region's tiles are stale (>90 days old).
- */
-export function isRegionStale(region: DownloadedRegion): boolean {
-  const ageMs = Date.now() - region.downloadedAt;
-  const ageDays = ageMs / (1000 * 60 * 60 * 24);
-  return ageDays > STALE_THRESHOLD_DAYS;
+  await FileSystem.moveAsync({ from: partPath, to: destPath });
 }
 
 /**
@@ -279,5 +299,6 @@ export async function getAvailableStorage(): Promise<number> {
  */
 export async function getStaleRegions(): Promise<DownloadedRegion[]> {
   const regions = await dbGetDownloadedRegions();
-  return regions.filter(isRegionStale);
+  const { publishedVersions } = useMapStore.getState();
+  return regions.filter((r) => isRegionStale(r, publishedVersions));
 }
