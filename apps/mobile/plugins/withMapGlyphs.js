@@ -39,6 +39,12 @@ const RANGE_COUNT = 256;
  */
 function emptyRange(font, range) {
   const name = Buffer.from(font, "utf8");
+  // Lengths are written as one-byte varints, which only covers 0-127. The
+  // message is at most ~40 bytes for real font names; a longer one must fail
+  // here rather than produce a range MapLibre cannot parse.
+  if (name.length + range.length + 4 > 127) {
+    throw new Error(`withMapGlyphs: font name too long: "${font}"`);
+  }
   const rangeBytes = Buffer.from(range, "utf8");
   const stack = Buffer.concat([
     Buffer.from([0x0a, name.length]),
@@ -96,34 +102,52 @@ function withIosGlyphs(config) {
     },
   ]);
   return withXcodeProject(config, (cfg) => {
-    const project = cfg.modResults;
-    const projectName = IOSConfig.XcodeUtils.getProjectName(
-      cfg.modRequest.projectRoot,
+    addGlyphsFolder(
+      cfg.modResults,
+      IOSConfig.XcodeUtils.getProjectName(cfg.modRequest.projectRoot),
     );
-    const relative = path.join(projectName, "glyphs");
-    if (project.hasFile(relative)) return cfg;
-
-    const groupKey =
-      project.findPBXGroupKey({ name: projectName }) ??
-      project.findPBXGroupKey({ path: projectName });
-    if (!groupKey) {
-      throw new Error(`withMapGlyphs: no "${projectName}" group in Xcode`);
-    }
-    // Done by hand: `addResourceFile` looks up a group named "Resources",
-    // which Expo's template does not have, and throws.
-    const file = project.addFile(relative, groupKey, {
-      lastKnownFileType: "folder",
-      sourceTree: "SOURCE_ROOT",
-    });
-    if (!file) {
-      throw new Error(`withMapGlyphs: could not add ${relative} to Xcode`);
-    }
-    file.uuid = project.generateUuid();
-    file.target = project.getFirstTarget().uuid;
-    project.addToPbxBuildFileSection(file);
-    project.addToPbxResourcesBuildPhase(file);
     return cfg;
   });
+}
+
+/**
+ * Add `<Project>/glyphs` to the app target as a folder reference in Copy
+ * Bundle Resources, so it lands in the bundle as `glyphs/…`. Does nothing if
+ * it is already there.
+ *
+ * @param {import("expo/config-plugins").XcodeProject} project - The parsed project.
+ * @param {string} projectName - The app's Xcode project and group name.
+ */
+function addGlyphsFolder(project, projectName) {
+  const relative = path.join(projectName, "glyphs");
+  if (project.hasFile(relative)) return;
+
+  const groupKey =
+    project.findPBXGroupKey({ name: projectName }) ??
+    project.findPBXGroupKey({ path: projectName });
+  if (!groupKey) {
+    throw new Error(`withMapGlyphs: no "${projectName}" group in Xcode`);
+  }
+  // Done by hand: `addResourceFile` looks up a group named "Resources",
+  // which Expo's template does not have, and throws.
+  const file = project.addFile(relative, groupKey, {
+    lastKnownFileType: "folder",
+    sourceTree: "SOURCE_ROOT",
+  });
+  if (!file) {
+    throw new Error(`withMapGlyphs: could not add ${relative} to Xcode`);
+  }
+  // The xcode package copies options it was not given onto the reference as
+  // `undefined`, which it then writes out literally
+  // (`explicitFileType = undefined;`). Drop them.
+  const reference = project.pbxFileReferenceSection()[file.fileRef];
+  for (const key of Object.keys(reference)) {
+    if (reference[key] === undefined) delete reference[key];
+  }
+  file.uuid = project.generateUuid();
+  file.target = project.getFirstTarget().uuid;
+  project.addToPbxBuildFileSection(file);
+  project.addToPbxResourcesBuildPhase(file);
 }
 
 /**
@@ -164,3 +188,4 @@ function withMapGlyphs(config) {
 module.exports = withMapGlyphs;
 module.exports.materializeGlyphs = materializeGlyphs;
 module.exports.emptyRange = emptyRange;
+module.exports.addGlyphsFolder = addGlyphsFolder;

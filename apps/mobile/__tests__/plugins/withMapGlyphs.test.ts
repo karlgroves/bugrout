@@ -7,7 +7,9 @@
  */
 /* eslint-disable security/detect-non-literal-fs-filename -- temp directories this test creates */
 import {
+  copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -17,10 +19,18 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { IOSConfig } from "expo/config-plugins";
+
+/** The slice of the `xcode` package's project this test drives. */
+interface XcodeProject {
+  writeSync: () => string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- the plugin is CommonJS, loaded by expo prebuild
 const plugin = require("../../plugins/withMapGlyphs") as {
   materializeGlyphs: (source: string, target: string) => void;
   emptyRange: (font: string, range: string) => Buffer;
+  addGlyphsFolder: (project: XcodeProject, projectName: string) => void;
 };
 
 const SOURCE = join(__dirname, "../../assets/glyphs");
@@ -78,5 +88,101 @@ describe("materializeGlyphs", () => {
     plugin.materializeGlyphs(SOURCE, target);
 
     expect(existsSync(join(target, "stale.pbf"))).toBe(false);
+  });
+});
+
+describe("emptyRange", () => {
+  it("refuses a font name too long for its one-byte lengths", () => {
+    expect(() => plugin.emptyRange("x".repeat(120), "0-255")).toThrow(
+      /too long/,
+    );
+  });
+});
+
+describe("addGlyphsFolder", () => {
+  let root: string;
+
+  /** Parse the fixture — a trimmed Expo template project — from a temp root. */
+  function loadProject(): XcodeProject {
+    const dir = join(root, "ios", "BugRout.xcodeproj");
+    mkdirSync(dir, { recursive: true });
+    copyFileSync(
+      join(__dirname, "fixtures", "project.pbxproj"),
+      join(dir, "project.pbxproj"),
+    );
+    // Typed from the `xcode` package, which this workspace has no types for.
+    const project: unknown = IOSConfig.XcodeUtils.getPbxproj(root);
+    return project as XcodeProject;
+  }
+
+  /** The written project's lines that mention the glyphs folder. */
+  const glyphLines = (project: XcodeProject) =>
+    project
+      .writeSync()
+      .split("\n")
+      .filter((line) => line.includes("glyphs"));
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "xcode-"));
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("bundles the folder: a reference, a group child, and a Resources entry", () => {
+    const project = loadProject();
+
+    plugin.addGlyphsFolder(project, "BugRout");
+
+    const lines = glyphLines(project);
+    // The folder reference, relative to the ios/ source root.
+    expect(
+      lines.some(
+        (l) =>
+          l.includes("isa = PBXFileReference") &&
+          l.includes('path = "BugRout/glyphs"') &&
+          l.includes("lastKnownFileType = folder") &&
+          l.includes("sourceTree = SOURCE_ROOT"),
+      ),
+    ).toBe(true);
+    // Its build file, and that build file listed in the Resources phase.
+    expect(lines.some((l) => l.includes("glyphs in Resources */ = {"))).toBe(
+      true,
+    );
+    expect(
+      lines.filter((l) => /^\s+\w+ \/\* glyphs in Resources \*\/,$/.test(l)),
+    ).toHaveLength(1);
+    // A child of the app's group, so it shows up in the project navigator.
+    expect(
+      lines.filter((l) => /^\s+\w+ \/\* glyphs \*\/,$/.test(l)),
+    ).toHaveLength(1);
+  });
+
+  it("writes no literal `undefined` values into the project", () => {
+    const project = loadProject();
+
+    plugin.addGlyphsFolder(project, "BugRout");
+
+    expect(project.writeSync()).not.toMatch(/= undefined;/);
+  });
+
+  it("adds the folder once when prebuild runs again", () => {
+    const project = loadProject();
+
+    plugin.addGlyphsFolder(project, "BugRout");
+    plugin.addGlyphsFolder(project, "BugRout");
+
+    expect(
+      glyphLines(project).filter((l) => l.includes("isa = PBXFileReference")),
+    ).toHaveLength(1);
+  });
+
+  it("fails loudly when the app's group is missing", () => {
+    const project = loadProject();
+
+    expect(() => {
+      plugin.addGlyphsFolder(project, "NotTheApp");
+    }).toThrow(/no "NotTheApp" group/);
   });
 });
