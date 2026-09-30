@@ -29,6 +29,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
+import { RouteUnavailableNotice } from "@/components/routing/RouteUnavailableNotice";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   getRecentDestinations,
@@ -69,6 +70,8 @@ function DestinationScreen(): React.JSX.Element {
     null,
   );
   const [calculating, setCalculating] = useState(false);
+  // Why the last Route & Go produced no route, until the selection changes.
+  const [routeError, setRouteError] = useState<unknown>(null);
   const [gettingLocation, setGettingLocation] = useState(true);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -144,6 +147,7 @@ function DestinationScreen(): React.JSX.Element {
   const selectDestination = useCallback((dest: LatLng, label: string) => {
     setSelectedDest(dest);
     setSelectedLabel(label);
+    setRouteError(null);
   }, []);
 
   const confirmRoute = useCallback(async () => {
@@ -179,6 +183,7 @@ function DestinationScreen(): React.JSX.Element {
     });
 
     setCalculating(true);
+    setRouteError(null);
     try {
       if (selectedScenario?.resourceStops.some((r) => r.enabled)) {
         await calculateRouteWithStops(
@@ -200,12 +205,10 @@ function DestinationScreen(): React.JSX.Element {
       }
 
       router.replace("/route-preview");
-    } catch {
+    } catch (err) {
+      // No fallback route: say why there isn't one (#190).
       setCalculating(false);
-      Alert.alert(
-        "Routing Unavailable",
-        "Could not calculate a route. Make sure you have offline maps downloaded for this area.",
-      );
+      setRouteError(err);
     }
   }, [
     selectedDest,
@@ -446,7 +449,8 @@ function DestinationScreen(): React.JSX.Element {
           Search for an address or select a scenario above
         </Text>
       ) : null}
-      {selectedDest && position ? (
+      {routeError ? <RouteUnavailableNotice error={routeError} /> : null}
+      {selectedDest && position && !routeError ? (
         <Text style={styles.statusText}>Ready to route</Text>
       ) : null}
 

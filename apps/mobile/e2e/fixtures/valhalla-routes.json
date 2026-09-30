@@ -1,0 +1,86 @@
+[
+  {
+    "name": "Baltimore: Inner Harbor to Johns Hopkins area",
+    "recorded": "2026-09-30 from bugrout-valhalla.fly.dev",
+    "from": {
+      "lat": 39.2904,
+      "lon": -76.6122
+    },
+    "to": {
+      "lat": 39.3138,
+      "lon": -76.6021
+    },
+    "response": {
+      "trip": {
+        "legs": [
+          {
+            "maneuvers": [
+              {
+                "type": 1,
+                "instruction": "Drive west on East Fayette Street.",
+                "street_names": ["East Fayette Street"],
+                "length": 0.015,
+                "time": 1.125,
+                "begin_shape_index": 0,
+                "end_shape_index": 2
+              },
+              {
+                "type": 9,
+                "instruction": "Bear right onto North Calvert Street.",
+                "street_names": ["North Calvert Street"],
+                "length": 2.314,
+                "time": 205.076,
+                "begin_shape_index": 2,
+                "end_shape_index": 80
+              },
+              {
+                "type": 10,
+                "instruction": "Turn right onto East North Avenue/US 1/US 40 Truck.",
+                "street_names": ["East North Avenue", "US 1", "US 40 Truck"],
+                "length": 0.837,
+                "time": 76.549,
+                "begin_shape_index": 80,
+                "end_shape_index": 108
+              },
+              {
+                "type": 15,
+                "instruction": "Turn left onto Kennedy Avenue.",
+                "street_names": ["Kennedy Avenue"],
+                "length": 0.157,
+                "time": 27.143,
+                "begin_shape_index": 108,
+                "end_shape_index": 113
+              },
+              {
+                "type": 10,
+                "instruction": "Turn right onto Worsley Street.",
+                "street_names": ["Worsley Street"],
+                "length": 0.194,
+                "time": 40.549,
+                "begin_shape_index": 113,
+                "end_shape_index": 116
+              },
+              {
+                "type": 4,
+                "instruction": "You have arrived at your destination.",
+                "length": 0.0,
+                "time": 0.0,
+                "begin_shape_index": 116,
+                "end_shape_index": 116
+              }
+            ],
+            "summary": {
+              "length": 3.517,
+              "time": 350.443
+            },
+            "shape": "kab}iAzd`cqCKbB}@pFsD`Fg@Xo@`@wAf@{CT_CJ{BFeDCiAGaBKgBS}A]uA_@}ByAuBJcRr@sn@bBoCFeB?aw@xBmKZS@_CFcBD_ABkr@hBmj@bBwOd@wKZui@`ByCHwADsADi_AtCqCH_CHiy@|BeCHgC@c]lAcPf@uHVqCHyCH_kApC_CFsCHyfAlC_DHwCFcCHil@hBsJ\\sDH_CHsk@fBiKVoCHkDHyn@|AaDFwEJ}CFcCFwSh@eKVo\\x@gp@bB}KZyaApCs_@hAkHRiWv@}b@lAsHTaBDgUj@oCFGwDkAo}@MoJEmE_Akf@s@}h@GuDEeDKuEa@kQUwG[uJUwL[wLMyEEiAKqAiCaFcA}EMyAg@sScAei@eCegAJs@eBm}@cBy|@IwD}Aux@sEfAmANkOp@wg@~B{Tl@w@_s@u@e`@u`@oa@"
+          }
+        ],
+        "summary": {
+          "length": 3.517,
+          "time": 350.443
+        }
+      }
+    }
+  }
+]

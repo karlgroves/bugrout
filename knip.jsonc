@@ -49,6 +49,12 @@
         ".detoxrc.js",
         "e2e/jest.config.js",
         "e2e/**/*.test.ts",
+        // e2e/jest.config.js names these by path as "<rootDir>/e2e/…", which
+        // knip's jest plugin does not resolve. They wrap Detox's global setup
+        // and teardown to run the Valhalla replay server the specs route
+        // through (#190); the server itself is reached from globalSetup.js.
+        "e2e/globalSetup.js",
+        "e2e/globalTeardown.js",
       ],
 
       "ignore": [

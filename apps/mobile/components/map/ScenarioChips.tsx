@@ -10,6 +10,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import {
+  Alert,
   StyleSheet,
   View,
   Text,
@@ -17,6 +18,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 
+import { alertRouteUnavailable } from "@/components/routing/RouteUnavailableNotice";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { getCurrentPosition } from "@/services/location/LocationTracker";
 import { calculateSmartRoute } from "@/services/routing/RouteEngine";
@@ -38,10 +40,19 @@ export function ScenarioChips(): React.JSX.Element | null {
   const activateScenario = useCallback(
     async (scenario: Scenario) => {
       setActivating(scenario.id);
+      let origin;
       try {
-        const loc = await getCurrentPosition();
-        const origin = loc.position;
+        origin = (await getCurrentPosition()).position;
+      } catch {
+        Alert.alert(
+          "Location Unavailable",
+          "Your current location could not be determined. Make sure location services are on and try again.",
+        );
+        setActivating(null);
+        return;
+      }
 
+      try {
         setStatus("calculating");
         setDestination(scenario.destination);
 
@@ -56,8 +67,13 @@ export function ScenarioChips(): React.JSX.Element | null {
 
         setRoute(route);
         router.push("/route-preview");
-      } catch {
+      } catch (err) {
+        // This used to set "error" and show nothing at all. No fallback route
+        // either: say why there isn't one (#190).
         setStatus("error");
+        alertRouteUnavailable(err, () => {
+          router.push("/downloads");
+        });
       }
       setActivating(null);
     },

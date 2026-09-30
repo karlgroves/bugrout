@@ -8,7 +8,6 @@
  * The active approach is selected at init time based on what's available.
  * Both produce identical Route output from the same Valhalla tile data.
  */
-/* eslint-disable max-lines -- pre-existing; tracked in docs/tech-debt.md (dual-approach Valhalla bridge: native + HTTP + mock fallback in one module) */
 
 import { NativeModules } from "react-native";
 import { v4 as uuidv4 } from "uuid";
@@ -16,6 +15,10 @@ import { v4 as uuidv4 } from "uuid";
 import { timeoutSignal } from "@/utils/abort";
 
 import { boundAvoidancePolygons } from "../routing/AvoidanceBudget";
+import {
+  RouteUnavailableError,
+  reasonForValhallaError,
+} from "../routing/RouteUnavailable";
 
 import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
 import type {
@@ -103,27 +106,32 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
   // / cfg.baseUrl) or a local bundled binary started by the config plugin.
   // Nothing is probed here: init used to GET /status with a 5s timeout purely
   // to set a `ready` flag that no caller ever read (both removed in #134).
-  // Reachability is decided per request — calculateRoute() falls back to a mock
-  // straight-line route when the server does not answer — so the probe only
-  // cost a network round trip on every boot that reached this function at all,
-  // which is every boot with downloaded tiles (AppBootstrap gates the call on
-  // `hasDownloadedTiles && activeRegion`).
+  // Reachability is decided per request — calculateRoute() reports "offline"
+  // when the server does not answer — so the probe only cost a network round
+  // trip on every boot.
   activeApproach = "http";
 }
 
 /**
  * Calculate a route using Valhalla.
- * Falls back to a mock straight-line route when the server isn't reachable.
+ *
+ * There is no fallback route. When routing fails this throws a
+ * {@link RouteUnavailableError} saying why, and the caller shows an honest
+ * "no route" state. It used to return a made-up straight-line route presented
+ * as a real one, ETA and all (#190).
+ *
+ * @throws RouteUnavailableError when no real route can be produced.
  */
 export async function calculateRoute(
   origin: LatLng,
   destination: LatLng,
   options?: RouteOptions,
 ): Promise<Route> {
-  // If Valhalla isn't configured, use mock route
   if (!config) {
-    console.warn("[BugRout] Valhalla not initialized — using mock route.");
-    return buildMockRoute(origin, destination);
+    throw new RouteUnavailableError(
+      "not_ready",
+      "calculateRoute called before initValhalla",
+    );
   }
 
   const body = buildValhallaRequest(origin, destination, options);
@@ -131,41 +139,62 @@ export async function calculateRoute(
   // Approach A: in-process native call. Same request body, same response JSON
   // as the HTTP path, so parseValhallaResponse() is shared.
   if (activeApproach === "native" && nativeModule) {
+    let responseJson: string;
     try {
-      const responseJson = await nativeModule.route(JSON.stringify(body));
-      const valhallaResponse = JSON.parse(
-        responseJson,
-      ) as ValhallaRouteResponse;
-      return parseValhallaResponse(valhallaResponse, origin, destination);
+      responseJson = await nativeModule.route(JSON.stringify(body));
     } catch (err) {
-      console.warn(
-        "[BugRout] Native Valhalla route failed, using mock route:",
-        err,
-      );
-      return buildMockRoute(origin, destination);
+      throw new RouteUnavailableError("server_error", "native route failed", {
+        cause: err,
+      });
     }
+    return parseOrThrow(() => JSON.parse(responseJson));
   }
 
   // Approach B: HTTP server (local bundled or remote).
   const baseUrl = resolveBaseUrl(config);
+  let resp: Response;
   try {
-    const resp = await fetch(`${baseUrl}/route`, {
+    resp = await fetch(`${baseUrl}/route`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: timeoutSignal(10000),
     });
-
-    if (!resp.ok) {
-      throw new Error(`Valhalla HTTP ${resp.status}`);
-    }
-
-    const valhallaResponse = (await resp.json()) as ValhallaRouteResponse;
-    return parseValhallaResponse(valhallaResponse, origin, destination);
   } catch (err) {
-    // Valhalla not running — return mock route for preview
-    console.warn("[BugRout] Valhalla unavailable, using mock route:", err);
-    return buildMockRoute(origin, destination);
+    // No connection, DNS failure, or the timeout fired.
+    throw new RouteUnavailableError("offline", "routing service unreachable", {
+      cause: err,
+    });
+  }
+
+  if (!resp.ok) {
+    const errorBody: unknown = await resp.json().catch(() => null);
+    throw new RouteUnavailableError(
+      reasonForValhallaError(errorBody),
+      `Valhalla HTTP ${String(resp.status)}: ${JSON.stringify(errorBody)}`,
+    );
+  }
+
+  return parseOrThrow(() => resp.json() as Promise<unknown>);
+}
+
+/**
+ * Parse a Valhalla response, turning a malformed one into a server error
+ * rather than a crash or a partial route.
+ *
+ * @param read - Produces the response JSON.
+ * @returns The parsed route.
+ */
+async function parseOrThrow(read: () => unknown): Promise<Route> {
+  try {
+    const json = (await read()) as ValhallaRouteResponse;
+    return parseValhallaResponse(json);
+  } catch (err) {
+    throw new RouteUnavailableError(
+      "server_error",
+      "unreadable routing response",
+      { cause: err },
+    );
   }
 }
 
@@ -250,25 +279,22 @@ function buildExcludePolygons(
 /**
  * Parse Valhalla's response into our Route type.
  */
-function parseValhallaResponse(
-  response: ValhallaRouteResponse,
-  _origin: LatLng,
-  _destination: LatLng,
-): Route {
+function parseValhallaResponse(response: ValhallaRouteResponse): Route {
   const trip = response.trip;
 
-  const legs: RouteLeg[] = trip.legs.map((leg) => ({
+  // Maneuver shape indices are into their own leg's shape, so each leg is
+  // decoded once and shared by its maneuvers and the route geometry.
+  const legShapes = trip.legs.map((leg) => decodePolyline(leg.shape));
+
+  const legs: RouteLeg[] = trip.legs.map((leg, i) => ({
     distance: leg.summary.length * 1000, // km to meters
     duration: leg.summary.time,
-    maneuvers: leg.maneuvers.map((m) => parseManeuver(m)),
+    maneuvers: leg.maneuvers.map((m) =>
+      parseManeuver(m, legShapes.at(i) ?? []),
+    ),
   }));
 
-  // Decode all leg shapes into coordinate arrays
-  const allCoordinates: LatLng[] = [];
-  for (const leg of trip.legs) {
-    const decoded = decodePolyline(leg.shape);
-    allCoordinates.push(...decoded);
-  }
+  const allCoordinates: LatLng[] = legShapes.flat();
 
   return {
     id: uuidv4(),
@@ -283,15 +309,31 @@ function parseValhallaResponse(
 
 /**
  * Parse a Valhalla maneuver into our RouteManeuver type.
+ *
+ * The position is the leg shape's point at `begin_shape_index`, where the
+ * maneuver happens. It used to be left at (0, 0), so the distance to the next
+ * turn read thousands of miles and NavigationController, which advances when
+ * the user is within 30 m of a maneuver, never advanced on a real route (#194).
+ *
+ * @param m - The maneuver from Valhalla's response.
+ * @param legShape - The decoded shape of the leg the maneuver belongs to.
  */
-function parseManeuver(m: ValhallaManeuver): RouteManeuver {
+function parseManeuver(m: ValhallaManeuver, legShape: LatLng[]): RouteManeuver {
+  // Out of range means a malformed response. Fail rather than guess: a turn
+  // placed at the wrong point is the silent wrong answer this fixes.
+  const position = legShape[m.begin_shape_index];
+  if (!position) {
+    throw new Error(
+      `Valhalla maneuver shape index ${String(m.begin_shape_index)} is outside its leg's ${String(legShape.length)}-point shape`,
+    );
+  }
   return {
     type: VALHALLA_MANEUVER_TYPES[m.type] ?? "continue",
     instruction: m.instruction,
     streetName: m.street_names?.[0] ?? "",
     distance: m.length * 1000, // km to meters
     duration: m.time,
-    position: { lat: 0, lng: 0 }, // Will be populated from shape index
+    position,
     bearingAfter: 0,
   };
 }
@@ -409,73 +451,4 @@ function loadNativeModule(): NativeValhalla | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Build a mock straight-line route for preview when Valhalla is unavailable.
- * Generates interpolated points and realistic maneuvers.
- */
-function buildMockRoute(origin: LatLng, destination: LatLng): Route {
-  const EARTH_RADIUS = 6371000;
-  const dLat = ((destination.lat - origin.lat) * Math.PI) / 180;
-  const dLng = ((destination.lng - origin.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((origin.lat * Math.PI) / 180) *
-      Math.cos((destination.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  const distance =
-    EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const duration = distance / 15; // ~15 m/s = ~34 mph avg
-
-  // Interpolate points along the route
-  const numPoints = Math.max(10, Math.round(distance / 1000));
-  const coordinates: LatLng[] = [];
-  for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints;
-    coordinates.push({
-      lat: origin.lat + t * (destination.lat - origin.lat),
-      lng: origin.lng + t * (destination.lng - origin.lng),
-    });
-  }
-
-  const maneuvers: RouteManeuver[] = [
-    {
-      type: "depart",
-      instruction: "Head toward your destination",
-      streetName: "Mock Route",
-      distance: 0,
-      duration: 0,
-      position: origin,
-      bearingAfter: 0,
-    },
-    {
-      type: "continue",
-      instruction: "Continue straight",
-      streetName: "Mock Route",
-      distance: distance / 2,
-      duration: duration / 2,
-      position: coordinates[Math.floor(numPoints / 2)] ?? origin,
-      bearingAfter: 0,
-    },
-    {
-      type: "arrive",
-      instruction: "You have arrived at your destination",
-      streetName: "",
-      distance: distance / 2,
-      duration: duration / 2,
-      position: destination,
-      bearingAfter: 0,
-    },
-  ];
-
-  return {
-    id: uuidv4(),
-    geometry: "",
-    coordinates,
-    distance,
-    duration,
-    legs: [{ distance, duration, maneuvers }],
-    summary: "Mock Route (Valhalla unavailable)",
-  };
 }
