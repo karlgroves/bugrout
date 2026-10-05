@@ -84,6 +84,7 @@
         "expo-file-system",
         "expo-haptics",
         "expo-network",
+        "expo-notifications",
         "expo-sms",
         "expo-speech",
 

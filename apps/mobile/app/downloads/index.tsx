@@ -24,15 +24,9 @@ import { useTileManager } from "@/hooks/useTileManager";
 import { isExpoGo } from "@/services/tiles/TileManager";
 import { isRegionStale } from "@/services/tiles/TileVersions";
 import { useMapStore } from "@/stores/useMapStore";
+import { formatBytes } from "@/utils/bytes";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
 
 /** Props for {@link DownloadedRegionRow}. */
 interface DownloadedRegionRowProps {

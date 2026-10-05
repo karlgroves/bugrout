@@ -11,6 +11,8 @@ import { Platform } from "react-native";
 export interface NetworkState {
   isConnected: boolean | null;
   isInternetReachable: boolean | null;
+  /** expo-network's connection type, e.g. "WIFI" or "CELLULAR", when known. */
+  type?: string;
 }
 
 /**
