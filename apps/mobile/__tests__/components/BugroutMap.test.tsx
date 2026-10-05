@@ -10,7 +10,7 @@
  * - Taps read `event.coordinates`, but MapView's onPress delivers a GeoJSON
  *   Point, so a tap never reached `onMapPress`.
  */
-import { render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import { type forwardRef, type useImperativeHandle } from "react";
 
 import { BugroutMap } from "@/components/map/BugroutMap";
@@ -21,6 +21,12 @@ import type { DownloadedRegion } from "@bugrout/shared";
 const mockMapViewProps: Record<string, unknown>[] = [];
 const mockCameraProps: Record<string, unknown>[] = [];
 const mockSetCamera = jest.fn();
+const mockZoomTo = jest.fn();
+let mockReducedMotion = false;
+
+jest.mock("@/hooks/useReducedMotion", () => ({
+  useReducedMotion: () => mockReducedMotion,
+}));
 
 jest.mock("@/platform/maplibre", () => {
   const { forwardRef: fwd, useImperativeHandle: useHandle } =
@@ -36,7 +42,10 @@ jest.mock("@/platform/maplibre", () => {
     },
     Camera: fwd((props: Record<string, unknown>, ref) => {
       mockCameraProps.push(props);
-      useHandle(ref, () => ({ setCamera: mockSetCamera }));
+      useHandle(ref, () => ({
+        setCamera: mockSetCamera,
+        zoomTo: mockZoomTo,
+      }));
       return null;
     }),
     UserLocation: () => null,
@@ -60,12 +69,15 @@ const BALTIMORE = { lat: 39.2904, lng: -76.6122 };
 
 const lastMapViewProps = () => mockMapViewProps.at(-1) ?? {};
 const firstCameraProps = () => mockCameraProps.at(0) ?? {};
+const lastCameraProps = () => mockCameraProps.at(-1) ?? {};
 
 describe("BugroutMap", () => {
   beforeEach(() => {
     mockMapViewProps.length = 0;
     mockCameraProps.length = 0;
     mockSetCamera.mockClear();
+    mockZoomTo.mockClear();
+    mockReducedMotion = false;
     useMapStore.setState({ activeRegion: MARYLAND });
   });
 
@@ -142,5 +154,89 @@ describe("BugroutMap", () => {
     });
 
     expect(onMapPress).toHaveBeenCalledWith({ lat: 39.1, lng: -76.5 });
+  });
+});
+
+describe("BugroutMap zoom buttons (#188)", () => {
+  beforeEach(() => {
+    mockMapViewProps.length = 0;
+    mockCameraProps.length = 0;
+    mockZoomTo.mockClear();
+    mockReducedMotion = false;
+    useMapStore.setState({ activeRegion: MARYLAND });
+  });
+
+  /** Report a camera move to the map, as MapLibre does after a pinch. */
+  async function mapMovedTo(zoomLevel: number): Promise<void> {
+    const onRegionDidChange = lastMapViewProps().onRegionDidChange as (
+      feature: unknown,
+    ) => void;
+    await act(() => {
+      onRegionDidChange({ properties: { zoomLevel } });
+    });
+  }
+
+  it("zooms in and out one level at a time, animated", async () => {
+    // Opens at street zoom (12) on a known fix.
+    const screen = await render(<BugroutMap userLocation={BALTIMORE} />);
+
+    await fireEvent.press(screen.getByLabelText("Zoom in"));
+    expect(mockZoomTo).toHaveBeenLastCalledWith(13, 300);
+
+    await fireEvent.press(screen.getByLabelText("Zoom out"));
+    await fireEvent.press(screen.getByLabelText("Zoom out"));
+    expect(mockZoomTo).toHaveBeenLastCalledWith(11, 300);
+  });
+
+  it("steps from wherever a pinch left the map", async () => {
+    const screen = await render(<BugroutMap userLocation={BALTIMORE} />);
+    await mapMovedTo(15.4);
+
+    await fireEvent.press(screen.getByLabelText("Zoom out"));
+    expect(mockZoomTo).toHaveBeenLastCalledWith(14.4, 300);
+  });
+
+  it("changes zoom immediately when reduce motion is on", async () => {
+    mockReducedMotion = true;
+    const screen = await render(<BugroutMap userLocation={BALTIMORE} />);
+
+    await fireEvent.press(screen.getByLabelText("Zoom in"));
+    expect(mockZoomTo).toHaveBeenLastCalledWith(13, 0);
+  });
+
+  it("keeps following the user while navigating", async () => {
+    const screen = await render(
+      <BugroutMap userLocation={BALTIMORE} followUser />,
+    );
+    expect(lastCameraProps().followZoomLevel).toBe(12);
+
+    await fireEvent.press(screen.getByLabelText("Zoom in"));
+
+    // No zoomTo, which would drop the camera out of follow mode; the follow
+    // zoom changes instead.
+    expect(mockZoomTo).not.toHaveBeenCalled();
+    expect(lastCameraProps().followUserLocation).toBe(true);
+    expect(lastCameraProps().followZoomLevel).toBe(13);
+  });
+
+  it("disables each button at its limit, and gives pinch the same limits", async () => {
+    const screen = await render(<BugroutMap userLocation={BALTIMORE} />);
+    expect(lastCameraProps()).toMatchObject({
+      minZoomLevel: 2,
+      maxZoomLevel: 18,
+    });
+
+    await mapMovedTo(18);
+    expect(
+      screen.getByLabelText("Zoom in").props.accessibilityState,
+    ).toMatchObject({ disabled: true });
+    expect(
+      screen.getByLabelText("Zoom out").props.accessibilityState,
+    ).toMatchObject({ disabled: false });
+
+    await mapMovedTo(2);
+    expect(
+      screen.getByLabelText("Zoom out").props.accessibilityState,
+    ).toMatchObject({ disabled: true });
   });
 });
