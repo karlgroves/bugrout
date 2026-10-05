@@ -219,6 +219,8 @@ Database (`db/` directory):
 - `schema.ts` — 8 tables: regions, destinations, threats, resources, scenarios,
   contacts, preferences, downloads
 - `queries/` — Type-safe query functions for each table
+- `migrations.ts` — Idempotent data fixes run after the schema on every start
+  (the schema is `CREATE TABLE IF NOT EXISTS`, so it never changes old rows)
 
 ## UX Constraints
 
