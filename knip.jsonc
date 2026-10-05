@@ -85,6 +85,7 @@
         "expo-haptics",
         "expo-keep-awake",
         "expo-network",
+        "expo-notifications",
         "expo-sms",
         "expo-speech",
 
