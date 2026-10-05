@@ -4,5 +4,6 @@ Initial release of BugRout — evacuation route planning.
 • Severe-weather alerts on the map, avoided when routing
 • Three taps from launch to turn-by-turn navigation
 • Saved evacuation plans with optional water stops
+• Open shelters from FEMA, with their status and when it was reported
 • Emergency contact text with your location and ETA
 • No account and no advertising

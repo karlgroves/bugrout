@@ -9,17 +9,19 @@ state.
 
 ## What the listing claims now
 
-| Claim                                                 | Evidence                                                  |
-| ----------------------------------------------------- | --------------------------------------------------------- |
-| Offline maps, Maryland only                           | Live manifest lists `md` alone (#147)                     |
-| Severe-weather alerts shown and avoided when routing  | `NWSService`, `ThreatAvoidance`                           |
-| Routing needs a data connection                       | Every route comes from the Fly Valhalla service (#193)    |
-| Three taps from launch to navigation                  | `e2e/full-navigation.test.ts` counts them (#197)          |
-| Up to 3 plans, with optional water stops              | `MAX_SCENARIOS`; `WaypointInsertion` with USGS data       |
-| Voice guidance, next-turn card, "Advisory only" badge | Navigation screen                                         |
-| Water sources from USGS and OpenStreetMap             | `USGSService` (USGS NWIS and Overpass)                    |
-| Up to 5 contacts; a text opens for the user to send   | `app/contacts`, `utils/sms.ts` (a one-time snapshot)      |
-| No account, no advertising; what leaves the device    | `constants/legal.ts`; must match the privacy label (#206) |
+| Claim                                                 | Evidence                                                      |
+| ----------------------------------------------------- | ------------------------------------------------------------- |
+| Offline maps, Maryland only                           | Live manifest lists `md` alone (#147)                         |
+| Severe-weather alerts shown and avoided when routing  | `NWSService`, `ThreatAvoidance`                               |
+| Routing needs a data connection                       | Every route comes from the Fly Valhalla service (#193)        |
+| Three taps from launch to navigation                  | `e2e/full-navigation.test.ts` counts them (#197)              |
+| Up to 3 plans, with optional water stops              | `MAX_SCENARIOS`; `WaypointInsertion` with USGS data           |
+| Voice guidance, next-turn card, "Advisory only" badge | Navigation screen                                             |
+| A full list of every turn                             | `DirectionsList`, `RouteViewToggle` (#192)                    |
+| Water sources from USGS and OpenStreetMap             | `USGSService` (USGS NWIS and Overpass)                        |
+| Open shelters from FEMA, with status and "as of" time | `ShelterService` (FEMA ESF6-SS), `ShelterStatusNotice` (#201) |
+| Up to 5 contacts; a text opens for the user to send   | `app/contacts`, `utils/sms.ts` (a one-time snapshot)          |
+| No account, no advertising; what leaves the device    | `constants/legal.ts`; must match the privacy label (#206)     |
 
 ## Claims removed until the work lands
 
@@ -28,7 +30,6 @@ state.
 | Offline routing                                    | Routes come from a remote server; regions ship no graph        | #193, #146     |
 | Evacuation Load Factor (ELF) congestion routing    | ELF is applied to no route                                     | #195           |
 | Fuel stations; fuel stops                          | No API key in any build, and NREL has no gasoline              | #200           |
-| Emergency shelters                                 | The Red Cross feed returns 403                                 | #201           |
 | Wildfire perimeters                                | The NIFC service queried returns 400 (2026-10-05)              | not yet filed  |
 | Flood zones                                        | The app never downloads the region's flood GeoJSON             | not yet filed  |
 | "Location processed on-device only"; "No tracking" | Route endpoints and searches leave the device; PostHog can run | #206           |

@@ -8,16 +8,18 @@ WHAT IT DOES
 
 • Three Taps to Navigation — Launch, tap Bug Out, choose a destination, then Go. Save up to 3 evacuation plans with a destination and optional water stops, so a plan is one tap away.
 
-• Turn-by-Turn Guidance — Voice directions, a clear next-turn card, and an "Advisory only" reminder for the whole trip.
+• Turn-by-Turn Guidance — Voice directions, a clear next-turn card or a full list of every turn, and an "Advisory only" reminder for the whole trip.
 
 • Water Sources — See nearby water sources from USGS and OpenStreetMap on the map.
+
+• Open Shelters — Shelters that FEMA reports open, with their status and when that was reported. When none are open nearby, the map says so.
 
 • Emergency Contacts — Save up to 5 contacts. One tap opens a text message to them with your current location, destination and ETA; nothing is sent until you tap Send.
 
 • Privacy — No account and no advertising. What leaves your device is listed in the in-app privacy policy: address searches go to OpenStreetMap's Nominatim, and the start and end of a route go to BugRout's routing service.
 
 DATA SOURCES
-Maps from OpenStreetMap. Weather alerts from the National Weather Service. Water sources from USGS and OpenStreetMap.
+Maps from OpenStreetMap. Weather alerts from the National Weather Service. Water sources from USGS and OpenStreetMap. Open shelters from FEMA.
 
 IMPORTANT DISCLAIMER
 BugRout provides advisory routing only. Routes are based on map data and published weather alerts and may not reflect real-time road conditions. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.
