@@ -171,6 +171,12 @@ export function ResourceMarkers({
               </Text>
             ) : null}
 
+            {selectedResource.type === "shelter" ? (
+              <Text style={detailStyles.address}>
+                {shelterDetail(selectedResource)}
+              </Text>
+            ) : null}
+
             {userLocation ? (
               <Text style={detailStyles.distance}>
                 {formatDistance(
@@ -188,6 +194,25 @@ export function ResourceMarkers({
       </MapDetailSheet>
     </>
   );
+}
+
+/**
+ * A shelter's open/closed status and when that was reported (#201): shelters
+ * open and close during an event, so the status is only as good as its time.
+ */
+function shelterDetail(shelter: ResourcePoint): string {
+  const status =
+    typeof shelter.metadata.status === "string"
+      ? shelter.metadata.status.charAt(0) +
+        shelter.metadata.status.slice(1).toLowerCase()
+      : "Status unknown";
+  const asOf = new Date(shelter.fetchedAt).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${status} · as of ${asOf}`;
 }
 
 const detailStyles = StyleSheet.create({

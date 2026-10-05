@@ -1,141 +1,136 @@
 /**
- * Shelter Service
+ * Shelter Service (#201).
  *
- * Aggregates shelter data from Red Cross and 211.org Open211 API.
- * Online-only data sources — cache aggressively in SQLite.
+ * Open shelters come from FEMA's National Shelter System, published as a
+ * public ArcGIS map service. FEMA syncs it each morning from the American Red
+ * Cross shelter database, then checks for updates every 20 minutes, so it
+ * carries the Red Cross shelters the app used to fetch directly; the Red Cross
+ * JSON endpoint has returned HTTP 403 since at least 2026-09-30, and every
+ * failure used to become an empty, silent layer.
  *
- * Red Cross: https://www.redcross.org/get-help/disaster-relief-and-recovery-services/find-an-open-shelter.html
- * Open211: https://openreferral.org/
+ * Source: https://gis.fema.gov/arcgis/rest/services/NSS/OpenShelters/MapServer/0
+ * (public; no key). Responses take several seconds, hence the long timeout.
+ *
+ * Shelters open and close during an event, so a fetch replaces the region's
+ * cached shelters, and the time it ran is what the map shows as "as of".
  */
 
-import { upsertResourcePoints } from "@/db/queries/resources";
+import {
+  deleteResourcesByType,
+  upsertResourcePoints,
+} from "@/db/queries/resources";
 import { timeoutSignal } from "@/utils/abort";
 
-import type { ResourcePoint, BBox } from "@bugrout/shared";
+import type { BBox, ResourcePoint } from "@bugrout/shared";
 
 const CACHE_TTL_MS = 3600000; // 1 hour (shelters change during events)
 
+/** FEMA's open-shelters layer. */
+const FEMA_OPEN_SHELTERS =
+  "https://gis.fema.gov/arcgis/rest/services/NSS/OpenShelters/MapServer/0/query";
+
+/** The service has been seen taking 10 s; allow it three times that. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/** The fields read from each shelter. */
+interface FemaShelterAttributes {
+  shelter_id?: number | string | null;
+  shelter_name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  shelter_status?: string | null;
+  evacuation_capacity?: number | null;
+  total_population?: number | null;
+}
+
+/** An ArcGIS JSON query response, or its error form. */
+interface FemaQueryResponse {
+  features?: {
+    attributes: FemaShelterAttributes;
+    geometry?: { x: number; y: number } | null;
+  }[];
+  error?: { code: number; message: string };
+}
+
 /**
- * Fetch shelter locations from available APIs.
- * Falls back gracefully if APIs are unavailable.
+ * Fetch the shelters inside a region and replace its cached ones.
+ *
+ * @param bbox - The region's bounds.
+ * @param regionId - The region they are stored under.
+ * @returns The shelters, possibly none (no shelter is open).
+ * @throws When the service can't be reached or answers with an error: the
+ *   caller must say so, never show an empty layer as "none nearby".
  */
 export async function fetchShelters(
   bbox: BBox,
   regionId: string,
 ): Promise<ResourcePoint[]> {
-  const results = await Promise.allSettled([
-    fetchRedCrossShelters(bbox, regionId),
-    fetchOpen211Shelters(bbox, regionId),
-  ]);
+  const params = new URLSearchParams({
+    where: "1=1",
+    geometry: `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`,
+    geometryType: "esriGeometryEnvelope",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outFields:
+      "shelter_id,shelter_name,address,city,state,zip,shelter_status,evacuation_capacity,total_population",
+    outSR: "4326",
+    returnGeometry: "true",
+    f: "json",
+  });
 
-  const resources: ResourcePoint[] = [];
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      resources.push(...result.value);
-    }
+  const resp = await fetch(`${FEMA_OPEN_SHELTERS}?${params.toString()}`, {
+    headers: { Accept: "application/json" },
+    signal: timeoutSignal(REQUEST_TIMEOUT_MS),
+  });
+  if (!resp.ok) {
+    throw new Error(`FEMA shelters: HTTP ${String(resp.status)}`);
   }
-
-  if (resources.length > 0) {
-    await upsertResourcePoints(resources);
-  }
-
-  return resources;
-}
-
-/**
- * Fetch Red Cross open shelter locations.
- *
- * Note: Red Cross doesn't have a stable public API for shelters.
- * In production, this would use the ARC data feed or a partnership API.
- * For MVP, we use their public JSON endpoint (may change).
- */
-async function fetchRedCrossShelters(
-  bbox: BBox,
-  regionId: string,
-): Promise<ResourcePoint[]> {
-  // Red Cross shelters are event-driven — only available during active disasters.
-  // The public endpoint is:
-  // https://www.redcross.org/content/dam/redcross/get-help/find-open-shelter/shelter-data.json
-  // This may require a scraping approach or a partnership for stable access.
-
-  try {
-    const resp = await fetch(
-      "https://www.redcross.org/content/dam/redcross/get-help/find-open-shelter/shelter-data.json",
-      {
-        headers: { Accept: "application/json" },
-        signal: timeoutSignal(15000),
-      },
+  const data = (await resp.json()) as FemaQueryResponse;
+  if (data.error || !data.features) {
+    throw new Error(
+      `FEMA shelters: ${data.error?.message ?? "no features in response"}`,
     );
-
-    if (!resp.ok) return [];
-
-    const data = (await resp.json()) as {
-      SHELTER_NAME?: string;
-      ADDRESS?: string;
-      CITY?: string;
-      STATE?: string;
-      LATITUDE?: number;
-      LONGITUDE?: number;
-      SHELTER_STATUS?: string;
-    }[];
-
-    return data.flatMap((s) => {
-      const lat = s.LATITUDE;
-      const lng = s.LONGITUDE;
-      if (
-        lat === undefined ||
-        lng === undefined ||
-        lat < bbox.south ||
-        lat > bbox.north ||
-        lng < bbox.west ||
-        lng > bbox.east ||
-        s.SHELTER_STATUS !== "OPEN"
-      ) {
-        return [];
-      }
-      return [
-        {
-          id: `redcross-${s.SHELTER_NAME}-${lat}`,
-          type: "shelter" as const,
-          name: s.SHELTER_NAME ?? "Red Cross Shelter",
-          lat,
-          lng,
-          address: [s.ADDRESS, s.CITY, s.STATE].filter(Boolean).join(", "),
-          metadata: {
-            status: s.SHELTER_STATUS,
-            organization: "Red Cross",
-          },
-          source: "redcross" as const,
-          fetchedAt: Date.now(),
-          regionId,
-        },
-      ];
-    });
-  } catch {
-    return [];
   }
+
+  const fetchedAt = Date.now();
+  const shelters = data.features.flatMap(({ attributes: a, geometry }) =>
+    geometry ? [toShelter(a, geometry, fetchedAt, regionId)] : [],
+  );
+
+  await deleteResourcesByType(regionId, "shelter");
+  if (shelters.length > 0) await upsertResourcePoints(shelters);
+  return shelters;
 }
 
-/**
- * Fetch shelter/service locations from 211.org Open211 API.
- *
- * Open211 implements the Human Services Data API (HSDA) standard.
- * Note: Many 211 providers require API keys or have region-specific endpoints.
- * This is a best-effort integration.
- */
-function fetchOpen211Shelters(
-  _bbox: BBox,
-  _regionId: string,
-): Promise<ResourcePoint[]> {
-  // Open211 doesn't have a single national endpoint — each state/region
-  // has its own provider. For MVP, we'll use the taxonomy search approach.
-  // Taxonomy code for emergency shelter: BH-1800 (AIRS taxonomy)
-  //
-  // A production implementation would maintain a registry of regional
-  // Open211 endpoints and query the appropriate one.
-
-  // Placeholder: return empty until we identify specific regional endpoints
-  return Promise.resolve([]);
+/** One FEMA shelter as a resource point. */
+function toShelter(
+  a: FemaShelterAttributes,
+  geometry: { x: number; y: number },
+  fetchedAt: number,
+  regionId: string,
+): ResourcePoint {
+  return {
+    id: `fema-${String(a.shelter_id ?? `${String(geometry.y)},${String(geometry.x)}`)}`,
+    type: "shelter",
+    name: a.shelter_name ?? "Shelter",
+    lat: geometry.y,
+    lng: geometry.x,
+    address:
+      [a.address, a.city, a.state, a.zip]
+        .filter((part): part is string => Boolean(part))
+        .join(", ") || null,
+    metadata: {
+      status: a.shelter_status ?? null,
+      evacuationCapacity: a.evacuation_capacity ?? null,
+      population: a.total_population ?? null,
+      organization: "FEMA National Shelter System",
+    },
+    source: "fema",
+    fetchedAt,
+    regionId,
+  };
 }
 
 export { CACHE_TTL_MS };
