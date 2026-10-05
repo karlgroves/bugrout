@@ -245,7 +245,8 @@ Database (`db/` directory):
 3. **2-tap scenario**: Scenario chip on map → auto-calculate with preferences →
    Route Preview → Go
 4. **NavigationController**: GPS tracking → maneuver advance → voice TTS →
-   deviation detection → crowd signal → battery-aware GPS frequency
+   deviation detection → crowd signal → battery-aware GPS frequency. Holds the
+   screen awake (`platform/keepAwake`) from start until stop or arrival
 5. **Data sync** (`useDataSync`): Triggers on connectivity change, region
    change, or app foreground. TTL-based refresh for threats and resources.
 6. **Smart routing**: `calculateSmartRoute()` — two-pass: base route with threat
