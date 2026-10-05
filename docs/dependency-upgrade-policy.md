@@ -680,6 +680,15 @@ Overrides rather than a lockfile refresh, because a refresh does not move it:
 `metro-symbolicate` and `ob1` stay at 0.83.5: those are React Native's own
 dependencies, and none of them loads `image-size`.
 
+Nothing in this project builds through the CLI plugin's Metro, which is why the
+risk of moving it is small (measured 2026-10-05): `@react-native-community/cli`
+is not installed, so `react-native bundle` cannot reach the plugin, and running
+that Metro directly with the app's `metro.config.js` fails on the `@/` path
+alias, which only Expo CLI's resolver provides. Builds, the dev server and
+Detox's debug builds all go through `@expo/metro`. The CLI plugin's copy still
+matters for the advisory: it is installed, and it would run if the CLI were
+added.
+
 `security/tests/asset-sizing.security.test.ts` pins both copies, resolving each
 the way its consumer does. For `@expo/metro`'s copy it checks the patch hash,
 the `image-size` version, that a path-based asset is sized, and that the
