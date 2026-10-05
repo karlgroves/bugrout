@@ -23,7 +23,13 @@ import {
 import { v4 as uuidv4 } from "uuid";
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import {
+  colors,
+  spacing,
+  switchColors,
+  typography,
+  touchTarget,
+} from "@/constants/theme";
 import {
   upsertScenario,
   deleteScenario as dbDeleteScenario,
@@ -174,8 +180,10 @@ function ScenarioEditScreen(): React.JSX.Element {
         <Switch
           value={fuelStop}
           onValueChange={setFuelStop}
-          trackColor={{ false: colors.border, true: colors.accentMuted }}
-          thumbColor={fuelStop ? colors.accent : colors.textMuted}
+          accessibilityLabel="Include fuel stop"
+          accessibilityHint="Routes this scenario via a fuel station"
+          trackColor={switchColors.trackColor}
+          thumbColor={switchColors.thumbColor}
         />
       </View>
 
@@ -184,8 +192,10 @@ function ScenarioEditScreen(): React.JSX.Element {
         <Switch
           value={waterStop}
           onValueChange={setWaterStop}
-          trackColor={{ false: colors.border, true: colors.accentMuted }}
-          thumbColor={waterStop ? colors.accent : colors.textMuted}
+          accessibilityLabel="Include water stop"
+          accessibilityHint="Routes this scenario via a water source"
+          trackColor={switchColors.trackColor}
+          thumbColor={switchColors.thumbColor}
         />
       </View>
 
