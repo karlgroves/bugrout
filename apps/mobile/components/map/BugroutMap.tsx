@@ -16,7 +16,12 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import * as MapLibreGL from "@/platform/maplibre";
 import { cameraStart, LOCATED_ZOOM } from "@/services/map/cameraStart";
 import { buildMapStyle } from "@/services/map/StyleBuilder";
-import { MAX_ZOOM, MIN_ZOOM, stepZoom } from "@/services/map/zoom";
+import {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  NAVIGATION_ZOOM,
+  stepZoom,
+} from "@/services/map/zoom";
 import { useMapStore } from "@/stores/useMapStore";
 
 import type { LatLng } from "@bugrout/shared";
@@ -82,15 +87,26 @@ export function BugroutMap({
 
   // The map's zoom level, kept in step with pinches so a button press moves
   // one level from wherever the user left it.
-  const [zoom, setZoom] = useState(
-    () => cameraStart(userLocation, activeRegion?.bbox).zoomLevel,
+  // Navigation starts at street level; otherwise wherever the map opens.
+  const [zoom, setZoom] = useState(() =>
+    followUser
+      ? NAVIGATION_ZOOM
+      : cameraStart(userLocation, activeRegion?.bbox).zoomLevel,
   );
   const reducedMotion = useReducedMotion();
 
+  // Only the user's own gestures move the base a button steps from. Camera
+  // moves the app makes (a zoom animation, follow mode) also report here, and
+  // taking those would let an animation still in flight overwrite the step a
+  // quick second press had just set, losing presses.
   const handleRegionDidChange = useCallback(
-    (feature: { properties?: { zoomLevel?: number } }) => {
+    (feature: {
+      properties?: { zoomLevel?: number; isUserInteraction?: boolean };
+    }) => {
       const level = feature.properties?.zoomLevel;
-      if (typeof level === "number") setZoom(level);
+      if (feature.properties?.isUserInteraction && typeof level === "number") {
+        setZoom(level);
+      }
     },
     [],
   );

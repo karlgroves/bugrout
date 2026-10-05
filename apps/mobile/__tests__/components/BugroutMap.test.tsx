@@ -166,13 +166,19 @@ describe("BugroutMap zoom buttons (#188)", () => {
     useMapStore.setState({ activeRegion: MARYLAND });
   });
 
-  /** Report a camera move to the map, as MapLibre does after a pinch. */
-  async function mapMovedTo(zoomLevel: number): Promise<void> {
+  /**
+   * Report a camera move to the map, as MapLibre does: a pinch by default, or
+   * a move the app made (an animation, follow mode).
+   */
+  async function mapMovedTo(
+    zoomLevel: number,
+    isUserInteraction = true,
+  ): Promise<void> {
     const onRegionDidChange = lastMapViewProps().onRegionDidChange as (
       feature: unknown,
     ) => void;
     await act(() => {
-      onRegionDidChange({ properties: { zoomLevel } });
+      onRegionDidChange({ properties: { zoomLevel, isUserInteraction } });
     });
   }
 
@@ -196,6 +202,18 @@ describe("BugroutMap zoom buttons (#188)", () => {
     expect(mockZoomTo).toHaveBeenLastCalledWith(14.4, 300);
   });
 
+  it("counts every press, even while a zoom animation is still landing", async () => {
+    const screen = await render(<BugroutMap userLocation={BALTIMORE} />);
+
+    await fireEvent.press(screen.getByLabelText("Zoom in")); // → 13
+    // The first press's animation reports where it got to before the second
+    // press lands. It mustn't reset the base the second press steps from.
+    await mapMovedTo(12.6, false);
+    await fireEvent.press(screen.getByLabelText("Zoom in")); // → 14
+
+    expect(mockZoomTo).toHaveBeenLastCalledWith(14, 300);
+  });
+
   it("changes zoom immediately when reduce motion is on", async () => {
     mockReducedMotion = true;
     const screen = await render(<BugroutMap userLocation={BALTIMORE} />);
@@ -208,7 +226,7 @@ describe("BugroutMap zoom buttons (#188)", () => {
     const screen = await render(
       <BugroutMap userLocation={BALTIMORE} followUser />,
     );
-    expect(lastCameraProps().followZoomLevel).toBe(12);
+    expect(lastCameraProps().followZoomLevel).toBe(15);
 
     await fireEvent.press(screen.getByLabelText("Zoom in"));
 
@@ -216,7 +234,15 @@ describe("BugroutMap zoom buttons (#188)", () => {
     // zoom changes instead.
     expect(mockZoomTo).not.toHaveBeenCalled();
     expect(lastCameraProps().followUserLocation).toBe(true);
-    expect(lastCameraProps().followZoomLevel).toBe(13);
+    expect(lastCameraProps().followZoomLevel).toBe(16);
+  });
+
+  it("starts navigation at street level, even before a GPS fix", async () => {
+    // With no fix the map would open on the whole region (zoom 7); following
+    // the user from there put the route out of sight (#190).
+    await render(<BugroutMap userLocation={null} followUser />);
+
+    expect(lastCameraProps().followZoomLevel).toBe(15);
   });
 
   it("disables each button at its limit, and gives pinch the same limits", async () => {

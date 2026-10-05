@@ -11,6 +11,13 @@ const MIN_ZOOM = 2;
 export /** Furthest in: street detail. Offline tiles stop at 14 and overzoom past it. */
 const MAX_ZOOM = 18;
 
+export /**
+ * Where navigation starts: street level, close enough to read the next turn
+ * and see the route line. Following used to inherit the opening zoom, which
+ * before a GPS fix is the whole region (#190).
+ */
+const NAVIGATION_ZOOM = 15;
+
 /**
  * The zoom level one button press away from `current`.
  *
