@@ -3,9 +3,9 @@
  *
  * `expo-battery` reports **-1** when the level is unknown (the iOS simulator,
  * and some Android devices and states). Read as a fraction, -1 is "below 20%",
- * so passing it through showed "Battery -100%" with the critical warning and
- * would have switched off battery-gated features. Anything outside 0–1 is
- * therefore treated as unknown, and an unknown level is never low.
+ * so passing it through showed "Battery -100%" with the critical warning.
+ * Anything outside 0–1 is therefore treated as unknown, and an unknown level
+ * is never low.
  */
 
 /** Below this fraction the battery counts as low (spec §7.1). */

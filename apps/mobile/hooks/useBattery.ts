@@ -1,10 +1,8 @@
 /**
  * Hook for battery level monitoring.
  *
- * Used to:
- * - Disable crowd signal when battery < 20%
- * - Show low-battery warning during navigation
- * - Switch to battery-saving GPS mode
+ * Drives the low-battery warning during navigation. Crowd Signal applies the
+ * same rule (`utils/battery`) to a one-off platform read instead.
  */
 
 import { useState, useEffect } from "react";
