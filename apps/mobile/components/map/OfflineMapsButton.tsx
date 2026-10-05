@@ -8,7 +8,12 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Pressable, StyleSheet, Text } from "react-native";
 
-import { colors, spacing, touchTarget } from "@/constants/theme";
+import {
+  colors,
+  spacing,
+  statusIndicator,
+  touchTarget,
+} from "@/constants/theme";
 
 /**
  * Props for {@link OfflineMapsButton}.
@@ -42,7 +47,8 @@ export function OfflineMapsButton({
 const styles = StyleSheet.create({
   button: {
     position: "absolute",
-    top: 60,
+    // Level with the status badge it sits opposite.
+    top: statusIndicator.top,
     left: spacing.md,
     zIndex: 10,
     flexDirection: "row",
