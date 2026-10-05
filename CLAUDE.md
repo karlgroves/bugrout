@@ -253,6 +253,13 @@ Database (`db/` directory):
    avoidance → find resource waypoints along corridor → recalculate with
    waypoints
 
+## Store listing
+
+`apps/mobile/fastlane/metadata/` must claim only what the build does (Guideline
+2.3.1). `docs/store-listing.md` maps each claim to its evidence and each removed
+claim to the issue that reinstates it. Update it with any change that adds or
+breaks a listed feature, and re-check it before every submission.
+
 ## Data Sources (all free/open for MVP)
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
