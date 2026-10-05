@@ -268,8 +268,7 @@ function DownloadsScreen(): React.JSX.Element {
                 <Text style={styles.regionName}>{region.name}</Text>
                 <Text style={styles.regionMeta}>
                   Full state ~{formatBytes(totalSize)}
-                  {countyGroups.length > 0 &&
-                    ` · ${countyGroups.length} county groups available`}
+                  {countyGroups.length > 0 && ` · county downloads coming soon`}
                 </Text>
               </View>
               <View style={styles.regionActions}>
@@ -279,12 +278,10 @@ function DownloadsScreen(): React.JSX.Element {
                     onPress={() => {
                       setExpandedState(isExpanded ? null : region.id);
                     }}
-                    accessibilityLabel={
-                      isExpanded
-                        ? `Collapse ${region.name} county groups`
-                        : `Show ${region.name} county groups`
-                    }
-                    accessibilityHint="Toggles the list of smaller county-level download packages for this region"
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: isExpanded }}
+                    accessibilityLabel={`${region.name} county groups`}
+                    accessibilityHint="Shows or hides the county groups planned for this region"
                   >
                     <FontAwesome
                       name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -318,9 +315,16 @@ function DownloadsScreen(): React.JSX.Element {
               </View>
             </View>
 
-            {/* County group sub-rows */}
-            {isExpanded
-              ? countyGroups.map((cg) => (
+            {/* County groups: information only. No county package is
+                published yet (#147), so there is nothing to download and no
+                control may claim otherwise (#175). */}
+            {isExpanded ? (
+              <View testID={`county-groups-${region.id}`}>
+                <Text style={styles.countyNote}>
+                  County downloads aren&apos;t available yet. Download the full
+                  state to use {region.name} offline.
+                </Text>
+                {countyGroups.map((cg) => (
                   <View key={cg.id} style={styles.countyRow}>
                     <View style={styles.regionInfo}>
                       <Text style={styles.countyName}>{cg.name}</Text>
@@ -328,21 +332,10 @@ function DownloadsScreen(): React.JSX.Element {
                         ~{cg.estimatedSizeMB} MB · {cg.counties.length} counties
                       </Text>
                     </View>
-                    <Pressable
-                      style={styles.downloadButton}
-                      accessibilityLabel={`Download ${cg.name} county group`}
-                      accessibilityHint="Downloads only this smaller county group instead of the full state package"
-                      accessibilityRole="button"
-                    >
-                      <FontAwesome
-                        name="download"
-                        size={16}
-                        color={colors.textPrimary}
-                      />
-                    </Pressable>
                   </View>
-                ))
-              : null}
+                ))}
+              </View>
+            ) : null}
           </View>
         );
       }}
@@ -496,6 +489,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     borderLeftWidth: 3,
     borderLeftColor: colors.accentMuted,
+  },
+  countyNote: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginLeft: spacing.lg,
+    marginBottom: spacing.sm,
   },
   countyName: {
     ...typography.body,
