@@ -19,6 +19,7 @@ import {
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { getCountyGroups } from "@/constants/counties";
+import { DEFAULT_REGIONS } from "@/constants/regions";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useTileManager } from "@/hooks/useTileManager";
 import { isExpoGo } from "@/services/tiles/TileManager";
@@ -212,7 +213,13 @@ function DownloadsScreen(): React.JSX.Element {
 
           {/* Downloaded regions */}
           {downloadedRegions.length > 0 && (
-            <Text style={styles.sectionTitle}>Downloaded</Text>
+            <Text
+              style={styles.sectionTitle}
+              accessibilityRole="header"
+              aria-level={2}
+            >
+              Downloaded
+            </Text>
           )}
         </View>
       }
@@ -221,15 +228,40 @@ function DownloadsScreen(): React.JSX.Element {
           ...r,
           _type: "downloaded" as const,
         })),
-        ...(notDownloaded.length > 0
+        // Nothing is listed until the region list has loaded.
+        ...(availableRegions.length > 0
           ? [{ _type: "header" as const, id: "__header__" }]
+          : []),
+        // Everything published is already downloaded: say so, rather than
+        // let the section vanish and look broken (#173).
+        ...(availableRegions.length > 0 && notDownloaded.length === 0
+          ? [{ _type: "allDownloaded" as const, id: "__all_downloaded__" }]
           : []),
         ...notDownloaded.map((r) => ({ ...r, _type: "available" as const })),
       ]}
-      keyExtractor={(item) => ("id" in item ? item.id : "__header__")}
+      keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
         if (item._type === "header") {
-          return <Text style={styles.sectionTitle}>Available</Text>;
+          return (
+            <Text
+              style={styles.sectionTitle}
+              accessibilityRole="header"
+              aria-level={2}
+            >
+              Available
+            </Text>
+          );
+        }
+
+        if (item._type === "allDownloaded") {
+          return (
+            <Text testID="downloads-all-downloaded" style={styles.emptyText}>
+              You&apos;ve downloaded every map currently available.
+              {availableRegions.length < DEFAULT_REGIONS.length
+                ? ` Offline maps are published for ${availableRegions.length} of ${DEFAULT_REGIONS.length} regions so far; more are coming.`
+                : ""}
+            </Text>
+          );
         }
 
         if (item._type === "downloaded") {
@@ -420,6 +452,10 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: spacing.xs,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   sectionTitle: {
     ...typography.caption,
