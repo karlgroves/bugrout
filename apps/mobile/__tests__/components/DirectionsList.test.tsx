@@ -4,7 +4,7 @@
  * towards; a reroute is announced.
  */
 
-import { render } from "@testing-library/react-native";
+import { act, render } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import { DirectionsList } from "@/components/navigation/DirectionsList";
@@ -116,6 +116,25 @@ describe("DirectionsList", () => {
 
     expect(screen.getByText("Route updated")).toBeTruthy();
     expect(announce).toHaveBeenCalledWith("Route updated");
+    announce.mockRestore();
+  });
+
+  it("clears the notice after a few seconds", async () => {
+    jest.useFakeTimers();
+    const announce = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockImplementation(() => undefined);
+    const screen = await render(<DirectionsList route={route} now={NOW} />);
+    await screen.rerender(
+      <DirectionsList route={{ ...route, id: "r2" }} now={NOW} />,
+    );
+    expect(screen.getByText("Route updated")).toBeTruthy();
+
+    await act(() => {
+      jest.advanceTimersByTime(6000);
+    });
+    expect(screen.queryByText("Route updated")).toBeNull();
+    jest.useRealTimers();
     announce.mockRestore();
   });
 });

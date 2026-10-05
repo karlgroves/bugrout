@@ -72,18 +72,29 @@ function stepLabel(
     .join(", ");
 }
 
+/** How long "Route updated" stays on screen after a reroute. */
+const NOTICE_MS = 6000;
+
 /**
  * Announce a reroute: the list changes under the user, so say so (#192),
- * visibly and to screen readers.
+ * visibly and to screen readers. The on-screen notice clears after
+ * {@link NOTICE_MS}; one that stayed for the rest of the trip would come to
+ * read as if the route had just changed.
  */
 function useRouteUpdatedNotice(routeId: string): boolean {
   const firstId = useRef(routeId);
   const [updated, setUpdated] = useState(false);
   useEffect(() => {
-    if (routeId === firstId.current) return;
+    if (routeId === firstId.current) return undefined;
     firstId.current = routeId;
     setUpdated(true);
     AccessibilityInfo.announceForAccessibility("Route updated");
+    const timer = setTimeout(() => {
+      setUpdated(false);
+    }, NOTICE_MS);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [routeId]);
   return updated;
 }
