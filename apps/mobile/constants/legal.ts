@@ -8,7 +8,7 @@ export /**
  */
 const PRIVACY_POLICY = `
 BugRout Privacy Policy
-Last Updated: August 2026
+Last Updated: October 2026
 
 1. INFORMATION WE COLLECT
 
@@ -76,7 +76,7 @@ BugRout contacts the following external services. Each one sees your IP address 
 - NIFC fire perimeters, served via Esri ArcGIS Online (a commercial hosting provider) — receives no location from you
 - NREL, US government (fuel station data) — receives a US state code
 - USGS, US government (water gauge data) — receives a US state code
-- American Red Cross and Open211 (shelter locations) — receive no location from you; data is filtered on your device
+- FEMA ESF6-SS, US government (open shelters, which include American Red Cross shelters) — receives the bounding box of your downloaded region
 - Sentry (crash reporting) — contacted only if you enable Crash Reports in Settings
 
 None of these services receives your name, email, phone number, contacts, or any account identifier, because BugRout does not have them. Several of them do receive an approximate indication of the area you are operating in, as set out above and in section 1(c).

@@ -57,8 +57,7 @@ describe("privacy policy — third-party disclosure", () => {
       "USFS",
       "NREL",
       "USGS",
-      "Red Cross",
-      "Open211",
+      "ESF6-SS",
       "ArcGIS",
       "Sentry",
     ]) {
@@ -75,8 +74,9 @@ describe("privacy policy — third-party disclosure", () => {
   });
 
   it("has been re-dated", () => {
-    expect(PRIVACY_POLICY).not.toContain("Last Updated: April 2026");
-    expect(PRIVACY_POLICY).toContain("Last Updated: August 2026");
+    // October 2026: shelters moved from Red Cross/Open211 to FEMA ESF6-SS (#201).
+    expect(PRIVACY_POLICY).not.toContain("Last Updated: August 2026");
+    expect(PRIVACY_POLICY).toContain("Last Updated: October 2026");
   });
 });
 
