@@ -14,12 +14,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
-import { BugroutMap } from "@/components/map/BugroutMap";
-import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
-import { DirectionsList } from "@/components/navigation/DirectionsList";
 import { ManeuverCard } from "@/components/navigation/ManeuverCard";
+import { RouteBody } from "@/components/navigation/RouteBody";
 import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
 import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
 import { alertRouteUnavailable } from "@/components/routing/RouteUnavailableNotice";
@@ -234,24 +232,14 @@ function NavigationScreen(): React.JSX.Element {
       {/* The essentials stay outside the switch: the advisory badge and
           status above, the ETA and Stop below (#192, #189). */}
       <RouteViewToggle value={routeView} onChange={setRouteView} />
-      {routeView === "directions" && activeRoute ? (
-        <DirectionsList
-          route={activeRoute}
-          progress={{
-            current: maneuverIndex,
-            metresToCurrent: distanceToManeuver,
-          }}
-        />
-      ) : (
-        <BugroutMap
-          userLocation={position}
-          heading={heading}
-          routeCoordinates={activeRoute?.coordinates}
-          followUser
-        >
-          <ThreatOverlay />
-        </BugroutMap>
-      )}
+      <RouteBody
+        view={routeView}
+        route={activeRoute}
+        maneuverIndex={maneuverIndex}
+        metresToManeuver={distanceToManeuver}
+        position={position}
+        heading={heading}
+      />
 
       <RouteBottomBar
         remainingDistance={remaining.distance}
