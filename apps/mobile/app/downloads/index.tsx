@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   expandButton: {
-    width: 32,
+    width: touchTarget.minWidth,
     height: touchTarget.minHeight,
     justifyContent: "center",
     alignItems: "center",

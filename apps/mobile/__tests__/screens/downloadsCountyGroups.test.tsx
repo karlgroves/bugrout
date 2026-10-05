@@ -10,6 +10,7 @@
 import { fireEvent, render, within } from "@testing-library/react-native";
 
 import DownloadsScreen from "@/app/downloads/index";
+import { touchTarget } from "@/constants/theme";
 
 import type { Region } from "@bugrout/shared";
 
@@ -47,6 +48,12 @@ describe("Downloads — county groups", () => {
 
     expect(toggle.props.accessibilityRole).toBe("button");
     expect(toggle.props.accessibilityState).toEqual({ expanded: false });
+
+    // A real button, so the app's 44pt minimum applies.
+    expect(toggle).toHaveStyle({
+      width: touchTarget.minWidth,
+      height: touchTarget.minHeight,
+    });
 
     await fireEvent.press(toggle);
     expect(
