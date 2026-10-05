@@ -25,6 +25,13 @@
  * `expo export` and the dev server use) and React Native's CLI plugin. Each is
  * resolved the way its consumer resolves it, so the test exercises the copies
  * that actually run — not a hoisted one that might differ.
+ *
+ * Only `@expo/metro`'s copy (0.83.3, pinned exactly by SDK 54) still uses
+ * `image-size`. The CLI plugin's copy is overridden to Metro 0.83.8 (#156),
+ * which sizes images with its own `src/lib/imageSize.js` and does not depend
+ * on `image-size` at all — so for that copy the test asserts exactly that,
+ * and fails if it ever falls back to a Metro that does. Both copies must
+ * still give every app image the same dimensions.
  */
 
 import assert from "node:assert/strict";
@@ -50,8 +57,15 @@ function packageDir(name: string, fromDir: string): string {
   );
 }
 
-/** Each Metro in the tree, keyed by the consumer that loads it. */
-const metros: readonly { consumer: string; dir: string }[] = (() => {
+/**
+ * Each Metro in the tree, keyed by the consumer that loads it, and how it
+ * sizes images: through `image-size` (patched), or with its own sizer.
+ */
+const metros: readonly {
+  consumer: string;
+  dir: string;
+  sizer: "image-size" | "own";
+}[] = (() => {
   const expoCli = packageDir("@expo/cli", packageDir("expo", mobileRoot));
   const expoMetro = packageDir("@expo/metro", expoCli);
   const cliPlugin = packageDir(
@@ -59,10 +73,15 @@ const metros: readonly { consumer: string; dir: string }[] = (() => {
     packageDir("react-native", mobileRoot),
   );
   return [
-    { consumer: "@expo/metro", dir: packageDir("metro", expoMetro) },
+    {
+      consumer: "@expo/metro",
+      dir: packageDir("metro", expoMetro),
+      sizer: "image-size",
+    },
     {
       consumer: "@react-native/community-cli-plugin",
       dir: packageDir("metro", cliPlugin),
+      sizer: "own",
     },
   ];
 })();
@@ -110,6 +129,51 @@ interface MetroAssets {
 /** A 48x48 PNG that ships with the app. */
 const fixture = path.join(mobileRoot, "assets/images/favicon.png");
 
+/** Every image the app ships, which both Metros must size identically. */
+const appImages = [
+  "adaptive-icon.png",
+  "favicon.png",
+  "icon.png",
+  "splash-icon.png",
+].map((name) => path.join(mobileRoot, "assets/images", name));
+
+/**
+ * The dimensions a Metro gives an image.
+ *
+ * @param metroDir - Directory of that Metro.
+ * @param image - Path of the image.
+ * @returns Its width and height as Metro reports them.
+ */
+async function sizeWith(
+  metroDir: string,
+  image: string,
+): Promise<{ width: number | undefined; height: number | undefined }> {
+  const assets = requireFrom(
+    path.join(metroDir, "src/Assets.js"),
+  ) as MetroAssets;
+  const data = await assets.getAssetData(
+    image,
+    path.basename(image),
+    [],
+    null,
+    "/assets",
+  );
+  return { width: data.width, height: data.height };
+}
+
+/**
+ * Whether a Metro declares `image-size` as a dependency.
+ *
+ * @param metroDir - Directory of that Metro.
+ * @returns True when its package.json lists it.
+ */
+function dependsOnImageSize(metroDir: string): boolean {
+  const pkg = requireFrom(path.join(metroDir, "package.json")) as {
+    dependencies?: Record<string, string>;
+  };
+  return "image-size" in (pkg.dependencies ?? {});
+}
+
 /**
  * An ICNS header followed by one entry whose length field is zero. A
  * vulnerable parser never advances past that entry.
@@ -123,7 +187,43 @@ const zeroLengthIcns = (() => {
   return buffer;
 })();
 
-for (const { consumer, dir } of metros) {
+for (const { consumer, dir, sizer } of metros.filter(
+  (m) => m.sizer === "own",
+)) {
+  describe(`asset sizing via ${consumer} — Metro sizes images itself`, () => {
+    // If this copy ever falls back to a Metro that uses image-size, it is
+    // unpatched (only 0.83.3 carries a patch) and the advisories reopen.
+    test("this Metro does not depend on image-size", () => {
+      assert.equal(
+        dependsOnImageSize(dir),
+        false,
+        `${consumer} resolved metro to ${dir}, which depends on image-size ` +
+          `again (${sizer} sizer expected). Check the community-cli-plugin ` +
+          `overrides in package.json and docs/dependency-upgrade-policy.md.`,
+      );
+    });
+
+    test("it gives every app image the same dimensions as @expo/metro's", async () => {
+      const reference = metros.find((m) => m.sizer === "image-size");
+      assert.ok(reference, "no image-size Metro to compare against");
+      for (const image of appImages) {
+        assert.deepEqual(
+          await sizeWith(dir, image),
+          await sizeWith(reference.dir, image),
+          `${path.basename(image)} is sized differently by the two Metros`,
+        );
+      }
+    });
+  });
+}
+
+for (const { consumer, dir } of metros.filter(
+  (m) => m.sizer === "image-size",
+)) {
+  test(`${consumer}'s Metro still depends on image-size, so its patch applies`, () => {
+    assert.equal(dependsOnImageSize(dir), true);
+  });
+
   describe(`asset sizing via ${consumer} — the patched dependencies are the ones that run`, () => {
     // Structural, not timing-based: a version comparison cannot silently stop
     // detecting the way a wall-clock threshold can.
@@ -158,20 +258,7 @@ for (const { consumer, dir } of metros) {
   describe(`asset sizing via ${consumer} — Metro still measures images`, () => {
     // Without the Metro patch this rejects: image-size 2.x is handed a path.
     test("an image asset on disk is sized from its path", async () => {
-      const assets = requireFrom(
-        path.join(dir, "src/Assets.js"),
-      ) as MetroAssets;
-      const data = await assets.getAssetData(
-        fixture,
-        "favicon.png",
-        [],
-        null,
-        "/assets",
-      );
-      assert.deepEqual(
-        { width: data.width, height: data.height },
-        { width: 48, height: 48 },
-      );
+      assert.deepEqual(await sizeWith(dir, fixture), { width: 48, height: 48 });
     });
   });
 
