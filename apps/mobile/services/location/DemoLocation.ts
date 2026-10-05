@@ -18,8 +18,7 @@ import { haversineDistance } from "@/utils/geo";
 import type { LocationUpdate } from "./LocationTracker";
 import type { LatLng } from "@bugrout/shared";
 
-/** Downtown Baltimore, inside the Maryland region, on the road network. */
-export /** The demo's starting point. */
+export /** The demo's starting point: downtown Baltimore, on the road network. */
 const DEMO_ORIGIN: LatLng = { lat: 39.2904, lng: -76.6122 };
 
 /** 30 mph: quick enough to see turns arrive, slow enough to follow them. */
