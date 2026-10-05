@@ -83,7 +83,9 @@
         "expo-crypto",
         "expo-file-system",
         "expo-haptics",
+        "expo-keep-awake",
         "expo-network",
+        "expo-notifications",
         "expo-sms",
         "expo-speech",
 

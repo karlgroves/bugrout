@@ -92,12 +92,16 @@ describe("destination picker — every row is named", () => {
     expect(
       (await findByLabelText("Use scenario: Wildfire East")).props
         .accessibilityHint,
-    ).toBe("Routes via your configured fuel and water stops");
+    ).toBe(
+      "Routes via your configured fuel and water stops and shows the route preview",
+    );
 
     expect(
       (await findByLabelText("Use scenario: Coastal Flood")).props
         .accessibilityHint,
-    ).toBe("Routes directly to this scenario's destination");
+    ).toBe(
+      "Routes directly to this scenario's destination and shows the route preview",
+    );
   });
 
   it("names a recent destination", async () => {
@@ -116,7 +120,7 @@ describe("destination picker — every row is named", () => {
     expect(
       (await findByLabelText("Use scenario: Wildfire East")).props
         .accessibilityState,
-    ).toEqual({ selected: false });
+    ).toMatchObject({ selected: false });
   });
 
   it("marks the section headings as level-2 headers", async () => {

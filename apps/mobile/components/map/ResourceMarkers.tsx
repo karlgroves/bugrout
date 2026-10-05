@@ -12,6 +12,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
 import { MapDetailSheet } from "@/components/map/MapDetailSheet";
+import { shelterDetail } from "@/components/map/ShelterStatusNotice";
 import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useResourceStore } from "@/stores/useResourceStore";
@@ -168,6 +169,12 @@ export function ResourceMarkers({
             {selectedResource.address ? (
               <Text style={detailStyles.address}>
                 {selectedResource.address}
+              </Text>
+            ) : null}
+
+            {selectedResource.type === "shelter" ? (
+              <Text style={detailStyles.address}>
+                {shelterDetail(selectedResource, Date.now())}
               </Text>
             ) : null}
 

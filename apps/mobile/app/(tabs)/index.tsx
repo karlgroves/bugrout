@@ -13,10 +13,12 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DemoLocationBadge } from "@/components/common/DemoLocationBadge";
 import { DownloadGuide } from "@/components/common/DownloadGuide";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BugroutMap } from "@/components/map/BugroutMap";
+import { OfflineMapsButton } from "@/components/map/OfflineMapsButton";
 import { ResourceFilterBar } from "@/components/map/ResourceFilterBar";
 import { ResourceMarkers } from "@/components/map/ResourceMarkers";
 import { ScenarioChips } from "@/components/map/ScenarioChips";
@@ -88,6 +90,7 @@ function MapScreen(): React.JSX.Element {
       {/* Online/Offline status */}
       <View style={styles.statusBar}>
         <StatusIndicator />
+        <DemoLocationBadge />
       </View>
 
       {/* Tile download banner */}
@@ -124,6 +127,17 @@ function MapScreen(): React.JSX.Element {
             Maps outdated — tap to update
           </Text>
         </Pressable>
+      ) : null}
+
+      {/* Persistent route to more maps once one is downloaded (#174). The
+          first-run and stale banners above take this spot when they show, and
+          both already lead to Downloads; during a trip it stays out of the way. */}
+      {tilesLoaded && !tileStale && !isNavigating ? (
+        <OfflineMapsButton
+          onPress={() => {
+            router.push("/downloads");
+          }}
+        />
       ) : null}
 
       {/* Map */}
@@ -202,7 +216,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  statusBar: statusIndicator,
+  statusBar: {
+    ...statusIndicator,
+    // The demo location badge (#205) stacks under the indicator.
+    alignItems: "flex-end",
+    gap: spacing.xs,
+  },
   tileBanner: {
     position: "absolute",
     top: 60,

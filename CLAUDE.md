@@ -219,6 +219,8 @@ Database (`db/` directory):
 - `schema.ts` — 8 tables: regions, destinations, threats, resources, scenarios,
   contacts, preferences, downloads
 - `queries/` — Type-safe query functions for each table
+- `migrations.ts` — Idempotent data fixes run after the schema on every start
+  (the schema is `CREATE TABLE IF NOT EXISTS`, so it never changes old rows)
 
 ## UX Constraints
 
@@ -232,6 +234,12 @@ Database (`db/` directory):
 - No dark patterns, no upsells during navigation
 - Battery warning banner during navigation when < 20%
 - Crowd signal auto-disables when battery < 20%
+- Demo location (Settings, for App Review; #205) replaces GPS with a simulated
+  position in Baltimore that drives each trip's route
+  (`services/location/DemoLocation.ts`). It is never persisted, and the map and
+  navigation screens show a DEMO badge while it is on. The App Review notes that
+  explain it live in
+  `apps/mobile/fastlane/metadata/review_information/notes.txt`
 
 ## Key Integration Flows
 
@@ -243,18 +251,27 @@ Database (`db/` directory):
 3. **2-tap scenario**: Scenario chip on map → auto-calculate with preferences →
    Route Preview → Go
 4. **NavigationController**: GPS tracking → maneuver advance → voice TTS →
-   deviation detection → crowd signal → battery-aware GPS frequency
+   deviation detection → crowd signal → battery-aware GPS frequency. Holds the
+   screen awake (`platform/keepAwake`) from start until stop or arrival
 5. **Data sync** (`useDataSync`): Triggers on connectivity change, region
    change, or app foreground. TTL-based refresh for threats and resources.
 6. **Smart routing**: `calculateSmartRoute()` — two-pass: base route with threat
    avoidance → find resource waypoints along corridor → recalculate with
    waypoints
 
+## Store listing
+
+`apps/mobile/fastlane/metadata/` must claim only what the build does (Guideline
+2.3.1). `docs/store-listing.md` maps each claim to its evidence and each removed
+claim to the issue that reinstates it. Update it with any change that adds or
+breaks a listed feature, and re-check it before every submission.
+
 ## Data Sources (all free/open for MVP)
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
 (flood zones), USFS/NIFC (fire perimeters), NREL (fuel stations), USGS NWIS
-(water sources), Red Cross / 211.org (shelters).
+(water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
+(shelters; source and terms in `services/resources/ShelterService.ts`).
 
 ## Reviewing PRs
 

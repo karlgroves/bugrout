@@ -24,8 +24,10 @@ jest.mock("@/db/queries/preferences", () => ({
   setPreference: (key: string, value: string) => mockSetPreference(key, value),
 }));
 
+const mockBatteryLevel = jest.fn<Promise<number>, []>();
+
 jest.mock("@/platform/battery", () => ({
-  getBatteryLevelAsync: () => Promise.resolve(1),
+  getBatteryLevelAsync: () => mockBatteryLevel(),
 }));
 
 import type * as CrowdSignalNamespace from "@/services/crowd/CrowdSignal";
@@ -42,7 +44,10 @@ const POSITION = { lat: 38.90723, lng: -77.03691 };
  */
 type FetchSpy = jest.Mock<Promise<Response>, [string, RequestInit]>;
 
-function load(secureRandomUUID: () => string): {
+function load(
+  secureRandomUUID: () => string,
+  { demoLocation = false }: { demoLocation?: boolean } = {},
+): {
   mod: CrowdSignalModule;
   fetchSpy: FetchSpy;
 } {
@@ -64,6 +69,7 @@ function load(secureRandomUUID: () => string): {
       require("@/stores/useConnectivityStore") as typeof ConnectivityStoreNamespace;
     /* eslint-enable @typescript-eslint/no-require-imports */
     useSettingsStore.getState().setCrowdSignalOptIn(true);
+    useSettingsStore.getState().setDemoLocation(demoLocation);
     useConnectivityStore.getState().setOnline(true);
   });
 
@@ -83,6 +89,7 @@ beforeEach(() => {
   jest.resetModules();
   mockGetPreference.mockReset().mockResolvedValue(null);
   mockSetPreference.mockReset().mockResolvedValue(undefined);
+  mockBatteryLevel.mockReset().mockResolvedValue(1);
 });
 
 describe("CrowdSignal — CSPRNG available", () => {
@@ -106,6 +113,19 @@ describe("CrowdSignal — CSPRNG available", () => {
     expect(body.lat).toBe(38.9072);
     expect(body.lng).toBe(-77.0369);
     expect(mod.isCrowdSignalDisabled()).toBe(false);
+  });
+});
+
+describe("CrowdSignal — demo location (#205)", () => {
+  it("reports nothing while the position is simulated", async () => {
+    const { mod, fetchSpy } = load(
+      () => "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      { demoLocation: true },
+    );
+
+    await mod.sendSignal(POSITION, 12.34, 91);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -163,4 +183,31 @@ describe("CrowdSignal — CSPRNG unavailable", () => {
     expect(mod.isCrowdSignalDisabled()).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+});
+
+describe("CrowdSignal — battery rule", () => {
+  const sendWithBattery = async (level: number): Promise<FetchSpy> => {
+    mockBatteryLevel.mockResolvedValue(level);
+    const { mod, fetchSpy } = load(
+      () => "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    );
+    await mod.sendSignal(POSITION, 12.34, 91);
+    return fetchSpy;
+  };
+
+  it("holds the signal below 20%", async () => {
+    expect(await sendWithBattery(0.19)).not.toHaveBeenCalled();
+  });
+
+  it("sends at exactly 20%", async () => {
+    expect(await sendWithBattery(0.2)).toHaveBeenCalledTimes(1);
+  });
+
+  // expo-battery reports -1 when it can't tell; that must not read as "low".
+  it.each([-1, Number.NaN, 1.5])(
+    "sends when the level is unknown (%p)",
+    async (level) => {
+      expect(await sendWithBattery(level)).toHaveBeenCalledTimes(1);
+    },
+  );
 });

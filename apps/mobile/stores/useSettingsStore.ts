@@ -16,12 +16,21 @@ interface SettingsState {
    * `services/CrashReporting.ts`.
    */
   crashReportingOptIn: boolean;
+  /**
+   * Whether positions come from the demo location in Baltimore instead of GPS
+   * (#205), so App Review can use the Maryland-only app from anywhere.
+   *
+   * Never persisted: it is off at every launch, so a simulated position can't
+   * outlive the session it was turned on in.
+   */
+  demoLocation: boolean;
 
   setUnits: (units: "mi" | "km") => void;
   setVoiceEnabled: (enabled: boolean) => void;
   setBatteryOptimization: (enabled: boolean) => void;
   setCrowdSignalOptIn: (optIn: boolean) => void;
   setCrashReportingOptIn: (optIn: boolean) => void;
+  setDemoLocation: (on: boolean) => void;
 }
 
 export /**
@@ -33,6 +42,7 @@ const useSettingsStore = create<SettingsState>((set) => ({
   batteryOptimization: true,
   crowdSignalOptIn: false,
   crashReportingOptIn: false,
+  demoLocation: false,
 
   setUnits: (units) => {
     set({ units });
@@ -48,5 +58,8 @@ const useSettingsStore = create<SettingsState>((set) => ({
   },
   setCrashReportingOptIn: (optIn) => {
     set({ crashReportingOptIn: optIn });
+  },
+  setDemoLocation: (on) => {
+    set({ demoLocation: on });
   },
 }));

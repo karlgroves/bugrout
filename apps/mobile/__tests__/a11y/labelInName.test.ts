@@ -410,9 +410,12 @@ describe("WCAG 2.5.3 — every accessible name contains its visible label", () =
     // Measured, not guessed: 10 and 3 as this lands. Names went to 11 with the
     // offline-maps Update button (#179), `Update ${region.name} offline map` —
     // icon-only, so it has no visible label for 2.5.3 to compare, like the
-    // Delete button beside it.
+    // Delete button beside it. Text went to 4 when the onboarding download
+    // button (#228) and the Map/Directions tabs (#229) landed together: each
+    // renders `{label}` and takes `accessibilityLabel={label}` from the same
+    // variable, so the name always equals the visible text.
     expect(result.unreadableNames).toBeLessThanOrEqual(11);
-    expect(result.unreadableText).toBeLessThanOrEqual(3);
+    expect(result.unreadableText).toBeLessThanOrEqual(4);
   });
 
   it("has no by.label matcher the emulator would find ambiguous", () => {
