@@ -13,6 +13,20 @@ import {
 } from "@/services/location/LocationTracker";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
+/** A fix, and whether it came from the demo location rather than GPS. */
+interface SourcedFix {
+  fix: LocationUpdate;
+  demo: boolean;
+}
+
+/** The fix, if it came from the source now in use; null otherwise. */
+function fixFromSource(
+  tagged: SourcedFix | null,
+  demo: boolean,
+): LocationUpdate | null {
+  return tagged !== null && tagged.demo === demo ? tagged.fix : null;
+}
+
 /** Reactive GPS state returned by {@link useLocation}. */
 export interface UseLocationResult {
   location: LocationUpdate | null;
@@ -29,21 +43,26 @@ export interface UseLocationResult {
  * position, heading, speed, accuracy, and a one-shot getPosition helper.
  */
 export function useLocation(active = false): UseLocationResult {
-  const [location, setLocation] = useState<LocationUpdate | null>(null);
+  // Each fix is tagged with the source it came from (#205). Switching the demo
+  // location on or off restarts tracking from the new source, and until that
+  // source's first fix arrives the last one is from the old source — a real
+  // position in Cupertino after the demo moved the user to Baltimore. It must
+  // be neither shown nor centred on, so a fix from another source reads as
+  // no fix at all.
+  const [tagged, setTagged] = useState<SourcedFix | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const callbackRef = useRef<((update: LocationUpdate) => void) | null>(null);
-  // Switching the demo location on or off restarts tracking from the new
-  // source (#205).
+  const callbackRef = useRef<((fix: SourcedFix) => void) | null>(null);
   const demoLocation = useSettingsStore((s) => s.demoLocation);
+  const location = fixFromSource(tagged, demoLocation);
 
   // Update the callback ref without triggering re-subscriptions
-  callbackRef.current = setLocation;
+  callbackRef.current = setTagged;
 
   useEffect(() => {
     if (!active) return;
 
     const handleUpdate = (update: LocationUpdate) => {
-      callbackRef.current?.(update);
+      callbackRef.current?.({ fix: update, demo: demoLocation });
     };
 
     startTracking(handleUpdate).catch((err) => {
@@ -57,8 +76,9 @@ export function useLocation(active = false): UseLocationResult {
 
   const getPosition = useCallback(async (): Promise<LocationUpdate | null> => {
     try {
+      const demo = useSettingsStore.getState().demoLocation;
       const pos = await getCurrentPosition();
-      setLocation(pos);
+      setTagged({ fix: pos, demo });
       return pos;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Location error");
