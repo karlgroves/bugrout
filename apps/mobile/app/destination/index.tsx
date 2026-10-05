@@ -38,7 +38,10 @@ import {
 } from "@/db/queries/preferences";
 import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
-import { searchDestinations } from "@/services/geocoding/Geocoder";
+import {
+  searchDestinations,
+  SearchSupersededError,
+} from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
@@ -138,7 +141,9 @@ function DestinationScreen(): React.JSX.Element {
         setResults(found);
         setNoResults(false);
       }
-    } catch {
+    } catch (err) {
+      // A newer search took this one's turn; it will update the list.
+      if (err instanceof SearchSupersededError) return;
       setResults([]);
     }
     setSearching(false);
