@@ -485,10 +485,14 @@ An advisory gets an ignore entry only when this repository cannot reach the fix.
 That is two distinct situations, and the entry has to say which one it is,
 because they retire on different signals:
 
-1. **No fixed version is published.** Retires when upstream ships a fix. Nothing
-   is in this case now — see
-   [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how
-   the last entry left it.
+1. **No fixed version is published.** Retires when upstream ships a fix.
+   `braces` (GHSA-vfj7-8cjw-p6xm) and `node-forge` (GHSA-86w9-cpqp-85rv) are in
+   this case: both advisories name the latest release as affected, and both are
+   build-time Expo toolchain packages that never reach the app bundle. They are
+   also listed in `pnpm.auditConfig.ignoreGhsas`, because `pnpm audit --prod`
+   counts the Expo toolchain as production. See
+   [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how an
+   entry in this case retires.
 2. **A fixed version exists but is structurally unreachable** — pinning it
    breaks the consumer that pulls the package in, no upstream bump gets there,
    and no patch bridges the gap. Retires when the _consumer_ changes, not when
