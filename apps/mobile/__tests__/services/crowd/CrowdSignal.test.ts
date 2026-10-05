@@ -24,8 +24,10 @@ jest.mock("@/db/queries/preferences", () => ({
   setPreference: (key: string, value: string) => mockSetPreference(key, value),
 }));
 
+const mockBatteryLevel = jest.fn<Promise<number>, []>();
+
 jest.mock("@/platform/battery", () => ({
-  getBatteryLevelAsync: () => Promise.resolve(1),
+  getBatteryLevelAsync: () => mockBatteryLevel(),
 }));
 
 import type * as CrowdSignalNamespace from "@/services/crowd/CrowdSignal";
@@ -83,6 +85,7 @@ beforeEach(() => {
   jest.resetModules();
   mockGetPreference.mockReset().mockResolvedValue(null);
   mockSetPreference.mockReset().mockResolvedValue(undefined);
+  mockBatteryLevel.mockReset().mockResolvedValue(1);
 });
 
 describe("CrowdSignal — CSPRNG available", () => {
@@ -163,4 +166,31 @@ describe("CrowdSignal — CSPRNG unavailable", () => {
     expect(mod.isCrowdSignalDisabled()).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+});
+
+describe("CrowdSignal — battery rule", () => {
+  const sendWithBattery = async (level: number): Promise<FetchSpy> => {
+    mockBatteryLevel.mockResolvedValue(level);
+    const { mod, fetchSpy } = load(
+      () => "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    );
+    await mod.sendSignal(POSITION, 12.34, 91);
+    return fetchSpy;
+  };
+
+  it("holds the signal below 20%", async () => {
+    expect(await sendWithBattery(0.19)).not.toHaveBeenCalled();
+  });
+
+  it("sends at exactly 20%", async () => {
+    expect(await sendWithBattery(0.2)).toHaveBeenCalledTimes(1);
+  });
+
+  // expo-battery reports -1 when it can't tell; that must not read as "low".
+  it.each([-1, Number.NaN, 1.5])(
+    "sends when the level is unknown (%p)",
+    async (level) => {
+      expect(await sendWithBattery(level)).toHaveBeenCalledTimes(1);
+    },
+  );
 });

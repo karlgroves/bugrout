@@ -21,6 +21,76 @@ const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
 /** Abort a geocoding request that has not answered in this many ms. */
 const REQUEST_TIMEOUT_MS = 10_000;
 
+/**
+ * Minimum gap between two requests from this device. The OSM Foundation's
+ * Nominatim usage policy allows at most one request per second (#208); the
+ * picker's 400 ms debounce alone doesn't hold a steady typist to that.
+ */
+const MIN_REQUEST_INTERVAL_MS = 1_000;
+
+/** Where the operator can reach us, as the usage policy requires. */
+const CONTACT_URL = "https://bugrout.app/support";
+
+/** Subset of the expo-constants module shape read for the app version. */
+interface ExpoConstantsModule {
+  expoConfig?: { version?: string } | null;
+  default?: { expoConfig?: { version?: string } | null };
+}
+
+/**
+ * The User-Agent sent to Nominatim: the app and its version, plus a contact
+ * URL. The usage policy requires a UA that identifies the application; a
+ * generic one gets an app blocked, and it can be blocked without notice.
+ *
+ * @returns e.g. `"BugRout/1.0.0 (+https://bugrout.app/support)"`.
+ */
+export function nominatimUserAgent(): string {
+  let version = "unknown";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- native module loaded lazily; mocked on web
+    const Constants = require("expo-constants") as ExpoConstantsModule;
+    version =
+      Constants.default?.expoConfig?.version ??
+      Constants.expoConfig?.version ??
+      version;
+  } catch {
+    // Keep "unknown": the contact URL still identifies the app.
+  }
+  return `BugRout/${version} (+${CONTACT_URL})`;
+}
+
+/**
+ * Thrown when a search is overtaken by a newer one while waiting for its turn
+ * under {@link MIN_REQUEST_INTERVAL_MS}. Nothing was sent; the newer search
+ * will answer instead.
+ */
+export class SearchSupersededError extends Error {
+  constructor() {
+    super("A newer search replaced this one before it was sent");
+    this.name = "SearchSupersededError";
+  }
+}
+
+let lastRequestAt = Number.NEGATIVE_INFINITY;
+let latestTicket = 0;
+
+/**
+ * Wait until a request may be sent under the rate limit. Only the newest
+ * waiting search goes; older ones are dropped, so a burst of typing costs one
+ * request rather than a queue of them.
+ *
+ * @throws {SearchSupersededError} When a newer search arrived while waiting.
+ */
+async function takeRequestSlot(): Promise<void> {
+  const ticket = ++latestTicket;
+  const wait = lastRequestAt + MIN_REQUEST_INTERVAL_MS - Date.now();
+  if (wait > 0) {
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+  if (ticket !== latestTicket) throw new SearchSupersededError();
+  lastRequestAt = Date.now();
+}
+
 /** A single geocoding result, already reduced to what the picker renders. */
 export interface GeocodeResult {
   /** Full Nominatim display name. */
@@ -126,6 +196,8 @@ function streetOf(address: NominatimAddress): string | undefined {
  * @param query - The user's typed search string.
  * @returns Matching destinations, or an empty array when the request fails.
  * @throws {DisclaimerNotAcceptedError} When the disclaimer has not been accepted.
+ * @throws {SearchSupersededError} When a newer search replaced this one before
+ *   it was sent (requests are held to one per second).
  */
 export async function searchDestinations(
   query: string,
@@ -142,8 +214,10 @@ export async function searchDestinations(
     addressdetails: "1",
   });
 
+  await takeRequestSlot();
+
   const resp = await fetch(`${NOMINATIM_SEARCH}?${params.toString()}`, {
-    headers: { "User-Agent": "BugRout/1.0" },
+    headers: { "User-Agent": nominatimUserAgent() },
     signal: timeoutSignal(REQUEST_TIMEOUT_MS),
   });
   if (!resp.ok) return [];

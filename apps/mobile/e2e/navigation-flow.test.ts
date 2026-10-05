@@ -2,7 +2,7 @@
  * E2E Test: Three-Tap Navigation Flow
  *
  * Verifies the core user journey:
- * Launch → Bug Out FAB → Select destination → Route & Go → Navigation active
+ * Launch → Bug Out FAB → Select destination → Route preview → Go → Navigation active
  *
  * This is the most critical flow in the app and MUST work reliably.
  */

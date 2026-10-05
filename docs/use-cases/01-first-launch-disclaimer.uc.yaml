@@ -50,7 +50,9 @@ steps:
   - focus: button "{{ skip_location }}"
   - activate: button "{{ skip_location }}"
 
-  - verify: text "You're Ready"
+  # The offline-map step (#199). On web there is no region to download, so the
+  # flow continues past it; the download itself is covered by unit tests.
+  - verify: text "Offline Maps"
   - locate: button "{{ start_app }}"
   - focus: button "{{ start_app }}"
   - activate: button "{{ start_app }}"

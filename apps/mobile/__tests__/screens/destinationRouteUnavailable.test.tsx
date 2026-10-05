@@ -62,7 +62,7 @@ global.fetch = jest.fn().mockResolvedValue({
   json: () => Promise.resolve([]),
 });
 
-/** Pick the recent destination and press Route & Go. */
+/** Tap the recent destination, which routes to it (#197). */
 async function routeToLouisville(): Promise<ReturnType<typeof render>> {
   const screen = await render(<DestinationScreen />);
   await fireEvent.press(
@@ -70,7 +70,6 @@ async function routeToLouisville(): Promise<ReturnType<typeof render>> {
       "Use recent destination: Louisville, Kentucky",
     ),
   );
-  await fireEvent.press(screen.getByTestId("route-and-go-button"));
   return screen;
 }
 
@@ -96,7 +95,6 @@ describe("destination picker — no route", () => {
     const notice = await screen.findByTestId("route-unavailable");
     expect(notice.props.accessibilityRole).toBe("alert");
     expect(screen.getByText(title)).toBeTruthy();
-    expect(screen.queryByText("Ready to route")).toBeNull();
     // No preview of a route that doesn't exist.
     expect(mockReplace).not.toHaveBeenCalledWith("/route-preview");
   });

@@ -6,7 +6,8 @@ export type ResourceType = "fuel" | "water" | "shelter";
 /**
  * Upstream provider a resource point was sourced from.
  */
-export type ResourceSource = "nrel" | "usgs" | "osm" | "redcross" | "open211";
+export type ResourceSource =
+  "nrel" | "usgs" | "osm" | "redcross" | "open211" | "fema";
 
 /**
  * A geolocated evacuation resource such as a fuel station or shelter.

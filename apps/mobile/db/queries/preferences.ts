@@ -2,6 +2,8 @@
  * SQLite queries for user preferences and emergency contacts.
  */
 
+import { placeKey } from "@/utils/geo";
+
 import { getDatabase } from "../database";
 
 // --- Preferences ---
@@ -125,16 +127,21 @@ export async function getRecentDestinations(
 }
 
 /**
- * Inserts or replaces a recent destination.
+ * Records a use of a destination.
+ *
+ * Keyed by place ({@link placeKey}, about 11 m), so using the same place again
+ * replaces its entry, with the new label and time, rather than adding another.
+ *
+ * @param dest - The destination used, and when.
  */
 export async function addRecentDestination(
-  dest: RecentDestinationRow,
+  dest: Omit<RecentDestinationRow, "id">,
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT OR REPLACE INTO recent_destinations (id, label, lat, lng, used_at)
      VALUES (?, ?, ?, ?, ?)`,
-    dest.id,
+    placeKey(dest),
     dest.label,
     dest.lat,
     dest.lng,

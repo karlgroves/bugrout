@@ -8,7 +8,9 @@
  *    make it before the disclaimer is accepted
  * 3. Recent destinations from SQLite
  *
- * After selecting, "Route & Go" calculates and opens the route preview.
+ * Tapping a destination routes to it and opens the route preview, whose Go is
+ * the third tap from launch: Bug Out → destination → Go (spec §7.2, #197). A
+ * pin dropped on the map arrives already selected; "Preview route" routes it.
  */
 
 /* eslint-disable max-lines, max-lines-per-function, complexity -- pre-existing oversized destination picker with inline search/scenario/recent list rendering; tracked in docs/tech-debt.md (decompose destination picker) */
@@ -25,7 +27,6 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { v4 as uuidv4 } from "uuid";
 
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
@@ -38,8 +39,12 @@ import {
 } from "@/db/queries/preferences";
 import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
-import { searchDestinations } from "@/services/geocoding/Geocoder";
+import {
+  searchDestinations,
+  SearchSupersededError,
+} from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
+import { placeKey } from "@/utils/geo";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
 
@@ -51,6 +56,15 @@ interface GeocodingResult {
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
+
+/** How many recent destinations the picker lists. */
+const RECENTS_SHOWN = 5;
+
+/**
+ * How many to load: enough to still list {@link RECENTS_SHOWN} after dropping
+ * the ones that are saved scenarios (at most 3, the scenario store's cap).
+ */
+const RECENTS_FETCHED = 10;
 
 /** Destination picker offering scenarios, address search, and recent destinations. */
 function DestinationScreen(): React.JSX.Element {
@@ -65,14 +79,15 @@ function DestinationScreen(): React.JSX.Element {
   const [noResults, setNoResults] = useState(false);
   const [recents, setRecents] = useState<RecentDestinationRow[]>([]);
   const [selectedDest, setSelectedDest] = useState<LatLng | null>(null);
-  const [selectedLabel, setSelectedLabel] = useState("");
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
-    null,
-  );
   const [calculating, setCalculating] = useState(false);
   // Why the last Route & Go produced no route, until the selection changes.
   const [routeError, setRouteError] = useState<unknown>(null);
   const [gettingLocation, setGettingLocation] = useState(true);
+  // A pin dropped on the map, if the picker was opened with one.
+  const [pinDest, setPinDest] = useState<{
+    dest: LatLng;
+    label: string;
+  } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -84,7 +99,9 @@ function DestinationScreen(): React.JSX.Element {
       .catch(() => {
         // getPosition surfaces its own error via locationError; swallow here
       });
-    getRecentDestinations(5)
+    // Over-fetch: places that are saved scenarios are dropped from the list,
+    // and up to RECENTS_SHOWN must remain after that.
+    getRecentDestinations(RECENTS_FETCHED)
       .then(setRecents)
       .catch((err: unknown) => {
         console.error("Failed to load recent destinations", err);
@@ -95,8 +112,9 @@ function DestinationScreen(): React.JSX.Element {
       const lat = parseFloat(params.pinLat);
       const lng = parseFloat(params.pinLng);
       if (!isNaN(lat) && !isNaN(lng)) {
+        const label = `Map pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
         setSelectedDest({ lat, lng });
-        setSelectedLabel(`Map pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+        setPinDest({ dest: { lat, lng }, label });
       }
     }
   }, [getPosition, params.pinLat, params.pinLng]);
@@ -105,7 +123,6 @@ function DestinationScreen(): React.JSX.Element {
   const handleSearchChange = useCallback(
     (text: string) => {
       setQuery(text);
-      setSelectedScenario(null); // Clear scenario when typing
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -138,88 +155,76 @@ function DestinationScreen(): React.JSX.Element {
         setResults(found);
         setNoResults(false);
       }
-    } catch {
+    } catch (err) {
+      // A newer search took this one's turn; it will update the list.
+      if (err instanceof SearchSupersededError) return;
       setResults([]);
     }
     setSearching(false);
   }, []);
 
-  const selectDestination = useCallback((dest: LatLng, label: string) => {
-    setSelectedDest(dest);
-    setSelectedLabel(label);
-    setRouteError(null);
-  }, []);
+  /**
+   * Route to a destination and open the preview. Called by tapping any
+   * destination row, so choosing one is tap 2 and the preview's Go is tap 3.
+   */
+  const routeTo = useCallback(
+    async (dest: LatLng, label: string, scenario: Scenario | null) => {
+      setSelectedDest(dest);
+      setRouteError(null);
+      setCalculating(true);
 
-  const confirmRoute = useCallback(async () => {
-    if (!selectedDest) {
-      Alert.alert("No Destination", "Select a destination first.");
-      return;
-    }
-    if (!position) {
-      Alert.alert(
-        "Location Unavailable",
-        "Your current location could not be determined. Please ensure location services are enabled and try again.",
-        [
-          {
-            text: "Retry",
-            onPress: () => {
-              void getPosition();
+      // A tap right after opening the picker can beat the first GPS fix;
+      // wait for it rather than refuse.
+      const origin = position ?? (await getPosition())?.position ?? null;
+      if (!origin) {
+        setCalculating(false);
+        Alert.alert(
+          "Location Unavailable",
+          "Your current location could not be determined. Please ensure location services are enabled and try again.",
+          [
+            {
+              text: "Retry",
+              onPress: () => {
+                void getPosition();
+              },
             },
-          },
-          { text: "Cancel", style: "cancel" },
-        ],
-      );
-      return;
-    }
-
-    await addRecentDestination({
-      id: uuidv4(),
-      label:
-        selectedLabel ||
-        `${selectedDest.lat.toFixed(4)}, ${selectedDest.lng.toFixed(4)}`,
-      lat: selectedDest.lat,
-      lng: selectedDest.lng,
-      usedAt: Date.now(),
-    });
-
-    setCalculating(true);
-    setRouteError(null);
-    try {
-      if (selectedScenario?.resourceStops.some((r) => r.enabled)) {
-        await calculateRouteWithStops(
-          position,
-          selectedDest,
-          selectedScenario.resourceStops,
-          selectedScenario.avoidZones.length > 0
-            ? { avoidPolygons: selectedScenario.avoidZones }
-            : undefined,
+            { text: "Cancel", style: "cancel" },
+          ],
         );
-      } else {
-        await calculateRoute(
-          position,
-          selectedDest,
-          selectedScenario?.avoidZones.length
-            ? { avoidPolygons: selectedScenario.avoidZones }
-            : undefined,
-        );
+        return;
       }
 
-      router.replace("/route-preview");
-    } catch (err) {
-      // No fallback route: say why there isn't one (#190).
-      setCalculating(false);
-      setRouteError(err);
-    }
-  }, [
-    selectedDest,
-    position,
-    selectedLabel,
-    selectedScenario,
-    calculateRoute,
-    calculateRouteWithStops,
-    getPosition,
-    router,
-  ]);
+      await addRecentDestination({
+        label: label || `${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}`,
+        lat: dest.lat,
+        lng: dest.lng,
+        usedAt: Date.now(),
+      });
+
+      const avoid =
+        scenario && scenario.avoidZones.length > 0
+          ? { avoidPolygons: scenario.avoidZones }
+          : undefined;
+      try {
+        if (scenario?.resourceStops.some((r) => r.enabled)) {
+          await calculateRouteWithStops(
+            origin,
+            dest,
+            scenario.resourceStops,
+            avoid,
+          );
+        } else {
+          await calculateRoute(origin, dest, avoid);
+        }
+        router.replace("/route-preview");
+      } catch (err) {
+        // No fallback route: say why there isn't one (#190).
+        setCalculating(false);
+        setRouteError(err);
+      }
+    },
+    [position, getPosition, calculateRoute, calculateRouteWithStops, router],
+  );
 
   const isSelected = (lat: number, lng: number): boolean =>
     selectedDest !== null &&
@@ -311,14 +316,16 @@ function DestinationScreen(): React.JSX.Element {
                   isSelected(item.lat, item.lng) && styles.selectedRow,
                 ]}
                 onPress={() => {
-                  selectDestination(
+                  void routeTo(
                     { lat: item.lat, lng: item.lng },
                     item.shortName,
+                    null,
                   );
                 }}
+                disabled={calculating}
                 accessibilityRole="button"
                 accessibilityLabel={`Use destination: ${item.shortName}`}
-                accessibilityHint={item.displayName}
+                accessibilityHint={`${item.displayName}. Shows the route preview`}
                 accessibilityState={{
                   selected: isSelected(item.lat, item.lng),
                 }}
@@ -349,18 +356,19 @@ function DestinationScreen(): React.JSX.Element {
                   isSelected(item.lat, item.lng) && styles.selectedRow,
                 ]}
                 onPress={() => {
-                  selectDestination(
+                  void routeTo(
                     { lat: item.lat, lng: item.lng },
                     item.name,
+                    scenario ?? null,
                   );
-                  setSelectedScenario(scenario ?? null);
                 }}
+                disabled={calculating}
                 accessibilityRole="button"
                 accessibilityLabel={`Use scenario: ${item.name}`}
                 accessibilityHint={
                   hasStops
-                    ? "Routes via your configured fuel and water stops"
-                    : "Routes directly to this scenario's destination"
+                    ? "Routes via your configured fuel and water stops and shows the route preview"
+                    : "Routes directly to this scenario's destination and shows the route preview"
                 }
                 accessibilityState={{
                   selected: isSelected(item.lat, item.lng),
@@ -396,11 +404,16 @@ function DestinationScreen(): React.JSX.Element {
                 isSelected(item.lat, item.lng) && styles.selectedRow,
               ]}
               onPress={() => {
-                selectDestination({ lat: item.lat, lng: item.lng }, item.label);
+                void routeTo(
+                  { lat: item.lat, lng: item.lng },
+                  item.label,
+                  null,
+                );
               }}
+              disabled={calculating}
               accessibilityRole="button"
               accessibilityLabel={`Use recent destination: ${item.label}`}
-              accessibilityHint="Sets this previously used destination"
+              accessibilityHint="Routes to this previously used destination and shows the route preview"
               accessibilityState={{ selected: isSelected(item.lat, item.lng) }}
             >
               <View style={styles.resultContent}>
@@ -450,26 +463,30 @@ function DestinationScreen(): React.JSX.Element {
         </Text>
       ) : null}
       {routeError ? <RouteUnavailableNotice error={routeError} /> : null}
-      {selectedDest && position && !routeError ? (
-        <Text style={styles.statusText}>Ready to route</Text>
-      ) : null}
 
-      {/* Confirm button — always tappable, shows alerts if not ready */}
-      <Pressable
-        style={[styles.confirmButton, !selectedDest && styles.confirmDisabled]}
-        onPress={confirmRoute}
-        accessibilityLabel="Route & Go"
-        accessibilityHint="Calculates the evacuation route to the selected destination and opens the route preview"
-        accessibilityRole="button"
-        testID="route-and-go-button"
-      >
-        <FontAwesome
-          name="location-arrow"
-          size={16}
-          color={colors.background}
-        />
-        <Text style={styles.confirmText}>Route & Go</Text>
-      </Pressable>
+      {/* A pin dropped on the map arrives selected; this routes it. Rows
+          route themselves when tapped, so nothing else needs the button. It
+          says "Preview" because that is what it opens: Go is on the preview. */}
+      {pinDest ? (
+        <Pressable
+          style={styles.confirmButton}
+          onPress={() => {
+            void routeTo(pinDest.dest, pinDest.label, null);
+          }}
+          disabled={calculating}
+          accessibilityLabel="Preview route"
+          accessibilityHint="Calculates the evacuation route to the dropped pin and shows the route preview"
+          accessibilityRole="button"
+          testID="preview-route-button"
+        >
+          <FontAwesome
+            name="location-arrow"
+            size={16}
+            color={colors.background}
+          />
+          <Text style={styles.confirmText}>Preview route</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -480,6 +497,12 @@ function buildListData(
   scenarios: Scenario[],
   recents: RecentDestinationRow[],
 ) {
+  // A place that is already a saved scenario isn't listed again as a recent.
+  const scenarioPlaces = new Set(scenarios.map((s) => placeKey(s.destination)));
+  const shownRecents = recents
+    .filter((r) => !scenarioPlaces.has(placeKey(r)))
+    .slice(0, RECENTS_SHOWN);
+
   return [
     ...results.map((r) => ({
       _type: "search" as const,
@@ -504,7 +527,7 @@ function buildListData(
       lat: s.destination.lat,
       lng: s.destination.lng,
     })),
-    ...(recents.length > 0
+    ...(shownRecents.length > 0
       ? [
           {
             _type: "header" as const,
@@ -515,7 +538,7 @@ function buildListData(
           },
         ]
       : []),
-    ...recents.map((r) => ({
+    ...shownRecents.map((r) => ({
       _type: "recent" as const,
       id: r.id,
       label: r.label ?? `${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}`,
@@ -616,10 +639,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: touchTarget.minHeight,
     marginTop: spacing.md,
-  },
-  confirmDisabled: {
-    opacity: 0.5,
-    backgroundColor: colors.border,
   },
   confirmText: {
     fontSize: 16,

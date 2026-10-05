@@ -21,6 +21,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
+import { DirectionsList } from "@/components/navigation/DirectionsList";
+import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { routeIntersectsThreat } from "@/services/routing/ThreatAvoidance";
@@ -32,7 +34,8 @@ import { formatDistance, formatDuration } from "@/utils/geo";
 /** Route confirmation screen showing distance, ETA, threats, and Go/Back actions. */
 function RoutePreviewScreen(): React.JSX.Element | null {
   const router = useRouter();
-  const { activeRoute, startNavigation } = useRouteStore();
+  const { activeRoute, startNavigation, routeView, setRouteView } =
+    useRouteStore();
 
   // However the preview closes without Go — its Back button, an iOS swipe, the
   // Android back button — the route was never started, so drop it. It used to
@@ -88,14 +91,18 @@ function RoutePreviewScreen(): React.JSX.Element | null {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Map with route preview */}
+      <RouteViewToggle value={routeView} onChange={setRouteView} />
       <View style={styles.mapContainer}>
-        <BugroutMap
-          routeCoordinates={activeRoute.coordinates}
-          userLocation={activeRoute.coordinates[0]}
-        >
-          <ThreatOverlay />
-        </BugroutMap>
+        {routeView === "directions" ? (
+          <DirectionsList route={activeRoute} />
+        ) : (
+          <BugroutMap
+            routeCoordinates={activeRoute.coordinates}
+            userLocation={activeRoute.coordinates[0]}
+          >
+            <ThreatOverlay />
+          </BugroutMap>
+        )}
       </View>
 
       {/* Route info panel */}
