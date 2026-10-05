@@ -5,7 +5,7 @@
  * The screen is purely a view layer — all logic lives in the controller.
  */
 
-/* eslint-disable max-lines-per-function, complexity -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
+/* eslint-disable max-lines-per-function -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
 import { useRouter } from "expo-router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
@@ -219,13 +219,8 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      {/* Low battery warning; an unknown level has no percent and is never low */}
-      {battery.isLow && battery.percent !== null && !hasDeviated ? (
-        <BatteryWarning
-          percent={battery.percent}
-          isCritical={battery.isCritical}
-        />
-      ) : null}
+      {/* Low battery warning; renders nothing unless the level is known and low */}
+      {!hasDeviated ? <BatteryWarning battery={battery} /> : null}
 
       <BugroutMap
         userLocation={position}
