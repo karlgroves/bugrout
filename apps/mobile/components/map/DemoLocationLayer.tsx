@@ -49,6 +49,8 @@ function DemoLocationDot({
  * demo location is on.
  *
  * @param followUser - Whether the map should follow the user.
+ * @param onZoom - Told the zoom level the demo's re-centre sets, so a caller
+ *   tracking the camera's zoom stays in step.
  * @returns Whether to use MapLibre's native follow and puck, and the demo
  *   dot to render (null when the demo location is off).
  */
@@ -56,6 +58,7 @@ export function useDemoLocationView(
   cameraRef: React.RefObject<MapLibreGL.CameraRef | null>,
   position: LatLng | null | undefined,
   followUser: boolean,
+  onZoom?: (zoom: number) => void,
 ): { nativeFollow: boolean; nativePuck: boolean; dot: React.ReactNode } {
   const demo = useSettingsStore((s) => s.demoLocation);
   const followDemo = demo && followUser;
@@ -70,12 +73,13 @@ export function useDemoLocationView(
     }
     if (!position || followDemo || centredOnDemo.current) return;
     centredOnDemo.current = true;
+    onZoom?.(LOCATED_ZOOM);
     cameraRef.current?.setCamera({
       centerCoordinate: [position.lng, position.lat],
       zoomLevel: LOCATED_ZOOM,
       animationDuration: 600,
     });
-  }, [cameraRef, demo, position, followDemo]);
+  }, [cameraRef, demo, position, followDemo, onZoom]);
 
   useEffect(() => {
     if (!position || !followDemo) return;

@@ -1,23 +1,25 @@
-BugRout is a navigation app designed for emergency evacuations. Unlike standard navigation that optimizes for speed under normal conditions, BugRout optimizes for safe arrival during infrastructure stress events.
+BugRout helps you plan and drive an evacuation route. Always follow official evacuation orders and instructions first: BugRout is an advisory tool, not a replacement for them.
 
-KEY FEATURES
+WHAT IT DOES
 
-• Offline Navigation — Download regional maps and navigate with zero cell service. Routing, fuel stations, water sources, and threat zones all work offline.
+• Offline Maps — Download your state's map before you need it. Once downloaded, the map works with no cell service. Maryland is available today; more states are coming.
 
-• Predictive Congestion Routing — Our Evacuation Load Factor (ELF) model avoids roads that historically clog during mass evacuations, routing you through viable alternatives others won't think of.
+• Threat-Aware Routing — Severe-weather alerts from the National Weather Service are shown on the map, and route calculation steers around them. Routes are calculated by BugRout's routing service, so planning a route needs a data connection.
 
-• Threat-Aware Routing — Active wildfire perimeters, flood zones, and severe weather polygons are overlaid on the map and automatically avoided during route calculation.
+• Three Taps to Navigation — Launch, tap Bug Out, choose a destination, then Go. Save up to 3 evacuation plans with a destination and optional water stops, so a plan is one tap away.
 
-• Resource Finder — Locate fuel stations, water sources, and emergency shelters along your route. Add resource stops with a single tap.
+• Turn-by-Turn Guidance — Voice directions, a clear next-turn card or a full list of every turn, and an "Advisory only" reminder for the whole trip.
 
-• 3-Tap Activation — Launch → Bug Out → Go. Pre-configure up to 3 evacuation scenarios with destinations, avoidance zones, and resource preferences for instant activation.
+• Water Sources — See nearby water sources from USGS and OpenStreetMap on the map.
 
-• Emergency Contacts — One-tap SMS sends your live location, destination, and ETA to up to 5 emergency contacts.
+• Open Shelters — Shelters that FEMA reports open, with their status and when that was reported. When none are open nearby, the map says so.
 
-• Privacy First — No account required. Location processed on-device only. Optional anonymous crowd signal uses rotating tokens with 48-hour retention. No advertising. No tracking.
+• Emergency Contacts — Save up to 5 contacts. One tap opens a text message to them with your current location, destination and ETA; nothing is sent until you tap Send.
+
+• Privacy — No account and no advertising. What leaves your device is listed in the in-app privacy policy: address searches go to OpenStreetMap's Nominatim, and the start and end of a route go to BugRout's routing service.
 
 DATA SOURCES
-Maps from OpenStreetMap. Weather alerts from the National Weather Service. Fire perimeters from USFS/NIFC. Flood zones from FEMA. Fuel stations from NREL. Water sources from USGS.
+Maps from OpenStreetMap. Weather alerts from the National Weather Service. Water sources from USGS and OpenStreetMap. Open shelters from FEMA.
 
 IMPORTANT DISCLAIMER
-BugRout provides advisory routing only. Route suggestions are based on statistical models and may not reflect real-time conditions. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.
+BugRout provides advisory routing only. Routes are based on map data and published weather alerts and may not reflect real-time road conditions. Do not rely solely on this app for life-safety decisions. Always follow official evacuation orders.

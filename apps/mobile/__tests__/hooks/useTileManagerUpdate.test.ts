@@ -38,6 +38,11 @@ const mockUpdated: DownloadedRegion = {
   version: "2026.09.28",
 };
 
+const mockCancelReminder = jest.fn(() => Promise.resolve());
+jest.mock("@/services/DownloadReminder", () => ({
+  cancelDownloadReminder: () => mockCancelReminder(),
+}));
+
 jest.mock("@/services/tiles/TileManager", () => ({
   fetchManifest: jest.fn(() => Promise.resolve([])),
   getDownloadedRegions: jest.fn(() => Promise.resolve([])),
@@ -49,7 +54,8 @@ jest.mock("@/services/tiles/TileManager", () => ({
 
 describe("useTileManager.downloadRegion", () => {
   beforeEach(() => {
-    useMapStore.setState({ activeRegion: null });
+    useMapStore.setState({ activeRegion: null, tilesLoaded: false });
+    mockCancelReminder.mockClear();
   });
 
   it("points the map at the updated region when it is the one on screen", async () => {
@@ -73,5 +79,28 @@ describe("useTileManager.downloadRegion", () => {
     });
 
     expect(useMapStore.getState().activeRegion).toBe(other);
+  });
+
+  // #199: a first download used to change nothing on the map until the app
+  // restarted, because only AppBootstrap set the active region.
+  it("shows a first download on the map straight away", async () => {
+    const { result } = await renderHook(() => useTileManager());
+
+    await act(async () => {
+      await result.current.downloadRegion(PUBLISHED);
+    });
+
+    expect(useMapStore.getState().activeRegion?.id).toBe("md");
+    expect(useMapStore.getState().tilesLoaded).toBe(true);
+  });
+
+  it("cancels the reminder to download once a region is on the device", async () => {
+    const { result } = await renderHook(() => useTileManager());
+
+    await act(async () => {
+      await result.current.downloadRegion(PUBLISHED);
+    });
+
+    expect(mockCancelReminder).toHaveBeenCalled();
   });
 });

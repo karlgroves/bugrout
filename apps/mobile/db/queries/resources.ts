@@ -125,3 +125,19 @@ export async function deleteResourcesByRegion(regionId: string): Promise<void> {
     regionId,
   );
 }
+
+/**
+ * Removes a region's cached resource points of one type, so a fresh fetch can
+ * replace them rather than pile on (a shelter that closed must disappear).
+ */
+export async function deleteResourcesByType(
+  regionId: string,
+  type: string,
+): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    "DELETE FROM resource_points WHERE region_id = ? AND type = ?",
+    regionId,
+    type,
+  );
+}

@@ -27,11 +27,8 @@ async function openPreview(): Promise<void> {
   await waitFor(element(by.label(`Use scenario: ${SCENARIO_NAME}`)))
     .toBeVisible()
     .withTimeout(10000);
+  // Choosing the scenario routes to it (#197).
   await element(by.label(`Use scenario: ${SCENARIO_NAME}`)).tap();
-  await waitFor(element(by.text("Ready to route")))
-    .toBeVisible()
-    .withTimeout(30000);
-  await element(by.id("route-and-go-button")).tap();
   await waitFor(element(by.id("route-preview-go-btn")))
     .toBeVisible()
     .withTimeout(30000);

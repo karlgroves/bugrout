@@ -4,26 +4,28 @@
  * Multi-step first-launch experience:
  * 1. Welcome + disclaimer
  * 2. Location permission request
- * 3. Region selection + download prompt
+ * 3. Offline maps: the user's region, its size, and a one-tap download
+ *    (OfflineMapStep); skipping schedules a reminder
  *
  * Minimal steps — user can skip download and do it later.
  */
 
-/* eslint-disable max-lines-per-function -- pre-existing oversized onboarding screen rendering all three step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
+/* eslint-disable max-lines-per-function -- pre-existing oversized onboarding screen rendering the first two step views inline; tracked in docs/tech-debt.md (decompose onboarding screen) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { FeatureRow } from "@/components/common/FeatureRow";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
+import { OfflineMapStep } from "@/components/onboarding/OfflineMapStep";
 import { buttons, colors, spacing, typography } from "@/constants/theme";
 import { track, Events } from "@/platform/analytics";
 import { requestForegroundPermissionsAsync } from "@/platform/location";
 import { acceptDisclaimer } from "@/services/AppBootstrap";
+import { scheduleDownloadReminder } from "@/services/DownloadReminder";
 
-type Step = "disclaimer" | "location" | "ready";
+type Step = "disclaimer" | "location" | "maps";
 
 /** First-launch onboarding: disclaimer, location permission, and ready steps. */
 function OnboardingScreen(): React.JSX.Element {
@@ -45,17 +47,23 @@ function OnboardingScreen(): React.JSX.Element {
         ? Events.LOCATION_PERMISSION_GRANTED
         : Events.LOCATION_PERMISSION_DENIED,
     );
-    setStep("ready");
+    setStep("maps");
   }, []);
 
   const handleSkipLocation = useCallback(() => {
-    setStep("ready");
+    setStep("maps");
   }, []);
 
-  const handleFinish = useCallback(() => {
-    track(Events.ONBOARDING_COMPLETED);
-    router.replace("/(tabs)");
-  }, [router]);
+  const handleFinish = useCallback(
+    (downloadStarted: boolean) => {
+      track(Events.ONBOARDING_COMPLETED);
+      // No map yet: remind them in a day or two (spec §10). A download that
+      // completes cancels it.
+      if (!downloadStarted) void scheduleDownloadReminder();
+      router.replace("/(tabs)");
+    },
+    [router],
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,7 +71,7 @@ function OnboardingScreen(): React.JSX.Element {
       <View style={styles.progress}>
         <View style={[styles.dot, step === "disclaimer" && styles.dotActive]} />
         <View style={[styles.dot, step === "location" && styles.dotActive]} />
-        <View style={[styles.dot, step === "ready" && styles.dotActive]} />
+        <View style={[styles.dot, step === "maps" && styles.dotActive]} />
       </View>
 
       {step === "disclaimer" && (
@@ -160,47 +168,11 @@ function OnboardingScreen(): React.JSX.Element {
         </View>
       )}
 
-      {step === "ready" && (
-        <View style={styles.centeredContent}>
-          <FontAwesome name="check-circle" size={56} color={colors.accent} />
-          <Text
-            style={styles.stepTitle}
-            accessibilityRole="header"
-            aria-level={1}
-          >
-            You're Ready
-          </Text>
-          <Text style={styles.stepDescription}>
-            {locationGranted
-              ? "Location enabled. For the best experience, download offline maps for your region."
-              : "For navigation, you'll need to enable location in Settings. Download offline maps for your region to get started."}
-          </Text>
-
-          <View style={styles.featureList}>
-            <FeatureRow icon="road" text="Offline turn-by-turn routing" />
-            <FeatureRow icon="fire" text="Wildfire & flood avoidance" />
-            <FeatureRow icon="tint" text="Fuel & water station finder" />
-            <FeatureRow
-              icon="clock-o"
-              text="3 taps from launch to navigation"
-            />
-          </View>
-
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleFinish}
-            accessibilityLabel="Get Started"
-            accessibilityHint="Completes onboarding and opens the main map screen"
-            accessibilityRole="button"
-          >
-            <FontAwesome
-              name="arrow-right"
-              size={16}
-              color={colors.background}
-            />
-            <Text style={styles.primaryButtonText}>Get Started</Text>
-          </Pressable>
-        </View>
+      {step === "maps" && (
+        <OfflineMapStep
+          locationGranted={locationGranted}
+          onFinish={handleFinish}
+        />
       )}
     </SafeAreaView>
   );

@@ -11,7 +11,13 @@ import {
 } from "react-native";
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
-import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import {
+  colors,
+  spacing,
+  switchColors,
+  typography,
+  touchTarget,
+} from "@/constants/theme";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
@@ -277,8 +283,8 @@ function ToggleRow({
         // on". Matches how NavRow above already labels itself.
         accessibilityLabel={label}
         accessibilityHint={hint}
-        trackColor={{ false: colors.border, true: colors.accentMuted }}
-        thumbColor={value ? colors.accent : colors.textMuted}
+        trackColor={switchColors.trackColor}
+        thumbColor={switchColors.thumbColor}
       />
     </View>
   );

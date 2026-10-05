@@ -18,6 +18,7 @@ import {
   type SQLiteDatabase,
 } from "@/platform/sqlite";
 
+import { runDataMigrations } from "./migrations";
 import { CREATE_TABLES_SQL } from "./schema";
 
 const DB_NAME = "bugrout.db";
@@ -44,6 +45,7 @@ export async function getDatabase(): Promise<SQLiteDatabase> {
     }
 
     await db.execAsync(CREATE_TABLES_SQL);
+    await runDataMigrations(db);
     initAttempts = 0;
     return db;
   } catch (error) {

@@ -6,6 +6,7 @@ import {
   pointInPolygon,
   formatDistance,
   formatDuration,
+  placeKey,
 } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
@@ -242,5 +243,25 @@ describe("formatDuration", () => {
 
   it("formats zero minutes", () => {
     expect(formatDuration(30)).toBe("0 min");
+  });
+});
+
+describe("placeKey", () => {
+  it("rounds to 4 decimal places (~11 m)", () => {
+    expect(placeKey({ lat: 39.31384, lng: -76.60208 })).toBe(
+      "39.3138,-76.6021",
+    );
+  });
+
+  it("gives nearby points within the rounding the same key", () => {
+    expect(placeKey({ lat: 39.31381, lng: -76.60211 })).toBe(
+      placeKey({ lat: 39.31384, lng: -76.60208 }),
+    );
+  });
+
+  it("keeps points ~22 m apart distinct", () => {
+    expect(placeKey({ lat: 39.3138, lng: -76.6021 })).not.toBe(
+      placeKey({ lat: 39.314, lng: -76.6021 }),
+    );
   });
 });
