@@ -10,6 +10,7 @@
  * 4. Voice announcements → TTS at approach distances
  * 5. Crowd signal → anonymous telemetry when opted in
  * 6. Battery optimization → dynamic GPS frequency
+ * 7. Keep-awake → the screen stays on from start until stop or arrival
  *
  * Lifecycle: start() → running → stop()
  */
@@ -17,6 +18,7 @@
 
 import { track, Events } from "@/platform/analytics";
 import * as Haptics from "@/platform/haptics";
+import * as KeepAwake from "@/platform/keepAwake";
 import * as Speech from "@/platform/speech";
 import { sendSignal } from "@/services/crowd/CrowdSignal";
 import {
@@ -40,6 +42,9 @@ const HIGH_FREQ_THRESHOLD = 1000; // meters
 
 /** Maneuver is "passed" when within this distance */
 const MANEUVER_PASSED_THRESHOLD = 30; // meters
+
+/** Keep-awake tag; the screen stays on only while navigating (spec §7.1). */
+const KEEP_AWAKE_TAG = "bugrout-navigation";
 
 /**
  *
@@ -93,6 +98,9 @@ export async function start(
   };
   eventHandler = onEvent;
 
+  // Directions must stay on screen for the whole trip.
+  await KeepAwake.activate(KEEP_AWAKE_TAG);
+
   // Start GPS tracking
   await startTracking(onLocationUpdate);
 
@@ -114,6 +122,7 @@ export async function stop(): Promise<void> {
   state = null;
   eventHandler = null;
 
+  await KeepAwake.deactivate(KEEP_AWAKE_TAG);
   await stopTracking();
   Speech.stop();
 }
@@ -188,7 +197,9 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
       const nextManeuver = maneuvers[nextIndex];
 
       if (nextIndex >= maneuvers.length || !nextManeuver) {
-        // Arrived at destination
+        // Arrived at destination. Let the screen lock again now; guidance is
+        // over even while the arrival alert waits for the user.
+        void KeepAwake.deactivate(KEEP_AWAKE_TAG);
         announceVoice("You have arrived at your destination");
         emit({ type: "arrival" });
         useRouteStore.getState().setStatus("completed");

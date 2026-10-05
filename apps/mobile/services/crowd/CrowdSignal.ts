@@ -26,10 +26,9 @@ import { CsprngUnavailableError, secureRandomUUID } from "@/platform/crypto";
 import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { timeoutSignal } from "@/utils/abort";
+import { isLowBatteryLevel } from "@/utils/battery";
 
 import type { LatLng } from "@bugrout/shared";
-
-const LOW_BATTERY_THRESHOLD = 0.2;
 
 const SIGNAL_ENDPOINT = "https://signal.bugrout.app/v1/signal";
 const MIN_INTERVAL_MS = 10000; // Max 1 signal per 10 seconds
@@ -79,7 +78,8 @@ export async function sendSignal(
   // Check battery — conserve power when low
   try {
     const batteryLevel = await Battery.getBatteryLevelAsync();
-    if (batteryLevel >= 0 && batteryLevel < LOW_BATTERY_THRESHOLD) return;
+    // An unknown level (-1) is not a low one; see utils/battery.
+    if (isLowBatteryLevel(batteryLevel)) return;
   } catch {
     // Battery API may not be available on all devices — proceed anyway
   }

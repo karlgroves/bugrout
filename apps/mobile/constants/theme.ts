@@ -174,3 +174,17 @@ const fab = {
   backgroundColor: colors.danger,
   color: colors.textPrimary,
 } as const;
+
+// Switch colours, shared by every Switch so none drifts. The thumb is one
+// constant light colour in both states (#177): a thumb that changed with the
+// value was ignored by iOS on first render and then turned grey-on-grey
+// (2.19:1) once switched off, which read as disabled. #f5f5f5 is 9.51:1
+// against the off track and 6.54:1 against the on track (WCAG 1.4.11 needs
+// 3:1), and setting it explicitly makes Android match iOS.
+export /**
+ *
+ */
+const switchColors = {
+  trackColor: { false: colors.border, true: colors.accentMuted },
+  thumbColor: colors.textPrimary,
+} as const;
