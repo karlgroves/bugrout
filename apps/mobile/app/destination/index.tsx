@@ -25,7 +25,6 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { v4 as uuidv4 } from "uuid";
 
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
@@ -40,6 +39,7 @@ import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
 import { searchDestinations } from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
+import { placeKey } from "@/utils/geo";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
 
@@ -173,7 +173,6 @@ function DestinationScreen(): React.JSX.Element {
     }
 
     await addRecentDestination({
-      id: uuidv4(),
       label:
         selectedLabel ||
         `${selectedDest.lat.toFixed(4)}, ${selectedDest.lng.toFixed(4)}`,
@@ -480,6 +479,10 @@ function buildListData(
   scenarios: Scenario[],
   recents: RecentDestinationRow[],
 ) {
+  // A place that is already a saved scenario isn't listed again as a recent.
+  const scenarioPlaces = new Set(scenarios.map((s) => placeKey(s.destination)));
+  const shownRecents = recents.filter((r) => !scenarioPlaces.has(placeKey(r)));
+
   return [
     ...results.map((r) => ({
       _type: "search" as const,
@@ -504,7 +507,7 @@ function buildListData(
       lat: s.destination.lat,
       lng: s.destination.lng,
     })),
-    ...(recents.length > 0
+    ...(shownRecents.length > 0
       ? [
           {
             _type: "header" as const,
@@ -515,7 +518,7 @@ function buildListData(
           },
         ]
       : []),
-    ...recents.map((r) => ({
+    ...shownRecents.map((r) => ({
       _type: "recent" as const,
       id: r.id,
       label: r.label ?? `${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}`,
