@@ -11,22 +11,29 @@ import { StyleSheet, View, Text } from "react-native";
 
 import { colors, spacing, typography } from "@/constants/theme";
 
+import type { BatteryStatus } from "@/hooks/useBattery";
+
 /**
  * Props for {@link BatteryWarning}.
  */
 interface BatteryWarningProps {
-  percent: number;
-  isCritical: boolean;
+  /** The current battery status, from `useBattery`. */
+  battery: BatteryStatus;
 }
 
 /**
  * Banner shown during navigation when the device battery is low, warning the
  * user before power loss could interrupt their route guidance.
+ *
+ * Renders nothing unless the level is known and low: an unknown level (the
+ * platform's -1) has no percent and is never a reason to alarm the user.
  */
 export function BatteryWarning({
-  percent,
-  isCritical,
-}: BatteryWarningProps): React.JSX.Element {
+  battery,
+}: BatteryWarningProps): React.JSX.Element | null {
+  const { isLow, isCritical, percent } = battery;
+  if (!isLow || percent === null) return null;
+
   return (
     <View
       style={[styles.container, isCritical && styles.critical]}
