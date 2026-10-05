@@ -1,10 +1,10 @@
 /**
  * E2E Test: the full evacuation journey.
  *
- * Launch → Bug Out → pick a destination → Route & Go → route preview → Go →
- * navigating → Stop. This is the flow spec.md promises never exceeds three
- * taps, and it is the only place anything proves the screens after the picker
- * can be reached at all.
+ * Launch → Bug Out → pick a destination → route preview → Go → navigating →
+ * Stop. This is the flow spec.md promises never exceeds three taps (§7.2), and
+ * the spec counts them: Bug Out, the destination, Go (#197). It is also the
+ * only place anything proves the screens after the picker can be reached.
  *
  * ## Why it stops at the picker between #130 and this
  *
@@ -70,6 +70,9 @@ import { createScenario } from "./support/scenario";
 
 const SCENARIO_NAME = "Inland Refuge";
 
+/** Taps from the map to active navigation; spec §7.2 allows three. */
+let journeyTaps = 0;
+
 /** The recorded route's endpoints — e2e/fixtures/valhalla-routes.json. */
 const ORIGIN = { lat: 39.2904, lng: -76.6122 };
 const DESTINATION = { lat: 39.3138, lng: -76.6021 };
@@ -95,7 +98,9 @@ describe("Full evacuation journey", () => {
   });
 
   it("opens destination picker", async () => {
+    // Tap 1.
     await element(by.id("bug-out-fab")).tap();
+    journeyTaps += 1;
     // The picker presents as a modal; wait out the slide-in before asserting.
     await waitFor(element(by.id("destination-search-input")))
       .toBeVisible()
@@ -112,20 +117,19 @@ describe("Full evacuation journey", () => {
     // `adb emu geo fix` in the workflow and 332ms on a control run without one
     // — which is what showed the seeding to be doing nothing.
     //
-    // It is also the precondition for everything below: `confirmRoute` refuses
-    // to route without `position`, so if this goes red the rest of this spec
-    // fails for a reason that has nothing to do with the journey, and the
-    // reason will be right here rather than three steps downstream.
+    // It is also the precondition for everything below: routing needs
+    // `position`, so if this goes red the rest of this spec fails for a reason
+    // that has nothing to do with the journey, and the reason will be right
+    // here rather than three steps downstream.
     //
-    // app/destination/index.tsx renders four status lines. Three can reach the
-    // screen at this point — "Getting your location..." while the request is in
-    // flight, "Location unavailable — tap to retry" once it has failed, and
-    // this one only when `position` is non-null. The fourth, "Ready to route",
-    // needs a selected destination and there is none yet. So a failure here
-    // says which of the other two happened rather than only that something went
-    // wrong, and there is no fourth way to fail silently: getPosition always
-    // sets an error on the catch path (hooks/useLocation.ts), so the state
-    // where no line renders at all is unreachable.
+    // app/destination/index.tsx renders three status lines: "Getting your
+    // location..." while the request is in flight, "Location unavailable —
+    // tap to retry" once it has failed, and this one only when `position` is
+    // non-null and nothing is selected yet. So a failure here says which of
+    // the other two happened rather than only that something went wrong, and
+    // there is no fourth way to fail silently: getPosition always sets an
+    // error on the catch path (hooks/useLocation.ts), so the state where no
+    // line renders at all is unreachable.
     //
     // Generous timeout because this is the one assertion here that waits on the
     // platform rather than on React: getCurrentPositionAsync asks for
@@ -137,32 +141,11 @@ describe("Full evacuation journey", () => {
       .withTimeout(30000);
   });
 
-  it("refuses to route with no destination selected", async () => {
-    // The confirm button is deliberately always enabled and reports why it
-    // cannot proceed (app/destination/index.tsx). That guard runs before the
-    // location one, so this is the same result with or without a GPS fix — and
-    // it proves the control is on screen and hit-testable, which is exactly
-    // what the keyboard defect used to hide.
-    await element(by.id("route-and-go-button")).tap();
-    await waitFor(element(by.text("Select a destination first.")))
-      .toBeVisible()
-      .withTimeout(10000);
-    await element(by.text("OK")).tap();
-  });
-
-  it("selects the saved scenario as the destination", async () => {
+  it("routes to the saved scenario, offline, and previews the route", async () => {
+    // Tap 2. Choosing the destination routes to it: there is no separate
+    // "Route & Go" step any more (#197).
     await element(by.label(`Use scenario: ${SCENARIO_NAME}`)).tap();
-    // "Ready to route" renders only when a destination AND a position are both
-    // present, so it is the picker's own confirmation that the next tap can
-    // succeed — the state the old spec believed it had reached by tapping its
-    // own search field.
-    await waitFor(element(by.text("Ready to route")))
-      .toBeVisible()
-      .withTimeout(10000);
-  });
-
-  it("routes to it, offline, and previews the route", async () => {
-    await element(by.id("route-and-go-button")).tap();
+    journeyTaps += 1;
 
     // Longer than the screens above: this waits on the whole routing pass —
     // the recent-destination write, the threat-avoidance polygons, and the
@@ -207,7 +190,9 @@ describe("Full evacuation journey", () => {
   });
 
   it("starts navigation", async () => {
+    // Tap 3, and the last: spec §7.2's hard limit from launch to navigation.
     await element(by.id("route-preview-go-btn")).tap();
+    journeyTaps += 1;
 
     // The advisory badge is a spec requirement — it has to be visible for the
     // whole of navigation — and it is also the cheapest proof that the
@@ -237,6 +222,13 @@ describe("Full evacuation journey", () => {
     // renders from the route either way. Live-position behaviour is
     // NavigationController.test.ts's job, off-device and deterministic.
     await expect(element(by.id("status-indicator"))).toBeVisible();
+
+    // Detox's `expect` only takes elements, so the count is checked by hand.
+    if (journeyTaps !== 3) {
+      throw new Error(
+        `Launch to navigation took ${String(journeyTaps)} taps; spec §7.2 allows 3`,
+      );
+    }
   });
 
   it("stops navigation and returns to the map", async () => {
@@ -251,8 +243,8 @@ describe("Full evacuation journey", () => {
   });
 
   it("records the trip as a recent destination", async () => {
-    // The journey's only persistent side effect: confirmRoute writes the
-    // selected destination to SQLite before it routes. Seeing it come back on
+    // The journey's only persistent side effect: routing writes the chosen
+    // destination to SQLite before it routes. Seeing it come back on
     // a later mount of the picker is end-to-end proof the write happened and
     // survived — the one thing about this flow that outlives the session.
     //
