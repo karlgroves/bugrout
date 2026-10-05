@@ -6,7 +6,7 @@ Because the only published map is Maryland, please turn on the demo location, wh
 1. On first launch, read and accept the disclaimer. Allowing location is optional when using the demo location.
 2. Open Settings > Offline Maps and download Maryland (about 140 MB; Wi-Fi recommended).
 3. In Settings, under Testing, turn on "Demo location". An amber DEMO LOCATION badge then shows on the map (DEMO during navigation). It switches off when the app restarts, and it can't be changed during a trip.
-4. On the Map tab, tap BUG OUT, search for "Annapolis", and choose a result.
+4. On the Map tab, tap BUG OUT, search for "Annapolis", and choose a result. (Or tap any point on the map a few miles from the amber dot, then Route & Go.)
 5. Review the route preview (distance, time, warnings), then tap Go.
 6. Turn-by-turn navigation starts, and the demo position drives the route at about 30 mph, so turns and voice prompts arrive as they would in a car. Tap Stop to end the trip at any time.
 
