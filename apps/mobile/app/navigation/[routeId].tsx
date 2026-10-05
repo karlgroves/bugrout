@@ -182,8 +182,14 @@ function NavigationScreen(): React.JSX.Element {
     try {
       // Only a send the composer confirmed is reported as one: a cancelled
       // message, or Android's unknown result, must not read as "sent".
-      if ((await sendEmergencySMS(contacts, message)) === "sent") {
+      const result = await sendEmergencySMS(contacts, message);
+      if (result === "sent") {
         Alert.alert("Sent", "Emergency message sent to all contacts.");
+      } else if (result === "demo-location") {
+        Alert.alert(
+          "Demo location is on",
+          "Your position is simulated, so it can't be sent to your contacts. Turn off Demo location in Settings to share where you really are.",
+        );
       }
     } catch {
       Alert.alert("SMS Error", "Could not send emergency SMS.");

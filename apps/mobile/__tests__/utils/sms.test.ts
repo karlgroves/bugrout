@@ -1,3 +1,4 @@
+import { useSettingsStore } from "@/stores/useSettingsStore";
 import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 
 const mockSendSMSAsync = jest.fn();
@@ -94,4 +95,17 @@ describe("sendEmergencySMS", () => {
       expect(mockTrack).not.toHaveBeenCalled();
     },
   );
+
+  it("never offers a simulated position to emergency contacts (#205)", async () => {
+    useSettingsStore.setState({ demoLocation: true });
+    try {
+      await expect(sendEmergencySMS(contacts, "msg")).resolves.toBe(
+        "demo-location",
+      );
+      expect(mockSendSMSAsync).not.toHaveBeenCalled();
+      expect(mockTrack).not.toHaveBeenCalled();
+    } finally {
+      useSettingsStore.setState({ demoLocation: false });
+    }
+  });
 });
