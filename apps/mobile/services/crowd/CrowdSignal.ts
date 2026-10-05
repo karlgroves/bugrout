@@ -49,6 +49,20 @@ let cachedTokenExpiry = 0;
 let csprngUnavailable = false;
 
 /**
+ * Whether a signal may be sent at all: the user opted in, the position is real
+ * — a demo position (#205) is not traffic, and reporting it would put a phantom
+ * car into other evacuees' congestion data — and the device is online.
+ */
+function signalAllowed(): boolean {
+  const { crowdSignalOptIn, demoLocation } = useSettingsStore.getState();
+  return (
+    crowdSignalOptIn &&
+    !demoLocation &&
+    useConnectivityStore.getState().isOnline
+  );
+}
+
+/**
  * Send an anonymous speed/heading telemetry signal.
  * Silently no-ops if:
  * - User hasn't opted in
@@ -65,11 +79,7 @@ export async function sendSignal(
   // Crowd Signal is off for this session because no CSPRNG was available.
   if (csprngUnavailable) return;
 
-  // Check opt-in
-  if (!useSettingsStore.getState().crowdSignalOptIn) return;
-
-  // Check connectivity
-  if (!useConnectivityStore.getState().isOnline) return;
+  if (!signalAllowed()) return;
 
   // Rate limit
   const now = Date.now();

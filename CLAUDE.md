@@ -234,6 +234,12 @@ Database (`db/` directory):
 - No dark patterns, no upsells during navigation
 - Battery warning banner during navigation when < 20%
 - Crowd signal auto-disables when battery < 20%
+- Demo location (Settings, for App Review; #205) replaces GPS with a simulated
+  position in Baltimore that drives each trip's route
+  (`services/location/DemoLocation.ts`). It is never persisted, and the map and
+  navigation screens show a DEMO badge while it is on. The App Review notes that
+  explain it live in
+  `apps/mobile/fastlane/metadata/review_information/notes.txt`
 
 ## Key Integration Flows
 

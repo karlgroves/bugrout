@@ -44,7 +44,10 @@ const POSITION = { lat: 38.90723, lng: -77.03691 };
  */
 type FetchSpy = jest.Mock<Promise<Response>, [string, RequestInit]>;
 
-function load(secureRandomUUID: () => string): {
+function load(
+  secureRandomUUID: () => string,
+  { demoLocation = false }: { demoLocation?: boolean } = {},
+): {
   mod: CrowdSignalModule;
   fetchSpy: FetchSpy;
 } {
@@ -66,6 +69,7 @@ function load(secureRandomUUID: () => string): {
       require("@/stores/useConnectivityStore") as typeof ConnectivityStoreNamespace;
     /* eslint-enable @typescript-eslint/no-require-imports */
     useSettingsStore.getState().setCrowdSignalOptIn(true);
+    useSettingsStore.getState().setDemoLocation(demoLocation);
     useConnectivityStore.getState().setOnline(true);
   });
 
@@ -109,6 +113,19 @@ describe("CrowdSignal — CSPRNG available", () => {
     expect(body.lat).toBe(38.9072);
     expect(body.lng).toBe(-77.0369);
     expect(mod.isCrowdSignalDisabled()).toBe(false);
+  });
+});
+
+describe("CrowdSignal — demo location (#205)", () => {
+  it("reports nothing while the position is simulated", async () => {
+    const { mod, fetchSpy } = load(
+      () => "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      { demoLocation: true },
+    );
+
+    await mod.sendSignal(POSITION, 12.34, 91);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 

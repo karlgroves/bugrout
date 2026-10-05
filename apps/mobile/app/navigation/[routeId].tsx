@@ -12,6 +12,7 @@ import { StyleSheet, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
+import { DemoLocationBadge } from "@/components/common/DemoLocationBadge";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BatteryWarning } from "@/components/navigation/BatteryWarning";
@@ -186,8 +187,17 @@ function NavigationScreen(): React.JSX.Element {
     );
 
     try {
-      await sendEmergencySMS(contacts, message);
-      Alert.alert("Sent", "Emergency message sent to all contacts.");
+      // Only a send the composer confirmed is reported as one: a cancelled
+      // message, or Android's unknown result, must not read as "sent".
+      const result = await sendEmergencySMS(contacts, message);
+      if (result === "sent") {
+        Alert.alert("Sent", "Emergency message sent to all contacts.");
+      } else if (result === "demo-location") {
+        Alert.alert(
+          "Demo location is on",
+          "Your position is simulated, so it can't be sent to your contacts. Turn off Demo location in Settings to share where you really are.",
+        );
+      }
     } catch {
       Alert.alert("SMS Error", "Could not send emergency SMS.");
     }
@@ -206,6 +216,7 @@ function NavigationScreen(): React.JSX.Element {
       <View style={styles.statusBar}>
         <StatusIndicator />
         <AdvisoryBadge />
+        <DemoLocationBadge compact />
       </View>
 
       <ManeuverCard

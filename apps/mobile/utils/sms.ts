@@ -5,6 +5,7 @@
 
 import { track, Events } from "@/platform/analytics";
 import * as SMS from "@/platform/sms";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 import { formatDuration } from "./geo";
 
@@ -43,13 +44,25 @@ export function composeEmergencyMessage(
 }
 
 /**
- * Send emergency SMS to all configured contacts.
+ * Open the system message composer, addressed to every emergency contact.
+ *
+ * Nothing is sent unless the user taps Send in the composer. The result says
+ * what happened: iOS reports "sent" or "cancelled"; Android can't tell, so it
+ * is "unknown" there. With the demo location on (#205) the composer never
+ * opens: the position is simulated, and sending it to someone who may act on
+ * it in an emergency would send them to the wrong place.
+ *
+ * @returns The composer's result, or "demo-location" when it wasn't opened.
  */
 export async function sendEmergencySMS(
   contacts: EmergencyContact[],
   message: string,
-): Promise<void> {
+): Promise<SMS.SMSResult["result"] | "demo-location"> {
+  if (useSettingsStore.getState().demoLocation) return "demo-location";
   const phones = contacts.map((c) => c.phone);
-  await SMS.sendSMSAsync(phones, message);
-  track(Events.EMERGENCY_SMS_SENT, { contact_count: contacts.length });
+  const { result } = await SMS.sendSMSAsync(phones, message);
+  if (result === "sent") {
+    track(Events.EMERGENCY_SMS_SENT, { contact_count: contacts.length });
+  }
+  return result;
 }
