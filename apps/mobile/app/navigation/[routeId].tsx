@@ -18,8 +18,10 @@ import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
+import { DirectionsList } from "@/components/navigation/DirectionsList";
 import { ManeuverCard } from "@/components/navigation/ManeuverCard";
 import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
+import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
 import { alertRouteUnavailable } from "@/components/routing/RouteUnavailableNotice";
 import { colors, spacing, statusIndicator } from "@/constants/theme";
 import { getEmergencyContacts } from "@/db/queries/preferences";
@@ -39,7 +41,14 @@ import type { LatLng } from "@bugrout/shared";
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
-  const { activeRoute, hasDeviated, clearRoute, setStatus } = useRouteStore();
+  const {
+    activeRoute,
+    hasDeviated,
+    clearRoute,
+    setStatus,
+    routeView,
+    setRouteView,
+  } = useRouteStore();
   const battery = useBattery();
 
   const [position, setPosition] = useState<LatLng | null>(null);
@@ -227,14 +236,27 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      <BugroutMap
-        userLocation={position}
-        heading={heading}
-        routeCoordinates={activeRoute?.coordinates}
-        followUser
-      >
-        <ThreatOverlay />
-      </BugroutMap>
+      {/* The essentials stay outside the switch: the advisory badge and
+          status above, the ETA and Stop below (#192, #189). */}
+      <RouteViewToggle value={routeView} onChange={setRouteView} />
+      {routeView === "directions" && activeRoute ? (
+        <DirectionsList
+          route={activeRoute}
+          progress={{
+            current: maneuverIndex,
+            metresToCurrent: distanceToManeuver,
+          }}
+        />
+      ) : (
+        <BugroutMap
+          userLocation={position}
+          heading={heading}
+          routeCoordinates={activeRoute?.coordinates}
+          followUser
+        >
+          <ThreatOverlay />
+        </BugroutMap>
+      )}
 
       <RouteBottomBar
         remainingDistance={remaining.distance}

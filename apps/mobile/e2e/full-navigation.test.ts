@@ -239,6 +239,17 @@ describe("Full evacuation journey", () => {
     await expect(element(by.id("status-indicator"))).toBeVisible();
   });
 
+  it("switches to the directions list mid-trip, keeping the essentials", async () => {
+    // #192: the list replaces the map only; the advisory badge above and the
+    // ETA and Stop below stay put, so the next test still ends the trip.
+    await element(by.id("route-view-directions")).tap();
+    await waitFor(element(by.id("directions-list")))
+      .toBeVisible()
+      .withTimeout(10000);
+    await expect(element(by.text("ADVISORY ONLY"))).toBeVisible();
+    await expect(element(by.id("stop-navigation-btn"))).toBeVisible();
+  });
+
   it("stops navigation and returns to the map", async () => {
     await element(by.id("stop-navigation-btn")).tap();
     // Stop clears the route and pops the stack. The FAB pushed the picker,
