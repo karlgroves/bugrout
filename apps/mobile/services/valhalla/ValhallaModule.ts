@@ -9,7 +9,6 @@
  * Both produce identical Route output from the same Valhalla tile data.
  */
 
-import { NativeModules } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 
 import { timeoutSignal } from "@/utils/abort";
@@ -18,7 +17,11 @@ import { boundAvoidancePolygons } from "../routing/AvoidanceBudget";
 import {
   RouteUnavailableError,
   reasonForValhallaError,
+  valhallaDiagnostics,
 } from "../routing/RouteUnavailable";
+import { reportRoutingFailure } from "../routing/RoutingTelemetry";
+
+import { loadNativeModule, type NativeValhalla } from "./nativeEngine";
 
 import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
 import type {
@@ -48,13 +51,6 @@ const DEFAULT_PORT = 8002;
  * Valhalla Turbo Module; "http" routes over fetch (local or remote server). */
 let activeApproach: "native" | "http" = "http";
 
-/**
- *
- */
-interface NativeValhalla {
-  init: (tileDir: string) => Promise<void>;
-  route: (request: string) => Promise<string>;
-}
 let nativeModule: NativeValhalla | null = null;
 
 /**
@@ -127,6 +123,28 @@ export async function calculateRoute(
   destination: LatLng,
   options?: RouteOptions,
 ): Promise<Route> {
+  try {
+    return await requestRoute(origin, destination, options);
+  } catch (err) {
+    // Every failure reaches crash reporting, so an outage like #141 (five
+    // months of 400s, every user silently on mock routes) shows up in hours.
+    if (err instanceof RouteUnavailableError) {
+      reportRoutingFailure(err, activeApproach);
+    }
+    throw err;
+  }
+}
+
+/**
+ * The routing request itself; {@link calculateRoute} adds failure reporting.
+ *
+ * @throws RouteUnavailableError when no real route can be produced.
+ */
+async function requestRoute(
+  origin: LatLng,
+  destination: LatLng,
+  options?: RouteOptions,
+): Promise<Route> {
   if (!config) {
     throw new RouteUnavailableError(
       "not_ready",
@@ -172,6 +190,7 @@ export async function calculateRoute(
     throw new RouteUnavailableError(
       reasonForValhallaError(errorBody),
       `Valhalla HTTP ${String(resp.status)}: ${JSON.stringify(errorBody)}`,
+      { diagnostics: valhallaDiagnostics(resp.status, errorBody) },
     );
   }
 
@@ -428,27 +447,3 @@ const VALHALLA_MANEUVER_TYPES: Record<number, string> = {
   27: "ferry-enter",
   28: "ferry-exit",
 };
-
-/**
- * Attempt to load the native Valhalla module (Approach A).
- *
- * Registered as "ValhallaEngine" by native-modules/valhalla/config-plugin.js
- * during prebuild. Exposes init(tileDir) and route(requestJson). Returns null
- * when the module isn't compiled into this binary — Expo Go, web preview, or a
- * build without the config plugin enabled — so callers fall back to HTTP.
- */
-function loadNativeModule(): NativeValhalla | null {
-  try {
-    const mod = (NativeModules as { ValhallaEngine?: unknown }).ValhallaEngine;
-    if (
-      mod &&
-      typeof (mod as Partial<NativeValhalla>).init === "function" &&
-      typeof (mod as Partial<NativeValhalla>).route === "function"
-    ) {
-      return mod as NativeValhalla;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}

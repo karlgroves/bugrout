@@ -22,19 +22,59 @@ export type RouteUnavailableReason =
   /** Routing was asked for before the engine was set up. */
   | "not_ready";
 
+/**
+ * What the routing service said, for telemetry (#169): enough to tell a
+ * service that rejects every request (#141, HTTP 400 with no Valhalla code)
+ * from a request it rejects on its merits (#168's polygon limit, a Valhalla
+ * error code). Never holds coordinates.
+ */
+export interface RoutingDiagnostics {
+  /** HTTP status of the failed response, when one arrived. */
+  httpStatus?: number;
+  /** Valhalla's `error_code`, when the body carried one. */
+  valhallaCode?: number;
+  /** Valhalla's `error` text, when the body carried one. */
+  valhallaMessage?: string;
+}
+
 /** A route calculation that failed, with the reason the UI explains. */
 export class RouteUnavailableError extends Error {
   readonly reason: RouteUnavailableReason;
 
+  readonly diagnostics: RoutingDiagnostics;
+
   constructor(
     reason: RouteUnavailableReason,
     detail: string,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; diagnostics?: RoutingDiagnostics },
   ) {
     super(`Route unavailable (${reason}): ${detail}`, options);
     this.name = "RouteUnavailableError";
     this.reason = reason;
+    this.diagnostics = options?.diagnostics ?? {};
   }
+}
+
+/**
+ * Read the diagnostics out of a Valhalla error response.
+ *
+ * @param httpStatus - The response's HTTP status.
+ * @param body - The response body, if it could be read as JSON.
+ * @returns The status, plus Valhalla's code and message when present.
+ */
+export function valhallaDiagnostics(
+  httpStatus: number,
+  body: unknown,
+): RoutingDiagnostics {
+  const diagnostics: RoutingDiagnostics = { httpStatus };
+  if (typeof body !== "object" || body === null) return diagnostics;
+  if ("error_code" in body && typeof body.error_code === "number") {
+    diagnostics.valhallaCode = body.error_code;
+  }
+  if ("error" in body && typeof body.error === "string") {
+    diagnostics.valhallaMessage = body.error;
+  }
+  return diagnostics;
 }
 
 /**
