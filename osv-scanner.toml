@@ -104,9 +104,10 @@ one. devDependency, local self-produced JSONL input, AV:L availability-only."""
 # which is why `pnpm audit --prod` counts them; neither is imported by app code.
 #
 # braces (stack-exhaustion DoS via deeply nested patterns): reached only through
-# micromatch, in Metro's file map and Jest. The patterns it expands are the glob
-# and watch patterns in this repository's own config, written by its developers.
-# Nothing a user or a server sends ever becomes a brace pattern.
+# micromatch, in Metro's file map, Jest and markdownlint-cli2 (directly and via
+# globby/fast-glob). The patterns it expands are the glob and watch patterns in
+# this repository's own config and scripts, written by its developers. Nothing a
+# user or a server sends ever becomes a brace pattern.
 #
 # node-forge (PKCS#1 v1.5 signature forgery with low-exponent keys): reached only
 # through @expo/cli's code-signing helpers. `Security.js` only parses PEM
@@ -126,8 +127,8 @@ id = "GHSA-vfj7-8cjw-p6xm"
 ignoreUntil = 2026-12-05
 reason = """braces <=3.0.3 stack-exhaustion DoS (CVE-2026-93687). No fixed \
 version published; the upstream fixes are unmerged PRs. Build-time only: \
-reached through micromatch in Metro's file map and Jest, expanding glob \
-patterns from this repository's own config. Never in the app bundle or a \
+reached through micromatch in Metro's file map, Jest and markdownlint-cli2, \
+expanding glob patterns from this repository's own config. Never in the app bundle or a \
 backend, and never fed user or network input."""
 
 [[IgnoredVulns]]
