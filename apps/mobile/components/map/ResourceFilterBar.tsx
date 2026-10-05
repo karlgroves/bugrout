@@ -38,7 +38,7 @@ export function ResourceFilterBar(): React.JSX.Element {
   const { visibleTypes, toggleResourceType } = useResourceStore();
 
   return (
-    <View>
+    <View style={styles.wrapper}>
       <View style={styles.container}>
         {FILTERS.map((filter) => {
           const active = visibleTypes.has(filter.type);
@@ -81,6 +81,10 @@ export function ResourceFilterBar(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  // Centred, so a long shelter notice doesn't stretch the button row.
+  wrapper: {
+    alignItems: "center",
+  },
   container: {
     flexDirection: "row",
     gap: spacing.xs,
