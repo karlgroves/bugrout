@@ -19,6 +19,7 @@ import {
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { getCountyGroups } from "@/constants/counties";
+import { DEFAULT_REGIONS } from "@/constants/regions";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useTileManager } from "@/hooks/useTileManager";
 import { isExpoGo } from "@/services/tiles/TileManager";
@@ -206,7 +207,13 @@ function DownloadsScreen(): React.JSX.Element {
 
           {/* Downloaded regions */}
           {downloadedRegions.length > 0 && (
-            <Text style={styles.sectionTitle}>Downloaded</Text>
+            <Text
+              style={styles.sectionTitle}
+              accessibilityRole="header"
+              aria-level={2}
+            >
+              Downloaded
+            </Text>
           )}
         </View>
       }
@@ -215,15 +222,40 @@ function DownloadsScreen(): React.JSX.Element {
           ...r,
           _type: "downloaded" as const,
         })),
-        ...(notDownloaded.length > 0
+        // Nothing is listed until the region list has loaded.
+        ...(availableRegions.length > 0
           ? [{ _type: "header" as const, id: "__header__" }]
+          : []),
+        // Everything published is already downloaded: say so, rather than
+        // let the section vanish and look broken (#173).
+        ...(availableRegions.length > 0 && notDownloaded.length === 0
+          ? [{ _type: "allDownloaded" as const, id: "__all_downloaded__" }]
           : []),
         ...notDownloaded.map((r) => ({ ...r, _type: "available" as const })),
       ]}
-      keyExtractor={(item) => ("id" in item ? item.id : "__header__")}
+      keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
         if (item._type === "header") {
-          return <Text style={styles.sectionTitle}>Available</Text>;
+          return (
+            <Text
+              style={styles.sectionTitle}
+              accessibilityRole="header"
+              aria-level={2}
+            >
+              Available
+            </Text>
+          );
+        }
+
+        if (item._type === "allDownloaded") {
+          return (
+            <Text testID="downloads-all-downloaded" style={styles.emptyText}>
+              You&apos;ve downloaded every map currently available.
+              {availableRegions.length < DEFAULT_REGIONS.length
+                ? ` Offline maps are published for ${availableRegions.length} of ${DEFAULT_REGIONS.length} regions so far; more are coming.`
+                : ""}
+            </Text>
+          );
         }
 
         if (item._type === "downloaded") {
@@ -262,8 +294,7 @@ function DownloadsScreen(): React.JSX.Element {
                 <Text style={styles.regionName}>{region.name}</Text>
                 <Text style={styles.regionMeta}>
                   Full state ~{formatBytes(totalSize)}
-                  {countyGroups.length > 0 &&
-                    ` · ${countyGroups.length} county groups available`}
+                  {countyGroups.length > 0 && ` · county downloads coming soon`}
                 </Text>
               </View>
               <View style={styles.regionActions}>
@@ -273,12 +304,10 @@ function DownloadsScreen(): React.JSX.Element {
                     onPress={() => {
                       setExpandedState(isExpanded ? null : region.id);
                     }}
-                    accessibilityLabel={
-                      isExpanded
-                        ? `Collapse ${region.name} county groups`
-                        : `Show ${region.name} county groups`
-                    }
-                    accessibilityHint="Toggles the list of smaller county-level download packages for this region"
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: isExpanded }}
+                    accessibilityLabel={`${region.name} county groups`}
+                    accessibilityHint="Shows or hides the county groups planned for this region"
                   >
                     <FontAwesome
                       name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -312,9 +341,16 @@ function DownloadsScreen(): React.JSX.Element {
               </View>
             </View>
 
-            {/* County group sub-rows */}
-            {isExpanded
-              ? countyGroups.map((cg) => (
+            {/* County groups: information only. No county package is
+                published yet (#147), so there is nothing to download and no
+                control may claim otherwise (#175). */}
+            {isExpanded ? (
+              <View testID={`county-groups-${region.id}`}>
+                <Text style={styles.countyNote}>
+                  County downloads aren&apos;t available yet. Download the full
+                  state to use {region.name} offline.
+                </Text>
+                {countyGroups.map((cg) => (
                   <View key={cg.id} style={styles.countyRow}>
                     <View style={styles.regionInfo}>
                       <Text style={styles.countyName}>{cg.name}</Text>
@@ -322,21 +358,10 @@ function DownloadsScreen(): React.JSX.Element {
                         ~{cg.estimatedSizeMB} MB · {cg.counties.length} counties
                       </Text>
                     </View>
-                    <Pressable
-                      style={styles.downloadButton}
-                      accessibilityLabel={`Download ${cg.name} county group`}
-                      accessibilityHint="Downloads only this smaller county group instead of the full state package"
-                      accessibilityRole="button"
-                    >
-                      <FontAwesome
-                        name="download"
-                        size={16}
-                        color={colors.textPrimary}
-                      />
-                    </Pressable>
                   </View>
-                ))
-              : null}
+                ))}
+              </View>
+            ) : null}
           </View>
         );
       }}
@@ -415,6 +440,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
   },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
   sectionTitle: {
     ...typography.caption,
     color: colors.textSecondary,
@@ -475,7 +504,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   expandButton: {
-    width: 32,
+    width: touchTarget.minWidth,
     height: touchTarget.minHeight,
     justifyContent: "center",
     alignItems: "center",
@@ -490,6 +519,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     borderLeftWidth: 3,
     borderLeftColor: colors.accentMuted,
+  },
+  countyNote: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginLeft: spacing.lg,
+    marginBottom: spacing.sm,
   },
   countyName: {
     ...typography.body,
