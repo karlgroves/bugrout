@@ -12,6 +12,7 @@ import {
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { useRouteStore } from "@/stores/useRouteStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
 /** Settings menu for offline maps, contacts, voice, battery, and legal info. */
@@ -31,6 +32,11 @@ function SettingsScreen(): React.JSX.Element {
     setCrashReportingOptIn,
     setDemoLocation,
   } = useSettingsStore();
+  // Switching the position source mid-trip would cut navigation off from its
+  // location feed, so the demo location can only change between trips.
+  const tripUnderway = useRouteStore(
+    (s) => s.status === "active" || s.status === "rerouting",
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -130,10 +136,15 @@ function SettingsScreen(): React.JSX.Element {
         id="demo-location"
         icon="map-marker"
         label="Demo location"
-        subtitle="Simulate being in Baltimore, MD, and drive each route. Not your real position. Off when the app restarts."
+        subtitle={
+          tripUnderway
+            ? "Can't be changed during a trip. End the trip first."
+            : "Simulate being in Baltimore, MD, and drive each route. Not your real position. Off when the app restarts."
+        }
         hint="Replaces your real position with a simulated one in Baltimore, Maryland, which drives along the route during navigation"
         value={demoLocation}
         onToggle={setDemoLocation}
+        disabled={tripUnderway}
       />
 
       {/* Info rows */}
@@ -222,6 +233,7 @@ function ToggleRow({
   hint,
   value,
   onToggle,
+  disabled = false,
 }: {
   /** Stable identifier for the test id. See {@link NavRow}. */
   id: string;
@@ -239,6 +251,8 @@ function ToggleRow({
   hint: string;
   value: boolean;
   onToggle: (value: boolean) => void;
+  /** Shown but not operable; the subtitle should say why. */
+  disabled?: boolean;
 }): React.JSX.Element {
   return (
     <View testID={`settings-toggle-${id}`} style={styles.row}>
@@ -255,6 +269,8 @@ function ToggleRow({
       <Switch
         value={value}
         onValueChange={onToggle}
+        disabled={disabled}
+        accessibilityState={{ disabled }}
         // The visible label lives in a sibling View and is never associated
         // with this control, so without an explicit label the switch has no
         // accessible name at all — four of them announced only as "switch,
