@@ -257,7 +257,8 @@ Database (`db/` directory):
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
 (flood zones), USFS/NIFC (fire perimeters), NREL (fuel stations), USGS NWIS
-(water sources), Red Cross / 211.org (shelters).
+(water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
+(shelters; source and terms in `services/resources/ShelterService.ts`).
 
 ## Reviewing PRs
 
