@@ -125,4 +125,13 @@ describe("refreshResources", () => {
       failed: false,
     });
   });
+
+  it("offline with no shelters cached, says they couldn't be loaded", async () => {
+    useConnectivityStore.setState({ isOnline: false });
+    await refreshResources("md", BBOX);
+    expect(useResourceStore.getState().shelterStatus).toEqual({
+      asOf: null,
+      failed: true,
+    });
+  });
 });

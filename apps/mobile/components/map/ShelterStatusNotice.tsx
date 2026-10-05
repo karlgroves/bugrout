@@ -25,6 +25,25 @@ function asOfLabel(ms: number, now: number): string {
   return `${day}, ${time}`;
 }
 
+/**
+ * A shelter's open/closed status and when that was reported, for its detail
+ * sheet: shelters open and close during an event, so a status is only as good
+ * as its time.
+ *
+ * @returns E.g. "Open · as of 9:30 AM".
+ */
+export function shelterDetail(
+  shelter: { metadata: Record<string, unknown>; fetchedAt: number },
+  now: number,
+): string {
+  const { status } = shelter.metadata;
+  const label =
+    typeof status === "string" && status.length > 0
+      ? status.charAt(0) + status.slice(1).toLowerCase()
+      : "Status unknown";
+  return `${label} · as of ${asOfLabel(shelter.fetchedAt, now)}`;
+}
+
 /** The message for the shelter layer's current state, or null for none. */
 export function shelterStatusMessage(
   status: { asOf: number | null; failed: boolean },

@@ -44,7 +44,12 @@ export async function refreshResources(
   const cached = await getResourcesByRegion(regionId);
   store.setResources(cached);
   const cachedShelterAsOf = newestFetch(cached, "shelter");
-  store.setShelterStatus({ asOf: cachedShelterAsOf, failed: false });
+  // Offline with nothing cached, there are no shelters to show and none can
+  // be fetched: say so rather than leave the layer empty.
+  store.setShelterStatus({
+    asOf: cachedShelterAsOf,
+    failed: !isOnline && cachedShelterAsOf === null,
+  });
 
   if (!isOnline) return;
 
@@ -58,10 +63,8 @@ export async function refreshResources(
 
   const fetches: Promise<void>[] = [];
 
-  if (
-    NREL_API_KEY &&
-    (fuelAge > FUEL_TTL || cached.filter((r) => r.type === "fuel").length === 0)
-  ) {
+  // An age is Infinity when nothing of that type is cached, so it fetches.
+  if (NREL_API_KEY && fuelAge > FUEL_TTL) {
     fetches.push(
       fetchFuelStations(stateCode, NREL_API_KEY, regionId)
         .then((resources) => {
@@ -73,10 +76,7 @@ export async function refreshResources(
     );
   }
 
-  if (
-    waterAge > WATER_TTL ||
-    cached.filter((r) => r.type === "water").length === 0
-  ) {
+  if (waterAge > WATER_TTL) {
     fetches.push(
       fetchWaterSources(stateCode, bbox, regionId)
         .then((resources) => {
@@ -88,28 +88,8 @@ export async function refreshResources(
     );
   }
 
-  if (
-    shelterAge > SHELTER_TTL ||
-    cached.filter((r) => r.type === "shelter").length === 0
-  ) {
-    fetches.push(
-      fetchShelters(bbox, regionId)
-        .then((shelters) => {
-          // A fetch replaces the shelters: closed ones must disappear.
-          store.setResources([
-            ...useResourceStore
-              .getState()
-              .resources.filter((r) => r.type !== "shelter"),
-            ...shelters,
-          ]);
-          store.setShelterStatus({ asOf: Date.now(), failed: false });
-        })
-        .catch(() => {
-          // Cached shelters stay usable; the map says they couldn't be
-          // refreshed rather than presenting them, or nothing, as current.
-          store.setShelterStatus({ asOf: cachedShelterAsOf, failed: true });
-        }),
-    );
+  if (shelterAge > SHELTER_TTL) {
+    fetches.push(refreshShelters(bbox, regionId, cachedShelterAsOf));
   }
 
   await Promise.allSettled(fetches);
@@ -150,4 +130,32 @@ function newestFetch(
     .filter((r) => r.type === type)
     .map((r) => r.fetchedAt);
   return times.length === 0 ? null : Math.max(...times);
+}
+
+/**
+ * Fetch a region's shelters and record how current the layer is.
+ *
+ * @param cachedAsOf - When the cached shelters were fetched, kept on failure.
+ */
+async function refreshShelters(
+  bbox: BBox,
+  regionId: string,
+  cachedAsOf: number | null,
+): Promise<void> {
+  const store = useResourceStore.getState();
+  try {
+    const shelters = await fetchShelters(bbox, regionId);
+    // A fetch replaces the shelters: closed ones must disappear.
+    store.setResources([
+      ...useResourceStore
+        .getState()
+        .resources.filter((r) => r.type !== "shelter"),
+      ...shelters,
+    ]);
+    store.setShelterStatus({ asOf: Date.now(), failed: false });
+  } catch {
+    // Cached shelters stay usable; the map says they couldn't be refreshed
+    // rather than presenting them, or nothing, as current.
+    store.setShelterStatus({ asOf: cachedAsOf, failed: true });
+  }
 }

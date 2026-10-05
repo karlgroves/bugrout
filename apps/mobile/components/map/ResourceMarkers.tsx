@@ -12,6 +12,7 @@ import { useCallback, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
 import { MapDetailSheet } from "@/components/map/MapDetailSheet";
+import { shelterDetail } from "@/components/map/ShelterStatusNotice";
 import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useResourceStore } from "@/stores/useResourceStore";
@@ -173,7 +174,7 @@ export function ResourceMarkers({
 
             {selectedResource.type === "shelter" ? (
               <Text style={detailStyles.address}>
-                {shelterDetail(selectedResource)}
+                {shelterDetail(selectedResource, Date.now())}
               </Text>
             ) : null}
 
@@ -194,25 +195,6 @@ export function ResourceMarkers({
       </MapDetailSheet>
     </>
   );
-}
-
-/**
- * A shelter's open/closed status and when that was reported (#201): shelters
- * open and close during an event, so the status is only as good as its time.
- */
-function shelterDetail(shelter: ResourcePoint): string {
-  const status =
-    typeof shelter.metadata.status === "string"
-      ? shelter.metadata.status.charAt(0) +
-        shelter.metadata.status.slice(1).toLowerCase()
-      : "Status unknown";
-  const asOf = new Date(shelter.fetchedAt).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${status} · as of ${asOf}`;
 }
 
 const detailStyles = StyleSheet.create({

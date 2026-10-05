@@ -9,6 +9,7 @@ import { render } from "@testing-library/react-native";
 
 import {
   ShelterStatusNotice,
+  shelterDetail,
   shelterStatusMessage,
 } from "@/components/map/ShelterStatusNotice";
 import { useResourceStore } from "@/stores/useResourceStore";
@@ -66,6 +67,24 @@ describe("shelterStatusMessage", () => {
   it("says shelters couldn't be loaded when none are cached", () => {
     expect(shelterStatusMessage({ asOf: null, failed: true }, 0, NOW)).toBe(
       "Couldn't load shelters",
+    );
+  });
+});
+
+describe("shelterDetail", () => {
+  it("gives a shelter's status and when it was reported", () => {
+    expect(shelterDetail(SHELTER, NOW)).toMatch(/^Open · as of 9:30\sAM$/);
+  });
+
+  it("adds the day when the report is from an earlier day", () => {
+    expect(shelterDetail({ ...SHELTER, fetchedAt: YESTERDAY }, NOW)).toMatch(
+      /^Open · as of Oct 4, 9:30\sAM$/,
+    );
+  });
+
+  it("says when the status is unknown", () => {
+    expect(shelterDetail({ ...SHELTER, metadata: {} }, NOW)).toMatch(
+      /^Status unknown · as of/,
     );
   });
 });
