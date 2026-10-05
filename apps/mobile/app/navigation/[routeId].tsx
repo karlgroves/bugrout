@@ -180,8 +180,11 @@ function NavigationScreen(): React.JSX.Element {
     );
 
     try {
-      await sendEmergencySMS(contacts, message);
-      Alert.alert("Sent", "Emergency message sent to all contacts.");
+      // Only a send the composer confirmed is reported as one: a cancelled
+      // message, or Android's unknown result, must not read as "sent".
+      if ((await sendEmergencySMS(contacts, message)) === "sent") {
+        Alert.alert("Sent", "Emergency message sent to all contacts.");
+      }
     } catch {
       Alert.alert("SMS Error", "Could not send emergency SMS.");
     }
