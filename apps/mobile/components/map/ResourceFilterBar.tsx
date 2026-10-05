@@ -8,6 +8,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, View, Pressable, Text } from "react-native";
 
+import { ShelterStatusNotice } from "@/components/map/ShelterStatusNotice";
 import { colors, spacing } from "@/constants/theme";
 import { useResourceStore } from "@/stores/useResourceStore";
 
@@ -37,46 +38,53 @@ export function ResourceFilterBar(): React.JSX.Element {
   const { visibleTypes, toggleResourceType } = useResourceStore();
 
   return (
-    <View style={styles.container}>
-      {FILTERS.map((filter) => {
-        const active = visibleTypes.has(filter.type);
-        return (
-          <Pressable
-            key={filter.type}
-            style={[styles.button, active && styles.buttonActive]}
-            onPress={() => {
-              toggleResourceType(filter.type);
-            }}
-            accessibilityLabel={`${active ? "Hide" : "Show"} ${filter.label} markers`}
-            accessibilityHint={
-              active
-                ? `Removes ${filter.label} markers from the map`
-                : `Adds ${filter.label} markers to the map`
-            }
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-          >
-            <FontAwesome
-              name={filter.icon}
-              size={14}
-              color={active ? filter.color : colors.textMuted}
-            />
-            <Text
-              style={[
-                styles.label,
-                { color: active ? filter.color : colors.textMuted },
-              ]}
+    <View style={styles.wrapper}>
+      <View style={styles.container}>
+        {FILTERS.map((filter) => {
+          const active = visibleTypes.has(filter.type);
+          return (
+            <Pressable
+              key={filter.type}
+              style={[styles.button, active && styles.buttonActive]}
+              onPress={() => {
+                toggleResourceType(filter.type);
+              }}
+              accessibilityLabel={`${active ? "Hide" : "Show"} ${filter.label} markers`}
+              accessibilityHint={
+                active
+                  ? `Removes ${filter.label} markers from the map`
+                  : `Adds ${filter.label} markers to the map`
+              }
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
             >
-              {filter.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <FontAwesome
+                name={filter.icon}
+                size={14}
+                color={active ? filter.color : colors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.label,
+                  { color: active ? filter.color : colors.textMuted },
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <ShelterStatusNotice />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Centred, so a long shelter notice doesn't stretch the button row.
+  wrapper: {
+    alignItems: "center",
+  },
   container: {
     flexDirection: "row",
     gap: spacing.xs,

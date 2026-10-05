@@ -273,8 +273,10 @@ describe("use-case documents name controls that exist in the app", () => {
     expect(locators.length).toBeGreaterThanOrEqual(115);
     expect(index.fixed.size).toBeGreaterThanOrEqual(48);
     // Names the index cannot resolve are excluded from the comparison, so a
-    // rising count means a growing blind spot. 7 at the time of writing.
-    expect(index.unverifiable).toBeLessThanOrEqual(7);
+    // rising count means a growing blind spot. 7 at the time of writing; 8
+    // since the directions list (#192), whose step names are built from
+    // Valhalla's instruction text and so can't be known statically.
+    expect(index.unverifiable).toBeLessThanOrEqual(8);
   });
 
   it("has no locator naming a control the app cannot announce", () => {

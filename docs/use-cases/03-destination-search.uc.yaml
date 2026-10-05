@@ -2,10 +2,11 @@ id: destination-search
 title: "Search for a destination and reach the route preview"
 type: positive
 description:
-  "Verify the destination picker exposes its search field, saved-scenario
-  quick-select and Route & Go control through the accessibility tree. This is
-  step two of the three-tap flow the product promises, and the search box is
-  the only place in the app where what a user types leaves the device."
+  "Verify the destination picker exposes its search field and saved-scenario
+  quick-select through the accessibility tree. Choosing a destination is step
+  two of the three-tap flow the product promises: it routes and opens the
+  preview, with no separate confirm step (#197). The search box is the only
+  place in the app where what a user types leaves the device."
 
 preconditions:
   - "The disclaimer has been accepted in this session"
@@ -42,9 +43,3 @@ steps:
   - focus: button "Clear search"
 
   - audit: page
-
-  # Route & Go is present but cannot complete on web: it needs a GPS fix, and
-  # expo-location is stubbed out by metro.config.js. Presence and operability
-  # are what this file asserts; the completed route is native/.
-  - locate: button "Route & Go"
-  - focus: button "Route & Go"

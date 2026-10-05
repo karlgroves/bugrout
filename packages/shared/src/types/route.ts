@@ -22,9 +22,9 @@ export interface RouteManeuver {
   instruction: string;
   /** Street name */
   streetName: string;
-  /** Distance in meters to this maneuver from previous */
+  /** Metres from this maneuver to the next (Valhalla's `length`): the stretch it begins */
   distance: number;
-  /** Duration in seconds to this maneuver from previous */
+  /** Seconds from this maneuver to the next (Valhalla's `time`) */
   duration: number;
   /** Position of the maneuver */
   position: LatLng;

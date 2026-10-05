@@ -1,8 +1,9 @@
-Initial release of BugRout — evacuation-aware navigation.
+Initial release of BugRout — evacuation route planning.
 
-• Offline routing with Valhalla engine
-• Wildfire, flood, and weather threat overlays
-• Fuel, water, and shelter resource finder
-• Predictive congestion routing with ELF model
-• Emergency contact SMS
-• Privacy-first design with no account required
+• Offline maps for Maryland, with more states coming
+• Severe-weather alerts on the map, avoided when routing
+• Three taps from launch to turn-by-turn navigation
+• Saved evacuation plans with optional water stops
+• Open shelters from FEMA, with their status and when it was reported
+• Emergency contact text with your location and ETA
+• No account and no advertising

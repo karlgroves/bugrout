@@ -485,10 +485,14 @@ An advisory gets an ignore entry only when this repository cannot reach the fix.
 That is two distinct situations, and the entry has to say which one it is,
 because they retire on different signals:
 
-1. **No fixed version is published.** Retires when upstream ships a fix. Nothing
-   is in this case now — see
-   [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how
-   the last entry left it.
+1. **No fixed version is published.** Retires when upstream ships a fix.
+   `braces` (GHSA-vfj7-8cjw-p6xm) and `node-forge` (GHSA-86w9-cpqp-85rv) are in
+   this case: both advisories name the latest release as affected, and both are
+   build-time Expo toolchain packages that never reach the app bundle. They are
+   also listed in `pnpm.auditConfig.ignoreGhsas`, because `pnpm audit --prod`
+   counts the Expo toolchain as production. See
+   [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how an
+   entry in this case retires.
 2. **A fixed version exists but is structurally unreachable** — pinning it
    breaks the consumer that pulls the package in, no upstream bump gets there,
    and no patch bridges the gap. Retires when the _consumer_ changes, not when
@@ -621,10 +625,10 @@ with `ERR_PNPM_UNUSED_PATCH` rather than quietly dropping the patch — verified
 by pointing the key at a version not in the tree. A stale patch is therefore a
 loud error, not a silent reintroduction of the advisory.
 
-### `metro@0.83.3` and `metro@0.83.5`
+### `metro@0.83.3`, and the CLI plugin's `metro@0.83.8`
 
-Both Metros carry the same one-line patch to `src/Assets.js`. It exists to make
-the `image-size` override usable:
+`@expo/metro`'s Metro carries a one-line patch to `src/Assets.js`. It exists to
+make the `image-size` override usable:
 
 ```json
 "image-size@<2.0.3": ">=2.0.3 <3"
@@ -655,34 +659,58 @@ does the same for every asset:
 const isImageInput = _fs.default.readFileSync(assetInfo.files[0]);
 ```
 
-There are two patches because two consumers load their own Metro —
-`@expo/metro@54.2.0` loads 0.83.3, and `@react-native/community-cli-plugin`
-loads 0.83.5 — and the two `Assets.js` files differ enough elsewhere that one
-patch does not apply to both.
+#### Two Metros, one patch
 
-Bumping Metro to 0.83.8, which no longer uses `image-size`, is not available for
-the copy that matters. `@expo/metro@54.2.0` — what `expo export` and the dev
-server run — pins `metro` and thirteen `metro-*` packages to exactly `0.83.3`,
-so reaching 0.83.8 there means overriding a whole family across an exact pin, a
-far larger change than one line. The React Native CLI plugin declares
-`metro@^0.83.1` and _could_ resolve 0.83.8 from a lockfile refresh; it is
-patched on 0.83.5 here so both copies close the advisory the same way, and
-moving it is a reasonable later simplification that drops one patch.
+Two consumers load their own Metro. `@expo/metro@54.2.0` — what `expo export`
+and the dev server run — pins `metro` and thirteen `metro-*` packages to exactly
+`0.83.3`, so moving it means overriding a whole family across an exact pin; it
+keeps the patch.
 
-`security/tests/asset-sizing.security.test.ts` pins it, resolving each Metro the
-way its consumer does. Both controls were mutation-tested: dropping the patches
-fails the patch-hash and sizing tests for both Metros (4 of 8, with the error
-above), and dropping the override fails the version check and the hang backstop
-(4 of 8, the latter killed at its 10 s bound).
+React Native's CLI plugin declares `metro@^0.83.1`. It used to resolve 0.83.5,
+which needed a second patch (its `Assets.js` differs enough that one patch does
+not apply to both). It now resolves **0.83.8**, which sizes images with its own
+`src/lib/imageSize.js` and does not depend on `image-size` at all, so that copy
+needs no patch (#156). Three scoped overrides hold it there:
+
+```json
+"@react-native/community-cli-plugin>metro": "0.83.8",
+"@react-native/community-cli-plugin>metro-config": "0.83.8",
+"@react-native/community-cli-plugin>metro-core": "0.83.8"
+```
+
+Overrides rather than a lockfile refresh, because a refresh does not move it:
+`pnpm update metro --depth Infinity` kept 0.83.5 — now unpatched, so vulnerable
+— and churned unrelated packages. `metro-runtime`, `metro-source-map`,
+`metro-symbolicate` and `ob1` stay at 0.83.5: those are React Native's own
+dependencies, and none of them loads `image-size`.
+
+Nothing in this project builds through the CLI plugin's Metro, which is why the
+risk of moving it is small (measured 2026-10-05): `@react-native-community/cli`
+is not installed, so `react-native bundle` cannot reach the plugin, and running
+that Metro directly with the app's `metro.config.js` fails on the `@/` path
+alias, which only Expo CLI's resolver provides. Builds, the dev server and
+Detox's debug builds all go through `@expo/metro`. The CLI plugin's copy still
+matters for the advisory: it is installed, and it would run if the CLI were
+added.
+
+`security/tests/asset-sizing.security.test.ts` pins both copies, resolving each
+the way its consumer does. For `@expo/metro`'s copy it checks the patch hash,
+the `image-size` version, that a path-based asset is sized, and that the
+zero-length ICNS loop is closed; dropping the patch or the override fails it
+(mutation-tested when it was written). For the CLI plugin's copy it checks that
+this Metro does not depend on `image-size` — so a fallback to a Metro that does,
+which would be unpatched, fails — and that it gives every app image the same
+dimensions as `@expo/metro`'s copy, since it is a different implementation.
 
 #### Retirement
 
-The patches and the override come out together when the Expo SDK moves to a
-`@expo/metro` that pins a Metro without the `image-size` dependency. That is not
-simply "any newer Metro": 0.83.8, 0.84.5 and 0.87.1 dropped it, but 0.85.0–
-0.87.0 still declare `^1.0.2`, so check the pinned version's own dependencies
-(`npm view metro@<version> dependencies`). Once `image-size` leaves the tree
-there is nothing left to patch or override. As with `query-string`, this cannot
-rot quietly: `patchedDependencies` pins exact versions, so an SDK upgrade that
-moves Metro off 0.83.3 or 0.83.5 fails install with `ERR_PNPM_UNUSED_PATCH`
-until the patches are revisited.
+The patch and the `image-size` override come out together when the Expo SDK
+moves to a `@expo/metro` that pins a Metro without the `image-size` dependency.
+That is not simply "any newer Metro": 0.83.8, 0.84.5 and 0.87.1 dropped it, but
+0.85.0–0.87.0 still declare `^1.0.2`, so check the pinned version's own
+dependencies (`npm view metro@<version> dependencies`). The three CLI-plugin
+overrides come out at the same time, or sooner if React Native's CLI plugin
+itself requires a Metro without `image-size`. As with `query-string`, this
+cannot rot quietly: `patchedDependencies` pins exact versions, so an SDK upgrade
+that moves Metro off 0.83.3 fails install with `ERR_PNPM_UNUSED_PATCH` until the
+patch is revisited.

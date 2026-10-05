@@ -8,9 +8,10 @@
 # Only ignore an advisory whose fix this repository cannot actually reach. That
 # is two cases, and the reason has to say which one applies:
 #
-#   1. **No fixed version is published.** Nothing to pin. Nothing is in this
-#      category now; `image-size` was until 2.0.3 shipped, and is closed by an
-#      override plus a Metro patch (docs/dependency-upgrade-policy.md).
+#   1. **No fixed version is published.** Nothing to pin. `braces` and
+#      `node-forge` are in this category (their block is at the end).
+#      `image-size` was until 2.0.3 shipped, and is closed by an override plus
+#      a Metro patch (docs/dependency-upgrade-policy.md).
 #   2. **A fixed version exists but is structurally unreachable** — pinning it
 #      would break the consumer that pulls the package in, no upstream bump
 #      gets there, *and* no patch can bridge the gap. This case needs evidence
@@ -91,3 +92,51 @@ calls — pinning it breaks `detox --version` outright, and detox@latest is \
 20.51.4 which declares ^1.7.4. Unreachable anyway: the flaw is in the pick / \
 ignore / filter / replace filters, and neither Detox nor bunyamin imports \
 one. devDependency, local self-produced JSONL input, AV:L availability-only."""
+
+# braces and node-forge: no fixed version is published — category 1 above.
+# Both advisories name the latest release as `last_affected` (braces 3.0.3,
+# node-forge 1.4.0), so there is nothing to pin. The upstream fixes exist only
+# as unmerged pull requests (micromatch/braces#72 and #75, digitalbazaar/forge
+# #1152) as of 2026-10-04.
+#
+# Exposure: neither package reaches the app bundle or a backend service. Both
+# are pulled in by the Expo toolchain that `expo` lists as a runtime dependency,
+# which is why `pnpm audit --prod` counts them; neither is imported by app code.
+#
+# braces (stack-exhaustion DoS via deeply nested patterns): reached only through
+# micromatch, in Metro's file map, Jest and markdownlint-cli2 (directly and via
+# globby/fast-glob). The patterns it expands are the glob and watch patterns in
+# this repository's own config and scripts, written by its developers. Nothing a
+# user or a server sends ever becomes a brace pattern.
+#
+# node-forge (PKCS#1 v1.5 signature forgery with low-exponent keys): reached only
+# through @expo/cli's code-signing helpers. `Security.js` only parses PEM
+# certificates for `expo run:ios`. `@expo/code-signing-certificates` calls
+# `verify` in two places, and neither accepts a signature from anyone else:
+# `signBufferRSASHA256AndVerify` checks a signature it has just made with the
+# local private key, and `validateSelfSignedCertificate` checks a certificate
+# that it then requires to match that same private key. A forged signature
+# gains an attacker nothing in either. This app configures no expo-updates
+# code signing, so neither path runs in this repository's workflows today.
+#
+# Remove each block when its package ships a fix: pin it with a bounded
+# override instead, and drop the matching `pnpm.auditConfig.ignoreGhsas` entry.
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-12-05
+reason = """braces <=3.0.3 stack-exhaustion DoS (CVE-2026-93687). No fixed \
+version published; the upstream fixes are unmerged PRs. Build-time only: \
+reached through micromatch in Metro's file map, Jest and markdownlint-cli2, \
+expanding glob patterns from this repository's own config. Never in the app bundle or a \
+backend, and never fed user or network input."""
+
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2026-12-05
+reason = """node-forge <=1.4.0 PKCS#1 v1.5 signature forgery (CVE-2026-85393). \
+No fixed version published; the upstream fix (forge#1152) is unmerged. \
+Build-time only, through @expo/cli code signing, which verifies only \
+signatures it made with the local private key, or a certificate it then \
+requires to match that key. The app configures no expo-updates code signing. \
+Never in the app bundle or a backend."""

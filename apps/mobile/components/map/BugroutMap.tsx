@@ -7,13 +7,22 @@
  * resource markers, and route polylines.
  */
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { useDemoLocationView } from "@/components/map/DemoLocationLayer";
+import { MapZoomControls } from "@/components/map/MapZoomControls";
 import { colors } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import * as MapLibreGL from "@/platform/maplibre";
 import { cameraStart, LOCATED_ZOOM } from "@/services/map/cameraStart";
 import { buildMapStyle } from "@/services/map/StyleBuilder";
+import {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  NAVIGATION_ZOOM,
+  stepZoom,
+} from "@/services/map/zoom";
 import { useMapStore } from "@/stores/useMapStore";
 
 import type { LatLng } from "@bugrout/shared";
@@ -77,9 +86,56 @@ export function BugroutMap({
     [onMapPress],
   );
 
-  const handleRegionDidChange = useCallback(() => {
-    // Visible bounds are read by MapLibre via the ref when needed
-  }, []);
+  // The map's zoom level, kept in step with pinches so a button press moves
+  // one level from wherever the user left it.
+  // Navigation starts at street level; otherwise wherever the map opens.
+  const [zoom, setZoom] = useState(() =>
+    followUser
+      ? NAVIGATION_ZOOM
+      : cameraStart(userLocation, activeRegion?.bbox).zoomLevel,
+  );
+
+  // With the demo location on (#205) the map draws and follows the
+  // simulated position itself; MapLibre's own puck would show the real GPS.
+  // Its one-off re-centre reports the zoom it sets, so the buttons step from it.
+  const demo = useDemoLocationView(
+    cameraRef,
+    userLocation,
+    followUser,
+    setZoom,
+  );
+  const nativeFollow = demo.nativeFollow;
+  const reducedMotion = useReducedMotion();
+
+  // Only the user's own gestures move the base a button steps from. Camera
+  // moves the app makes (a zoom animation, follow mode) also report here, and
+  // taking those would let an animation still in flight overwrite the step a
+  // quick second press had just set, losing presses.
+  const handleRegionDidChange = useCallback(
+    (feature: {
+      properties?: { zoomLevel?: number; isUserInteraction?: boolean };
+    }) => {
+      const level = feature.properties?.zoomLevel;
+      if (feature.properties?.isUserInteraction && typeof level === "number") {
+        setZoom(level);
+      }
+    },
+    [],
+  );
+
+  const zoomBy = useCallback(
+    (direction: 1 | -1) => {
+      const next = stepZoom(zoom, direction);
+      setZoom(next);
+      // While following the user the camera's followZoomLevel (bound to
+      // `zoom` below) applies it, so the map keeps tracking them; a zoomTo
+      // here would drop out of follow mode.
+      if (!followUser) {
+        cameraRef.current?.zoomTo(next, reducedMotion ? 0 : 300);
+      }
+    },
+    [zoom, followUser, reducedMotion],
+  );
 
   // The style must go through `mapStyle`: maplibre-react-native 10 has no
   // `styleURL` prop, and passing one left MapLibre on its default demo style
@@ -94,14 +150,15 @@ export function BugroutMap({
   // A fix known at first render is already where `defaultSettings` opened.
   const centredOnUser = useRef(userLocation != null);
   useEffect(() => {
-    if (!userLocation || followUser || centredOnUser.current) return;
+    if (!userLocation || nativeFollow || centredOnUser.current) return;
     centredOnUser.current = true;
+    setZoom(LOCATED_ZOOM);
     cameraRef.current?.setCamera({
       centerCoordinate: [userLocation.lng, userLocation.lat],
       zoomLevel: LOCATED_ZOOM,
       animationDuration: 600,
     });
-  }, [userLocation, followUser]);
+  }, [userLocation, nativeFollow]);
 
   return (
     <View style={styles.container}>
@@ -119,18 +176,24 @@ export function BugroutMap({
         <MapLibreGL.Camera
           ref={cameraRef}
           defaultSettings={cameraStart(userLocation, activeRegion?.bbox)}
-          followUserLocation={followUser}
-          {...(followUser
-            ? { followUserMode: MapLibreGL.UserTrackingMode.FollowWithHeading }
+          followUserLocation={nativeFollow}
+          minZoomLevel={MIN_ZOOM}
+          maxZoomLevel={MAX_ZOOM}
+          {...(nativeFollow
+            ? {
+                followUserMode: MapLibreGL.UserTrackingMode.FollowWithHeading,
+                followZoomLevel: zoom,
+              }
             : {})}
         />
 
         {/* User location indicator */}
         <MapLibreGL.UserLocation
-          visible={!!userLocation}
+          visible={demo.nativePuck}
           renderMode="native"
           androidRenderMode="compass"
         />
+        {demo.dot}
 
         {/* Route polyline */}
         {routeCoordinates && routeCoordinates.length > 0 ? (
@@ -171,6 +234,17 @@ export function BugroutMap({
 
         {children}
       </MapLibreGL.MapView>
+
+      <MapZoomControls
+        onZoomIn={() => {
+          zoomBy(1);
+        }}
+        onZoomOut={() => {
+          zoomBy(-1);
+        }}
+        canZoomIn={zoom < MAX_ZOOM}
+        canZoomOut={zoom > MIN_ZOOM}
+      />
     </View>
   );
 }
