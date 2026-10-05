@@ -1,15 +1,21 @@
 /**
  * Shelter Service (#201).
  *
- * Open shelters come from FEMA's National Shelter System, published as a
- * public ArcGIS map service. FEMA syncs it each morning from the American Red
- * Cross shelter database, then checks for updates every 20 minutes, so it
- * carries the Red Cross shelters the app used to fetch directly; the Red Cross
- * JSON endpoint has returned HTTP 403 since at least 2026-09-30, and every
- * failure used to become an empty, silent layer.
+ * Open shelters come from FEMA's ESF6-SS (Emergency Support Function #6
+ * Shelter System, formerly the National Shelter System), published as a public
+ * ArcGIS map service. FEMA syncs it each morning from the American Red Cross
+ * shelter database, then checks for updates every 20 minutes, so it carries
+ * the Red Cross shelters the app used to fetch directly; the Red Cross JSON
+ * endpoint has returned HTTP 403 since at least 2026-09-30, and every failure
+ * used to become an empty, silent layer.
  *
  * Source: https://gis.fema.gov/arcgis/rest/services/NSS/OpenShelters/MapServer/0
- * (public; no key). Responses take several seconds, hence the long timeout.
+ * Terms: public, no key or registration. The service's copyright text is
+ * "FEMA ESF6-SS"; as a work of the US federal government it is not subject to
+ * copyright (17 U.S.C. § 105), and the service states no licence or
+ * attribution requirement. Contact: FEMA-GISMAPS@fema.gov. Requests carry the
+ * region's bounding box, as the privacy policy says. Responses take several
+ * seconds, hence the long timeout.
  *
  * Shelters open and close during an event, so a fetch replaces the region's
  * cached shelters, and the time it ran is what the map shows as "as of".
