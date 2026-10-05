@@ -19,6 +19,12 @@ import type { DownloadedRegion, LatLng } from "@bugrout/shared";
 /**
  * Why a destination isn't covered, or null when a downloaded region holds it.
  *
+ * A region is tested by its bounding box, the only shape the app stores. The
+ * box is generous at the edges: Maryland's takes in Arlington and Alexandria,
+ * Virginia, and Dover, Delaware, so a destination there gets no warning even
+ * though neither the map nor routing covers it. The warning can therefore miss
+ * a destination near a border, but never flags one inside a region.
+ *
  * @param destination - The saved destination.
  * @param regions - The downloaded regions.
  * @returns The warning to show, or null.
@@ -43,7 +49,15 @@ export function coverageWarning(
  * @returns True to save, false to go back to editing.
  */
 export async function confirmCoverage(destination: LatLng): Promise<boolean> {
-  const warning = coverageWarning(destination, await getDownloadedRegions());
+  let regions: Awaited<ReturnType<typeof getDownloadedRegions>>;
+  try {
+    regions = await getDownloadedRegions();
+  } catch {
+    // The check is advice. If the regions can't be read, save the plan rather
+    // than fail the save with nothing on screen.
+    return true;
+  }
+  const warning = coverageWarning(destination, regions);
   if (warning === null) return true;
   return new Promise((resolve) => {
     Alert.alert(

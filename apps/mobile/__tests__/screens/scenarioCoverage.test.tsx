@@ -52,6 +52,11 @@ describe("coverageWarning", () => {
     );
   });
 
+  it("is silent inside a region's bounding box, even past the border", () => {
+    // Pins the documented limit: Arlington, VA lies inside Maryland's box.
+    expect(coverageWarning({ lat: 38.88, lng: -77.1 }, [MARYLAND])).toBeNull();
+  });
+
   it("says no maps are downloaded when there are none", () => {
     expect(coverageWarning(ANNAPOLIS, [])).toMatch(
       /No offline maps are downloaded yet/,
@@ -142,6 +147,12 @@ describe("saving a scenario", () => {
     await pressing;
     expect(mockUpsertScenario).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("still saves when the downloaded regions can't be read", async () => {
+    mockGetDownloadedRegions.mockRejectedValue(new Error("database locked"));
+    await expect(confirmCoverage(LOUISVILLE)).resolves.toBe(true);
+    expect(alert).not.toHaveBeenCalled();
   });
 
   it("treats dismissing the warning as going back to editing", async () => {
