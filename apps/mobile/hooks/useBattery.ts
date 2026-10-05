@@ -1,32 +1,32 @@
 /**
  * Hook for battery level monitoring.
  *
- * Used to:
- * - Disable crowd signal when battery < 20%
- * - Show low-battery warning during navigation
- * - Switch to battery-saving GPS mode
+ * Drives the low-battery warning during navigation. Crowd Signal applies the
+ * same rule (`utils/battery`) to a one-off platform read instead.
  */
 
 import { useState, useEffect } from "react";
 
 import * as Battery from "@/platform/battery";
-
-const LOW_BATTERY_THRESHOLD = 0.2; // 20%
-const CRITICAL_BATTERY_THRESHOLD = 0.1; // 10%
+import {
+  isCriticalBatteryLevel,
+  isLowBatteryLevel,
+  knownBatteryLevel,
+} from "@/utils/battery";
 
 /**
  * Reactive battery status derived from the platform battery module.
  */
 export interface BatteryStatus {
-  /** Battery level from 0.0 to 1.0. */
-  level: number;
-  /** Battery level as an integer percentage. */
-  percent: number;
+  /** Battery level from 0.0 to 1.0, or `null` when the platform can't tell. */
+  level: number | null;
+  /** Battery level as an integer percentage, or `null` when unknown. */
+  percent: number | null;
   /** Whether the device is currently charging or full. */
   isCharging: boolean;
-  /** True when below the low threshold and not charging. */
+  /** True when known, below the low threshold and not charging. */
   isLow: boolean;
-  /** True when below the critical threshold and not charging. */
+  /** True when known, below the critical threshold and not charging. */
   isCritical: boolean;
 }
 
@@ -73,11 +73,12 @@ export function useBattery(): BatteryStatus {
     };
   }, []);
 
+  const known = knownBatteryLevel(level);
   return {
-    level, // 0.0 - 1.0
-    percent: Math.round(level * 100),
+    level: known,
+    percent: known === null ? null : Math.round(known * 100),
     isCharging,
-    isLow: level < LOW_BATTERY_THRESHOLD && !isCharging,
-    isCritical: level < CRITICAL_BATTERY_THRESHOLD && !isCharging,
+    isLow: isLowBatteryLevel(level) && !isCharging,
+    isCritical: isCriticalBatteryLevel(level) && !isCharging,
   };
 }

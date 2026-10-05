@@ -27,7 +27,6 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { v4 as uuidv4 } from "uuid";
 
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
@@ -40,8 +39,12 @@ import {
 } from "@/db/queries/preferences";
 import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
-import { searchDestinations } from "@/services/geocoding/Geocoder";
+import {
+  searchDestinations,
+  SearchSupersededError,
+} from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
+import { placeKey } from "@/utils/geo";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
 
@@ -53,6 +56,15 @@ interface GeocodingResult {
 }
 
 const SEARCH_DEBOUNCE_MS = 400;
+
+/** How many recent destinations the picker lists. */
+const RECENTS_SHOWN = 5;
+
+/**
+ * How many to load: enough to still list {@link RECENTS_SHOWN} after dropping
+ * the ones that are saved scenarios (at most 3, the scenario store's cap).
+ */
+const RECENTS_FETCHED = 10;
 
 /** Destination picker offering scenarios, address search, and recent destinations. */
 function DestinationScreen(): React.JSX.Element {
@@ -87,7 +99,9 @@ function DestinationScreen(): React.JSX.Element {
       .catch(() => {
         // getPosition surfaces its own error via locationError; swallow here
       });
-    getRecentDestinations(5)
+    // Over-fetch: places that are saved scenarios are dropped from the list,
+    // and up to RECENTS_SHOWN must remain after that.
+    getRecentDestinations(RECENTS_FETCHED)
       .then(setRecents)
       .catch((err: unknown) => {
         console.error("Failed to load recent destinations", err);
@@ -141,7 +155,9 @@ function DestinationScreen(): React.JSX.Element {
         setResults(found);
         setNoResults(false);
       }
-    } catch {
+    } catch (err) {
+      // A newer search took this one's turn; it will update the list.
+      if (err instanceof SearchSupersededError) return;
       setResults([]);
     }
     setSearching(false);
@@ -179,7 +195,6 @@ function DestinationScreen(): React.JSX.Element {
       }
 
       await addRecentDestination({
-        id: uuidv4(),
         label: label || `${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}`,
         lat: dest.lat,
         lng: dest.lng,
@@ -482,6 +497,12 @@ function buildListData(
   scenarios: Scenario[],
   recents: RecentDestinationRow[],
 ) {
+  // A place that is already a saved scenario isn't listed again as a recent.
+  const scenarioPlaces = new Set(scenarios.map((s) => placeKey(s.destination)));
+  const shownRecents = recents
+    .filter((r) => !scenarioPlaces.has(placeKey(r)))
+    .slice(0, RECENTS_SHOWN);
+
   return [
     ...results.map((r) => ({
       _type: "search" as const,
@@ -506,7 +527,7 @@ function buildListData(
       lat: s.destination.lat,
       lng: s.destination.lng,
     })),
-    ...(recents.length > 0
+    ...(shownRecents.length > 0
       ? [
           {
             _type: "header" as const,
@@ -517,7 +538,7 @@ function buildListData(
           },
         ]
       : []),
-    ...recents.map((r) => ({
+    ...shownRecents.map((r) => ({
       _type: "recent" as const,
       id: r.id,
       label: r.label ?? `${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}`,
