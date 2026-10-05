@@ -73,6 +73,13 @@ describe("privacy policy — third-party disclosure", () => {
     );
   });
 
+  it("says shelter lookups send the region's bounding box (#201)", () => {
+    expect(PRIVACY_POLICY).toContain(
+      "Shelters. BugRout sends the bounding box of your downloaded map region",
+    );
+    expect(PRIVACY_POLICY).not.toMatch(/water gauges and shelters/);
+  });
+
   it("has been re-dated", () => {
     // October 2026: shelters moved from Red Cross/Open211 to FEMA ESF6-SS (#201).
     expect(PRIVACY_POLICY).not.toContain("Last Updated: August 2026");
