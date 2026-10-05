@@ -139,3 +139,17 @@ export function formatDuration(seconds: number): string {
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
+
+/**
+ * A key that is the same for two points in the same place: their coordinates
+ * rounded to 4 decimal places, about 11 m.
+ *
+ * Recent destinations are stored under this key, so using a place again
+ * updates its entry instead of adding another (#191).
+ *
+ * @param point - The point to key.
+ * @returns `"lat,lng"` at 4 decimal places.
+ */
+export function placeKey(point: LatLng): string {
+  return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
+}

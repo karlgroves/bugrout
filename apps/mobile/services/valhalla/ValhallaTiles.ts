@@ -57,7 +57,8 @@ export interface ValhallaInitPlan {
  * Decide how to initialize Valhalla for a downloaded region:
  *  - "native" when the build opted in AND offline tiles are present, so routing
  *    runs fully offline in-process;
- *  - "http" otherwise (remote Fly service, or mock route when unreachable).
+ *  - "http" otherwise (the remote Fly service; when it can't be reached,
+ *    routing reports itself unavailable rather than inventing a route, #190).
  *
  * Safe to call even when the native module isn't compiled in: ValhallaModule's
  * native branch falls back to HTTP if the module is missing or init throws.

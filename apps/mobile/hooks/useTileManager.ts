@@ -5,6 +5,7 @@
 import { useState, useCallback, useEffect } from "react";
 
 import { DEFAULT_REGIONS } from "@/constants/regions";
+import { cancelDownloadReminder } from "@/services/DownloadReminder";
 import * as TileManager from "@/services/tiles/TileManager";
 import { useMapStore } from "@/stores/useMapStore";
 
@@ -113,15 +114,23 @@ export function useTileManager(): UseTileManagerResult {
 }
 
 /**
- * Point the map at a freshly downloaded region when it is the one on screen.
+ * Point the map at a freshly downloaded region when it is the one on screen,
+ * or when no region is on screen yet.
+ *
  * An update replaces the region the map is showing; without this, the map's
- * stale banner keeps judging the old record's version.
+ * stale banner keeps judging the old record's version. A first download used
+ * to change nothing on the map until the app restarted, because only
+ * AppBootstrap set the active region and `tilesLoaded` (#199).
  *
  * @param downloaded - The region record just written.
  */
 function syncActiveRegion(downloaded: DownloadedRegion): void {
   const mapStore = useMapStore.getState();
-  if (mapStore.activeRegion?.id === downloaded.id) {
+  const current = mapStore.activeRegion;
+  if (current === null || current.id === downloaded.id) {
     mapStore.setActiveRegion(downloaded);
+    mapStore.setTilesLoaded(true);
   }
+  // A region is on the device now; the reminder to get one is moot.
+  void cancelDownloadReminder();
 }
