@@ -52,6 +52,15 @@ interface GeocodingResult {
 
 const SEARCH_DEBOUNCE_MS = 400;
 
+/** How many recent destinations the picker lists. */
+const RECENTS_SHOWN = 5;
+
+/**
+ * How many to load: enough to still list {@link RECENTS_SHOWN} after dropping
+ * the ones that are saved scenarios (at most 3, the scenario store's cap).
+ */
+const RECENTS_FETCHED = 10;
+
 /** Destination picker offering scenarios, address search, and recent destinations. */
 function DestinationScreen(): React.JSX.Element {
   const router = useRouter();
@@ -84,7 +93,9 @@ function DestinationScreen(): React.JSX.Element {
       .catch(() => {
         // getPosition surfaces its own error via locationError; swallow here
       });
-    getRecentDestinations(5)
+    // Over-fetch: places that are saved scenarios are dropped from the list,
+    // and up to RECENTS_SHOWN must remain after that.
+    getRecentDestinations(RECENTS_FETCHED)
       .then(setRecents)
       .catch((err: unknown) => {
         console.error("Failed to load recent destinations", err);
@@ -481,7 +492,9 @@ function buildListData(
 ) {
   // A place that is already a saved scenario isn't listed again as a recent.
   const scenarioPlaces = new Set(scenarios.map((s) => placeKey(s.destination)));
-  const shownRecents = recents.filter((r) => !scenarioPlaces.has(placeKey(r)));
+  const shownRecents = recents
+    .filter((r) => !scenarioPlaces.has(placeKey(r)))
+    .slice(0, RECENTS_SHOWN);
 
   return [
     ...results.map((r) => ({

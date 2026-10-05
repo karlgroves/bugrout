@@ -35,10 +35,10 @@ jest.mock("@/hooks/useRoute", () => ({
   }),
 }));
 
-const mockGetRecentDestinations = jest.fn();
+const mockGetRecentDestinations = jest.fn<Promise<unknown[]>, [number]>();
 
 jest.mock("@/db/queries/preferences", () => ({
-  getRecentDestinations: () => mockGetRecentDestinations() as unknown,
+  getRecentDestinations: (limit: number) => mockGetRecentDestinations(limit),
   addRecentDestination: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -110,5 +110,41 @@ describe("destination picker — recents", () => {
     });
     expect(screen.getByText("Saved Scenarios")).toBeTruthy();
     expect(screen.queryByText("Recent Destinations")).toBeNull();
+  });
+
+  it("still lists five recents when some are scenario places", async () => {
+    const recent = (i: number) => ({
+      id: `r${i}`,
+      label: `Place ${i}`,
+      lat: 38 + i / 10,
+      lng: -77,
+      usedAt: 100 - i,
+    });
+    mockGetRecentDestinations.mockImplementation((limit) =>
+      Promise.resolve(
+        [
+          {
+            id: "39.3138,-76.6021",
+            label: "Map pin",
+            lat: 39.3138,
+            lng: -76.6021,
+            usedAt: 101,
+          },
+          ...[0, 1, 2, 3, 4, 5, 6].map(recent),
+        ].slice(0, limit),
+      ),
+    );
+
+    const screen = await render(<DestinationScreen />);
+
+    expect(
+      await screen.findByLabelText("Use recent destination: Place 4"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Use recent destination: Place 5"),
+    ).toBeNull();
+    expect(
+      screen.queryByLabelText("Use recent destination: Map pin"),
+    ).toBeNull();
   });
 });
