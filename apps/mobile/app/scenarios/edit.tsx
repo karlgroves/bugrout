@@ -35,6 +35,7 @@ import {
   deleteScenario as dbDeleteScenario,
 } from "@/db/queries/scenarios";
 import { track, Events } from "@/platform/analytics";
+import { confirmCoverage } from "@/services/routing/coverage";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
 import type { Scenario, ResourceStopPreference } from "@bugrout/shared";
@@ -77,6 +78,9 @@ function ScenarioEditScreen(): React.JSX.Element {
       );
       return;
     }
+
+    // Warn now, while there's time to download, not when it's needed (#190).
+    if (!(await confirmCoverage({ lat, lng }))) return;
 
     const resourceStops: ResourceStopPreference[] = [
       { type: "fuel", maxDetour: 16000, enabled: fuelStop }, // 10 miles
