@@ -18,15 +18,17 @@ expected_result: "The preview presents the route, and Go starts turn-by-turn nav
 
 data:
   bug_out: "Bug Out — set evacuation destination"
+  result: "Use destination: Sacramento, California"
 
 steps:
   - activate: button "{{ bug_out }}"
   - locate: field "Search for an address"
   - enter: field "Search for an address" value "Sacramento"
 
-  - locate: button "Route & Go"
-  - focus: button "Route & Go"
-  - activate: button "Route & Go"
+  # Choosing a result routes to it and opens the preview: tap 2 of 3 (#197).
+  - locate: button "{{ result }}"
+  - focus: button "{{ result }}"
+  - activate: button "{{ result }}"
 
   # The preview is the last point at which a user can reconsider. Both exits
   # must be reachable, and Back must be as reachable as Go — an evacuation app

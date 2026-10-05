@@ -5,7 +5,7 @@
  * The screen is purely a view layer — all logic lives in the controller.
  */
 
-/* eslint-disable max-lines-per-function, complexity -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
+/* eslint-disable max-lines-per-function -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
 import { useRouter } from "expo-router";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
@@ -14,12 +14,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
-import { BugroutMap } from "@/components/map/BugroutMap";
-import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
 import { ManeuverCard } from "@/components/navigation/ManeuverCard";
+import { RouteBody } from "@/components/navigation/RouteBody";
 import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
+import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
 import { alertRouteUnavailable } from "@/components/routing/RouteUnavailableNotice";
 import { colors, spacing, statusIndicator } from "@/constants/theme";
 import { getEmergencyContacts } from "@/db/queries/preferences";
@@ -39,7 +39,14 @@ import type { LatLng } from "@bugrout/shared";
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
-  const { activeRoute, hasDeviated, clearRoute, setStatus } = useRouteStore();
+  const {
+    activeRoute,
+    hasDeviated,
+    clearRoute,
+    setStatus,
+    routeView,
+    setRouteView,
+  } = useRouteStore();
   const battery = useBattery();
 
   const [position, setPosition] = useState<LatLng | null>(null);
@@ -219,22 +226,20 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      {/* Low battery warning */}
-      {battery.isLow && !hasDeviated ? (
-        <BatteryWarning
-          percent={battery.percent}
-          isCritical={battery.isCritical}
-        />
-      ) : null}
+      {/* Low battery warning; renders nothing unless the level is known and low */}
+      {!hasDeviated ? <BatteryWarning battery={battery} /> : null}
 
-      <BugroutMap
-        userLocation={position}
+      {/* The essentials stay outside the switch: the advisory badge and
+          status above, the ETA and Stop below (#192, #189). */}
+      <RouteViewToggle value={routeView} onChange={setRouteView} />
+      <RouteBody
+        view={routeView}
+        route={activeRoute}
+        maneuverIndex={maneuverIndex}
+        metresToManeuver={distanceToManeuver}
+        position={position}
         heading={heading}
-        routeCoordinates={activeRoute?.coordinates}
-        followUser
-      >
-        <ThreatOverlay />
-      </BugroutMap>
+      />
 
       <RouteBottomBar
         remainingDistance={remaining.distance}
