@@ -219,8 +219,8 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      {/* Low battery warning */}
-      {battery.isLow && !hasDeviated ? (
+      {/* Low battery warning; an unknown level has no percent and is never low */}
+      {battery.isLow && battery.percent !== null && !hasDeviated ? (
         <BatteryWarning
           percent={battery.percent}
           isCritical={battery.isCritical}
