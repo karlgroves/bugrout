@@ -12,6 +12,7 @@ import { StyleSheet, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AdvisoryBadge } from "@/components/common/AdvisoryBadge";
+import { DemoLocationBadge } from "@/components/common/DemoLocationBadge";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BugroutMap } from "@/components/map/BugroutMap";
@@ -199,6 +200,7 @@ function NavigationScreen(): React.JSX.Element {
       <View style={styles.statusBar}>
         <StatusIndicator />
         <AdvisoryBadge />
+        <DemoLocationBadge compact />
       </View>
 
       <ManeuverCard

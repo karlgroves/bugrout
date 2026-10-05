@@ -1,0 +1,22 @@
+BugRout is an offline-first map and routing app for evacuations. Map coverage is Maryland only for now; other states will follow.
+
+TESTING OUTSIDE MARYLAND
+Because the only published map is Maryland, please turn on the demo location, which places you in downtown Baltimore and drives along each route once you start it:
+
+1. On first launch, read and accept the disclaimer. Allowing location is optional when using the demo location.
+2. Open Settings > Offline Maps and download Maryland (about 140 MB; Wi-Fi recommended).
+3. In Settings, turn on "Demo location". An amber DEMO LOCATION badge then shows on the map and during navigation. It switches off when the app restarts.
+4. On the Map tab, tap BUG OUT, search for "Annapolis", and choose a result.
+5. Review the route preview (distance, time, warnings), then tap Go.
+6. Turn-by-turn navigation starts, and the demo position drives the route at about 30 mph, so turns and voice prompts arrive as they would in a car. Tap Stop to end the trip at any time.
+
+Routing needs a data connection; the downloaded map works without one.
+
+BACKGROUND LOCATION (Guideline 2.5.4)
+BugRout asks for "Always" location and declares the location background mode only so that turn-by-turn guidance and off-route warnings continue while the phone is locked or another app is in front during an evacuation, as the purpose strings say: "BugRout uses your location continuously during navigation to provide turn-by-turn directions and deviation alerts, even when the app is in the background." Location is not used in the background at any other time.
+
+EMERGENCY TEXT MESSAGE
+During navigation, the red phone button beside Stop ("Send location to emergency contacts") opens the standard iOS message composer, addressed to the user's own emergency contacts (Settings > Emergency Contacts) and pre-filled with their position, destination and arrival time. Nothing is sent unless the user taps Send in the composer.
+
+SAFETY
+Route guidance is advisory only. The app tells users to follow official evacuation orders, and an ADVISORY ONLY badge is shown throughout navigation.

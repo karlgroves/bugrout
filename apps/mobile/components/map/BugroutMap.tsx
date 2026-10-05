@@ -10,6 +10,7 @@
 import { useRef, useCallback, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { useDemoLocationView } from "@/components/map/DemoLocationLayer";
 import { colors } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { cameraStart, LOCATED_ZOOM } from "@/services/map/cameraStart";
@@ -61,6 +62,10 @@ export function BugroutMap({
   const mapRef = useRef(null);
   const cameraRef = useRef<MapLibreGL.CameraRef>(null);
   const { activeRegion } = useMapStore();
+  // With the demo location on (#205) the map draws and follows the
+  // simulated position itself; MapLibre's own puck would show the real GPS.
+  const demo = useDemoLocationView(cameraRef, userLocation, followUser);
+  const nativeFollow = demo.nativeFollow;
 
   const handlePress = useCallback(
     // MapView's onPress delivers a GeoJSON Point at the tapped location — not
@@ -94,14 +99,14 @@ export function BugroutMap({
   // A fix known at first render is already where `defaultSettings` opened.
   const centredOnUser = useRef(userLocation != null);
   useEffect(() => {
-    if (!userLocation || followUser || centredOnUser.current) return;
+    if (!userLocation || nativeFollow || centredOnUser.current) return;
     centredOnUser.current = true;
     cameraRef.current?.setCamera({
       centerCoordinate: [userLocation.lng, userLocation.lat],
       zoomLevel: LOCATED_ZOOM,
       animationDuration: 600,
     });
-  }, [userLocation, followUser]);
+  }, [userLocation, nativeFollow]);
 
   return (
     <View style={styles.container}>
@@ -119,18 +124,19 @@ export function BugroutMap({
         <MapLibreGL.Camera
           ref={cameraRef}
           defaultSettings={cameraStart(userLocation, activeRegion?.bbox)}
-          followUserLocation={followUser}
-          {...(followUser
+          followUserLocation={nativeFollow}
+          {...(nativeFollow
             ? { followUserMode: MapLibreGL.UserTrackingMode.FollowWithHeading }
             : {})}
         />
 
         {/* User location indicator */}
         <MapLibreGL.UserLocation
-          visible={!!userLocation}
+          visible={demo.nativePuck}
           renderMode="native"
           androidRenderMode="compass"
         />
+        {demo.dot}
 
         {/* Route polyline */}
         {routeCoordinates && routeCoordinates.length > 0 ? (

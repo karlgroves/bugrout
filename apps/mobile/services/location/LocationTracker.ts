@@ -7,6 +7,13 @@
  */
 
 import * as Location from "@/platform/location";
+import {
+  DEMO_ORIGIN,
+  demoFix,
+  startDemoDrive,
+} from "@/services/location/DemoLocation";
+import { useRouteStore } from "@/stores/useRouteStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 import type { LatLng } from "@bugrout/shared";
 
@@ -29,6 +36,20 @@ export type LocationCallback = (update: LocationUpdate) => void;
 let foregroundSubscription: Location.LocationSubscription | null = null;
 let headingSubscription: Location.LocationSubscription | null = null;
 let currentHeading = 0;
+let stopDemo: (() => void) | null = null;
+
+/** Whether positions come from the demo location instead of GPS (#205). */
+function demoLocationOn(): boolean {
+  return useSettingsStore.getState().demoLocation;
+}
+
+/** The route the demo drives: only a trip under way, never a preview. */
+function demoRoute(): readonly LatLng[] | null {
+  const { status, activeRoute } = useRouteStore.getState();
+  const driving =
+    status === "active" || status === "rerouting" || status === "completed";
+  return driving ? (activeRoute?.coordinates ?? null) : null;
+}
 
 /**
  * Request location permissions.
@@ -66,6 +87,12 @@ export async function startTracking(
     distanceFilter?: number;
   },
 ): Promise<void> {
+  if (demoLocationOn()) {
+    stopDemo?.();
+    stopDemo = startDemoDrive(onUpdate, demoRoute);
+    return;
+  }
+
   const perms = await requestPermissions();
   if (!perms.foreground) {
     throw new Error("Location permission not granted");
@@ -118,6 +145,10 @@ export async function startBatterySavingTracking(
  * Stop GPS tracking.
  */
 export function stopTracking(): Promise<void> {
+  if (stopDemo) {
+    stopDemo();
+    stopDemo = null;
+  }
   if (foregroundSubscription) {
     foregroundSubscription.remove();
     foregroundSubscription = null;
@@ -133,6 +164,8 @@ export function stopTracking(): Promise<void> {
  * Get current position (one-shot).
  */
 export async function getCurrentPosition(): Promise<LocationUpdate> {
+  if (demoLocationOn()) return demoFix(DEMO_ORIGIN);
+
   const perms = await requestPermissions();
   if (!perms.foreground) {
     throw new Error("Location permission not granted");

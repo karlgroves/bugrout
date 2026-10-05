@@ -23,11 +23,13 @@ function SettingsScreen(): React.JSX.Element {
     batteryOptimization,
     crowdSignalOptIn,
     crashReportingOptIn,
+    demoLocation,
     setUnits,
     setVoiceEnabled,
     setBatteryOptimization,
     setCrowdSignalOptIn,
     setCrashReportingOptIn,
+    setDemoLocation,
   } = useSettingsStore();
 
   return (
@@ -114,6 +116,24 @@ function SettingsScreen(): React.JSX.Element {
         hint="Reduces how often location is sampled on straight roads to save battery"
         value={batteryOptimization}
         onToggle={setBatteryOptimization}
+      />
+
+      {/* For App Review (#205): coverage is Maryland only for now. */}
+      <Text
+        style={styles.sectionTitle}
+        accessibilityRole="header"
+        aria-level={2}
+      >
+        Testing
+      </Text>
+      <ToggleRow
+        id="demo-location"
+        icon="map-marker"
+        label="Demo location"
+        subtitle="Simulate being in Baltimore, MD, and drive each route. Not your real position. Off when the app restarts."
+        hint="Replaces your real position with a simulated one in Baltimore, Maryland, which drives along the route during navigation"
+        value={demoLocation}
+        onToggle={setDemoLocation}
       />
 
       {/* Info rows */}

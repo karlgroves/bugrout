@@ -11,6 +11,7 @@ import {
   getCurrentPosition,
   type LocationUpdate,
 } from "@/services/location/LocationTracker";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 /** Reactive GPS state returned by {@link useLocation}. */
 export interface UseLocationResult {
@@ -31,6 +32,9 @@ export function useLocation(active = false): UseLocationResult {
   const [location, setLocation] = useState<LocationUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const callbackRef = useRef<((update: LocationUpdate) => void) | null>(null);
+  // Switching the demo location on or off restarts tracking from the new
+  // source (#205).
+  const demoLocation = useSettingsStore((s) => s.demoLocation);
 
   // Update the callback ref without triggering re-subscriptions
   callbackRef.current = setLocation;
@@ -49,7 +53,7 @@ export function useLocation(active = false): UseLocationResult {
     return () => {
       void stopTracking();
     };
-  }, [active]);
+  }, [active, demoLocation]);
 
   const getPosition = useCallback(async (): Promise<LocationUpdate | null> => {
     try {
