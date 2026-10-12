@@ -136,16 +136,17 @@ function fuelDetail(
  * The status line for a resource's detail sheet: a shelter's open/closed
  * status, or a fuel station's brand and diesel; each with its "as of" time.
  *
- * @returns The line, or null for a type that has none.
+ * @returns The line, or null for a type that has none or no resource.
  */
 export function resourceDetail(
   resource: {
     type: string;
     metadata: Record<string, unknown>;
     fetchedAt: number;
-  },
+  } | null,
   now: number,
 ): string | null {
+  if (resource === null) return null;
   if (resource.type === "shelter") return shelterDetail(resource, now);
   if (resource.type === "fuel") return fuelDetail(resource, now);
   return null;

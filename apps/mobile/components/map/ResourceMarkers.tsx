@@ -77,6 +77,7 @@ export function ResourceMarkers({
       },
     })),
   };
+  const selectedDetail = resourceDetail(selectedResource, Date.now());
 
   return (
     <>
@@ -172,10 +173,8 @@ export function ResourceMarkers({
               </Text>
             ) : null}
 
-            {resourceDetail(selectedResource, Date.now()) !== null ? (
-              <Text style={detailStyles.address}>
-                {resourceDetail(selectedResource, Date.now())}
-              </Text>
+            {selectedDetail !== null ? (
+              <Text style={detailStyles.address}>{selectedDetail}</Text>
             ) : null}
 
             {userLocation ? (

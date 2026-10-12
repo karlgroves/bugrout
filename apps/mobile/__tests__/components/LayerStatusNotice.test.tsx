@@ -181,6 +181,10 @@ describe("resourceDetail — fuel (#200)", () => {
   it("has nothing to add for water", () => {
     expect(resourceDetail({ ...STATION, type: "water" }, NOW)).toBeNull();
   });
+
+  it("has nothing to say with no resource selected", () => {
+    expect(resourceDetail(null, NOW)).toBeNull();
+  });
 });
 
 describe("LayerStatusNotice — fuel and shelters together", () => {
