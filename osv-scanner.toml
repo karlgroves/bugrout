@@ -140,3 +140,41 @@ Build-time only, through @expo/cli code signing, which verifies only \
 signatures it made with the local private key, or a certificate it then \
 requires to match that key. The app configures no expo-updates code signing. \
 Never in the app bundle or a backend."""
+
+[[IgnoredVulns]]
+id = "GHSA-hqr4-qq8f-hg3x"
+ignoreUntil = 2026-12-05
+reason = """stream-json JSONC comment re-scan DoS. Fixed in 3.6.0, which is \
+structurally unreachable for the same reasons as GHSA-528h-pc64-c93x above \
+(3.x breaks Detox; detox@latest declares ^1.7.4). Unreachable anyway: the flaw \
+is in jsonc/parser and jsonc/verifier, and neither Detox (jsonl/Parser, which \
+uses native JSON.parse) nor bunyamin (streamers/StreamArray) loads them."""
+
+[[IgnoredVulns]]
+id = "GHSA-mjw6-4jj6-33hc"
+ignoreUntil = 2026-12-05
+reason = """stream-json Assembler prototype pollution via a __proto__ key. Fixed \
+in 3.6.0, unreachable for the same reasons as GHSA-528h-pc64-c93x above. Unlike \
+the two entries above, the vulnerable code is reached: bunyamin parses through \
+streamers/StreamArray, which uses the Assembler. Its input is the Detox run's \
+own log files on the local machine, never network or third-party JSON. \
+devDependency, never in the app bundle or a backend."""
+
+[[IgnoredVulns]]
+id = "GHSA-238p-pmpm-9mq7"
+ignoreUntil = 2026-12-05
+reason = """KaTeX treats inherited options as trusted when Object.prototype is \
+already polluted. Fixed in 0.18.2, outside the only consumer's range: \
+micromark-extension-math@3.1.0 (latest, used by markdownlint@0.41.1, latest) \
+declares ^0.16.0, and 0.18 is a breaking 0.x line. Unreachable: katex is \
+imported only by the extension's lib/html.js (mathHtml), which markdownlint \
+never calls; it uses the syntax extension alone, and no Markdown in this \
+repository contains math. Lint-time devDependency only."""
+
+[[IgnoredVulns]]
+id = "GHSA-hp3w-g68c-fv3c"
+ignoreUntil = 2026-12-05
+reason = """sprintf-js unbounded precision specifier DoS. No fixed version \
+published: the advisory names 1.1.3, the latest, as affected. Reached through \
+argparse@1.0.10 (via js-yaml 3 in Jest's istanbul config loading), which \
+passes only its own format strings. devDependency, never fed outside input."""

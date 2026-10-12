@@ -129,14 +129,14 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 30 now, and all 30 are
+sweep that bounded every one of them was #126; there are 35 now, and all 35 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
 replacement range can be perfectly bounded and still land outside what the
 package that depends on it asks for — which is what #28 actually was, an
-unbounded `uuid` override resolving past its consumer. Five of the entries here
-cross an _exact_ pin:
+unbounded `uuid` override resolving past its consumer. Until 2026-10-11, five of
+the entries here crossed an _exact_ pin:
 
 | consumer                       | declares             | forced to |
 | ------------------------------ | -------------------- | --------- |
@@ -145,6 +145,26 @@ cross an _exact_ pin:
 | `markdownlint-cli2@0.23.2`     | `smol-toml@1.7.0`    | `1.8.0`   |
 | `markdownlint-cli2@0.23.2`     | `js-yaml@5.2.2`      | `5.4.2`   |
 | `markdownlint-cli2@0.23.2`     | `markdown-it@14.3.0` | `14.3.2`  |
+
+**Two cross a pin today, and neither is one of the five above.** The 2026-10-11
+tooling update moved both consumers onto the fixed versions themselves
+(`wrangler@4.147.0` brings `miniflare@5.20261001.0-alpha`, which declares
+`sharp@0.35.4` and `undici@7.29.1` exactly; `markdownlint-cli2@0.23.3` declares
+`smol-toml@1.8.0`, `js-yaml@5.4.1` and `markdown-it@15.0.1`), and then two new
+advisories landed above two of those pins on the same day:
+
+| consumer                       | declares          | forced to | advisory            |
+| ------------------------------ | ----------------- | --------- | ------------------- |
+| `miniflare@5.20261001.0-alpha` | `sharp@0.35.4`    | `0.35.5`  | GHSA-wq5f-xc86-pv6w |
+| `markdownlint-cli2@0.23.3`     | `smol-toml@1.8.0` | `1.9.0`   | GHSA-r4xh-jqrq-34v2 |
+
+Both were exercised through the live resolution path. `sharp@0.35.5` loads from
+miniflare's own `node_modules` link (libvips 8.18.7) and encodes a PNG, and
+`wrangler dev` serves the tile-server's `/health` with `check-headers.js`
+passing. `smol-toml@1.9.0` parses a document through `markdownlint-cli2`'s link,
+and `pnpm run markdownlint` passes. Re-read these consumers' declared versions
+whenever `wrangler` or `markdownlint-cli2` moves. The rest of this section
+records how the original five were checked while they crossed.
 
 All five were exercised rather than argued. `sharp` is a native package, so the
 check is that it loads through the live resolution path — `wrangler` →
@@ -490,7 +510,10 @@ because they retire on different signals:
    this case: both advisories name the latest release as affected, and both are
    build-time Expo toolchain packages that never reach the app bundle. They are
    also listed in `pnpm.auditConfig.ignoreGhsas`, because `pnpm audit --prod`
-   counts the Expo toolchain as production. See
+   counts the Expo toolchain as production. `sprintf-js` (GHSA-hp3w-g68c-fv3c)
+   is in this case too, reached through `argparse` in Jest's coverage config
+   loading; it is moderate, below the `pnpm audit` gate, so it needs no
+   `ignoreGhsas` entry. See
    [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how an
    entry in this case retires.
 2. **A fixed version exists but is structurally unreachable** — pinning it
@@ -498,12 +521,14 @@ because they retire on different signals:
    and no patch bridges the gap. Retires when the _consumer_ changes, not when
    the vulnerable package does.
 
-**One entry is in case 2:** `stream-json`, a devDependency of Detox, with the
-evidence for all three grounds recorded in `osv-scanner.toml`.
-`decode-uri-component` was recorded there too, by PR #120, on the grounds that
-`0.5.0` is ESM-only and its only consumer `query-string@7.1.3` is CommonJS. Both
-of those facts hold. The conclusion did not: PR #124 closed the advisory with a
-two-line `pnpm` patch that unwraps the interop, described under
+**Two packages are in case 2:** `katex`, reached only through markdownlint's
+math syntax extension, whose only consumer declares `^0.16.0` against a fix in
+0.18.2; and `stream-json`, a devDependency of Detox, with the evidence for all
+three grounds recorded in `osv-scanner.toml`. `decode-uri-component` was
+recorded there too, by PR #120, on the grounds that `0.5.0` is ESM-only and its
+only consumer `query-string@7.1.3` is CommonJS. Both of those facts hold. The
+conclusion did not: PR #124 closed the advisory with a two-line `pnpm` patch
+that unwraps the interop, described under
 [Patched transitive packages](#patched-transitive-packages).
 
 The lesson is in the bar, not the entry. "Structurally unreachable" now requires
