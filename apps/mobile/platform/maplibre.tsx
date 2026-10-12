@@ -157,6 +157,7 @@ const SymbolLayer = MapLibreGL?.SymbolLayer ?? MockHidden;
 export /**
  *
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment -- web/Expo Go fallback: the native enum can't load there, so its string values are mirrored
 const UserTrackingMode = (MapLibreGL?.UserTrackingMode ?? {
   Follow: "normal",
   FollowWithHeading: "compass",

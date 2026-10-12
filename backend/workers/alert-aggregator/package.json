@@ -12,8 +12,8 @@
     "@bugrout/worker-utils": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260804.1",
+    "@cloudflare/workers-types": "^5.20261004.1",
     "typescript": "~5.9.3",
-    "wrangler": "^4.80.0"
+    "wrangler": "^4.147.0"
   }
 }
