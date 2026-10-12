@@ -13,6 +13,8 @@
 const UUID_V4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
+import { createHash } from "crypto";
+
 import type * as CryptoModuleNamespace from "@/platform/crypto";
 
 type CryptoModule = typeof CryptoModuleNamespace;
@@ -140,5 +142,53 @@ describe("secureRandomUUID — no CSPRNG at all", () => {
 describe("unsafeRandomId", () => {
   it("still produces a v4-shaped id for non-security use", () => {
     expect(loadCrypto().unsafeRandomId()).toMatch(UUID_V4);
+  });
+});
+
+describe("sha256Hex", () => {
+  /** FIPS 180-2's test vector for "abc". */
+  const ABC =
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+  const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+
+  afterEach(() => {
+    jest.dontMock("expo-crypto");
+    if (original) Object.defineProperty(globalThis, "crypto", original);
+  });
+
+  it("uses expo-crypto on native, in lowercase hex", async () => {
+    jest.resetModules();
+    const digest = jest.fn(() => Promise.resolve(ABC.toUpperCase()));
+    jest.doMock("expo-crypto", () => ({
+      digestStringAsync: digest,
+      CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+    }));
+    await expect(loadCrypto().sha256Hex("abc")).resolves.toBe(ABC);
+    expect(digest).toHaveBeenCalledWith("SHA-256", "abc");
+  });
+
+  it("falls back to Web Crypto, hashing the text as UTF-8", async () => {
+    jest.resetModules();
+    jest.doMock("expo-crypto", () => {
+      throw new Error("expo-crypto unavailable");
+    });
+    await expect(loadCrypto().sha256Hex("abc")).resolves.toBe(ABC);
+    // Multi-byte text hashes its UTF-8 bytes, as sha256sum does.
+    const utf8 = createHash("sha256").update("é", "utf8").digest("hex");
+    await expect(loadCrypto().sha256Hex("é")).resolves.toBe(utf8);
+  });
+
+  it("throws rather than pass a file it can't check", async () => {
+    jest.resetModules();
+    jest.doMock("expo-crypto", () => {
+      throw new Error("expo-crypto unavailable");
+    });
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: {},
+    });
+    await expect(loadCrypto().sha256Hex("abc")).rejects.toThrow(
+      "No SHA-256 implementation",
+    );
   });
 });

@@ -29,7 +29,7 @@ state.
 | -------------------------------------------------- | -------------------------------------------------------------- | -------------- |
 | Offline routing                                    | Routes come from a remote server; regions ship no graph        | #193, #146     |
 | Evacuation Load Factor (ELF) congestion routing    | ELF is applied to no route                                     | #195           |
-| Fuel stations; fuel stops                          | Stations load only online; region packages don't carry them    | #200           |
+| Fuel stations; fuel stops                          | The live Maryland package predates packaged fuel; rebuild it   | #200           |
 | Wildfire perimeters                                | The NIFC service queried returns 400 (2026-10-05)              | not yet filed  |
 | Flood zones                                        | The app never downloads the region's flood GeoJSON             | not yet filed  |
 | "Location processed on-device only"; "No tracking" | Route endpoints and searches leave the device; PostHog can run | #206           |

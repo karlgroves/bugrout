@@ -20,7 +20,9 @@ import {
 } from "@/db/queries/regions";
 import { deleteResourcesByRegion } from "@/db/queries/resources";
 import { track, Events } from "@/platform/analytics";
+import { sha256Hex } from "@/platform/crypto";
 import * as FileSystem from "@/platform/fileSystem";
+import { loadPackagedFuelStations } from "@/services/resources/FuelService";
 import { useMapStore } from "@/stores/useMapStore";
 import { timeoutSignal } from "@/utils/abort";
 import { fetchWithRetry } from "@/utils/retry";
@@ -133,7 +135,8 @@ export async function downloadRegion(
   const pmtilesPath = `${regionDir}${region.id}.pmtiles`;
   const valhallaPath = `${regionDir}${region.id}.valhalla.tar.gz`;
 
-  const totalSize = region.pmtilesSize + region.valhallaSize;
+  const fuelSize = packagedFuelSize(region);
+  const totalSize = region.pmtilesSize + region.valhallaSize + fuelSize;
   let downloaded = 0;
 
   const reportProgress = (status: DownloadProgress["status"]) => {
@@ -184,6 +187,21 @@ export async function downloadRegion(
     }
   }
 
+  // Fuel stations (#200), so the fuel layer works with no network at all. A
+  // package built before fuel was packaged has none; the layer is then
+  // fetched online, as it is when this file fails its check.
+  if (fuelSize > 0) {
+    const before = region.pmtilesSize + region.valhallaSize;
+    try {
+      await downloadPackagedFuel(region, regionDir, (bytes) => {
+        downloaded = before + bytes;
+        reportProgress("downloading");
+      });
+    } catch {
+      // The map is usable without it; ResourceSync fetches fuel online.
+    }
+  }
+
   downloaded = totalSize;
   reportProgress("complete");
 
@@ -206,6 +224,37 @@ export async function downloadRegion(
   });
 
   return result;
+}
+
+/** The packaged fuel file's size, or 0 when the package has none. */
+function packagedFuelSize(region: Region): number {
+  return region.fuelSha256 === undefined ? 0 : (region.fuelSize ?? 0);
+}
+
+/**
+ * Download a region's packaged fuel stations, check them against the
+ * manifest, and load them into the cache.
+ *
+ * @throws When the download fails, the file doesn't match the manifest's
+ *   SHA-256 (it is then deleted, never loaded), or it can't be parsed.
+ */
+async function downloadPackagedFuel(
+  region: Region,
+  regionDir: string,
+  onProgress: (bytesWritten: number) => void,
+): Promise<void> {
+  const fuelPath = `${regionDir}${region.id}.fuel.json`;
+  await downloadFileResumable(
+    `${TILE_SERVER_BASE}/v1/tiles/${region.id}/fuel`,
+    fuelPath,
+    onProgress,
+  );
+  const text = await FileSystem.readAsStringAsync(fuelPath);
+  if ((await sha256Hex(text)) !== region.fuelSha256) {
+    await FileSystem.deleteAsync(fuelPath, { idempotent: true });
+    throw new Error(`Fuel stations for ${region.id} failed verification`);
+  }
+  await loadPackagedFuelStations(text, region.id, region.updatedAt);
 }
 
 /**

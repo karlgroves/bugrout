@@ -47,3 +47,7 @@ LICENSE
 
 # Local tool state (gitignored, machine-specific)
 .claude/
+
+# The data pipeline's own output (data-pipeline/osm/test-extract-fuel.sh), kept
+# byte-for-byte so the app is tested against exactly what the pipeline writes.
+apps/mobile/__tests__/fixtures/fuel-package.json

@@ -4,15 +4,31 @@
  * busy, so every way it can fail must reach the caller as a failure — never as
  * an empty, "no fuel nearby" answer — and it refuses requests that don't
  * identify the app.
+ *
+ * Region packages carry the same stations for offline use, in the shape the
+ * pipeline writes; the fixture is that pipeline's real output.
  */
+import { readFileSync } from "fs";
+import { join } from "path";
+
 import { overpassQuery } from "@/services/osm/overpass";
-import { fetchOsmFuelStations } from "@/services/resources/FuelService";
+import {
+  fetchOsmFuelStations,
+  loadPackagedFuelStations,
+} from "@/services/resources/FuelService";
+
+import type { ResourcePoint } from "@bugrout/shared";
 
 const mockDeleteResourcesByType = jest.fn().mockResolvedValue(undefined);
 const mockUpsertResourcePoints = jest.fn().mockResolvedValue(undefined);
+const mockGetResourcesByRegion = jest
+  .fn<Promise<Partial<ResourcePoint>[]>, unknown[]>()
+  .mockResolvedValue([]);
 jest.mock("@/db/queries/resources", () => ({
   deleteResourcesByType: (...args: unknown[]) =>
     mockDeleteResourcesByType(...args) as unknown,
+  getResourcesByRegion: (...args: unknown[]) =>
+    mockGetResourcesByRegion(...args),
   upsertResourcePoints: (...args: unknown[]) =>
     mockUpsertResourcePoints(...args) as unknown,
 }));
@@ -157,6 +173,103 @@ describe("fetchOsmFuelStations", () => {
   it("leaves the cache alone when Overpass fails", async () => {
     respond(504, {});
     await expect(fetchOsmFuelStations(BBOX, "md")).rejects.toThrow();
+    expect(mockDeleteResourcesByType).not.toHaveBeenCalled();
+  });
+});
+
+describe("loadPackagedFuelStations", () => {
+  /** Written by data-pipeline/osm/test-extract-fuel.sh from its fixture. */
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- this test's own fixture, at a path built from __dirname
+  const PACKAGE = readFileSync(
+    join(__dirname, "../fixtures/fuel-package.json"),
+    "utf8",
+  );
+  /** The fixture extract's data date, from its header. */
+  const DATA_DATE = Date.parse("2026-09-28T20:23:05Z");
+  const BUILT_AT = Date.parse("2026-10-01T00:00:00Z");
+
+  /** The stations the last load wrote to the cache. */
+  const upserted = (): ResourcePoint[] =>
+    (mockUpsertResourcePoints.mock.calls.at(-1) as [ResourcePoint[]])[0];
+
+  beforeEach(() => {
+    mockDeleteResourcesByType.mockClear();
+    mockUpsertResourcePoints.mockClear();
+    mockGetResourcesByRegion.mockResolvedValue([]);
+  });
+
+  it("loads every station the pipeline extracted, points and buildings alike", async () => {
+    await expect(
+      loadPackagedFuelStations(PACKAGE, "md", BUILT_AT),
+    ).resolves.toBe(3);
+    const byId = new Map(upserted().map((s) => [s.id, s]));
+    expect(byId.get("osm-fuel-node-1")).toMatchObject({
+      name: "Point Station",
+      lat: 39.3,
+      lng: -76.6,
+      metadata: { brand: "Shell", diesel: false },
+      source: "osm",
+      regionId: "md",
+    });
+    expect(byId.get("osm-fuel-way-100")).toMatchObject({
+      name: "Building Station",
+      lat: 39.02,
+      lng: -75.99,
+      metadata: { diesel: true },
+    });
+    expect(byId.get("osm-fuel-relation-300")).toMatchObject({
+      lat: 38.01,
+      lng: -76.95,
+    });
+  });
+
+  it("dates the stations by their OSM data, so the map's 'as of' is honest", async () => {
+    await loadPackagedFuelStations(PACKAGE, "md", BUILT_AT);
+    expect(upserted().every((s) => s.fetchedAt === DATA_DATE)).toBe(true);
+  });
+
+  it("falls back to the build date when the file doesn't give one", async () => {
+    const undated = JSON.stringify({
+      ...(JSON.parse(PACKAGE) as object),
+      osmTimestamp: null,
+    });
+    await loadPackagedFuelStations(undated, "md", BUILT_AT);
+    expect(upserted().every((s) => s.fetchedAt === BUILT_AT)).toBe(true);
+  });
+
+  it("replaces only the region's OSM stations, leaving NREL's", async () => {
+    await loadPackagedFuelStations(PACKAGE, "md", BUILT_AT);
+    expect(mockDeleteResourcesByType).toHaveBeenCalledWith("md", "fuel", "osm");
+  });
+
+  it("keeps fresher stations already fetched online", async () => {
+    mockGetResourcesByRegion.mockResolvedValue([
+      { type: "fuel", source: "osm", fetchedAt: DATA_DATE + 1 },
+    ]);
+    await expect(
+      loadPackagedFuelStations(PACKAGE, "md", BUILT_AT),
+    ).resolves.toBeNull();
+    expect(mockDeleteResourcesByType).not.toHaveBeenCalled();
+    expect(mockUpsertResourcePoints).not.toHaveBeenCalled();
+  });
+
+  it("replaces older online stations, and isn't held back by NREL's", async () => {
+    mockGetResourcesByRegion.mockResolvedValue([
+      { type: "fuel", source: "osm", fetchedAt: DATA_DATE - 1 },
+      { type: "fuel", source: "nrel", fetchedAt: DATA_DATE + 1 },
+    ]);
+    await expect(
+      loadPackagedFuelStations(PACKAGE, "md", BUILT_AT),
+    ).resolves.toBe(3);
+  });
+
+  it("refuses a file that isn't a fuel package, touching nothing", async () => {
+    await expect(
+      loadPackagedFuelStations('{"version":2,"elements":[]}', "md", BUILT_AT),
+    ).rejects.toThrow("Not a fuel package");
+    await expect(
+      loadPackagedFuelStations("<html>", "md", BUILT_AT),
+    ).rejects.toThrow();
     expect(mockDeleteResourcesByType).not.toHaveBeenCalled();
   });
 });
