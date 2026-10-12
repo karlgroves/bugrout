@@ -114,6 +114,9 @@ with open(src) as f:
         elements[(el["type"], el["id"])] = el
 
 ordered = [elements[k] for k in sorted(elements)]
+# ASCII output (json's default ensure_ascii): the app hashes the text it reads
+# back, and for ASCII that is byte-for-byte the file the manifest's SHA-256
+# was taken from.
 with open(out, "w") as f:
     json.dump(
         {"version": 1, "osmTimestamp": timestamp or None, "elements": ordered},
