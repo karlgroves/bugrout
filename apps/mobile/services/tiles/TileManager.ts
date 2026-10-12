@@ -22,6 +22,7 @@ import { deleteResourcesByRegion } from "@/db/queries/resources";
 import { track, Events } from "@/platform/analytics";
 import { sha256Hex } from "@/platform/crypto";
 import * as FileSystem from "@/platform/fileSystem";
+import { captureError } from "@/services/CrashReporting";
 import { loadPackagedFuelStations } from "@/services/resources/FuelService";
 import { useMapStore } from "@/stores/useMapStore";
 import { timeoutSignal } from "@/utils/abort";
@@ -197,8 +198,14 @@ export async function downloadRegion(
         downloaded = before + bytes;
         reportProgress("downloading");
       });
-    } catch {
-      // The map is usable without it; ResourceSync fetches fuel online.
+    } catch (error) {
+      // The map is usable without it, and ResourceSync fetches fuel online;
+      // but a package whose fuel won't download, verify or parse is a bad
+      // package, and should be seen.
+      captureError(error instanceof Error ? error : new Error(String(error)), {
+        regionId: region.id,
+        stage: "packaged-fuel",
+      });
     }
   }
 

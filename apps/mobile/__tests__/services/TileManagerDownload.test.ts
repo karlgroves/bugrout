@@ -73,6 +73,14 @@ jest.mock("@/platform/crypto", () => ({
         .digest("hex"),
     ),
 }));
+const mockCaptureError = jest.fn(
+  (_error: Error, _context?: Record<string, unknown>) => undefined,
+);
+jest.mock("@/services/CrashReporting", () => ({
+  captureError: (error: Error, context?: Record<string, unknown>) => {
+    mockCaptureError(error, context);
+  },
+}));
 jest.mock("@/platform/analytics", () => ({
   track: jest.fn(),
   Events: { TILE_DOWNLOAD_COMPLETED: "tile_download_completed" },
@@ -198,6 +206,7 @@ describe("downloadRegion", () => {
         "md",
         WITH_FUEL.updatedAt,
       );
+      expect(mockCaptureError).not.toHaveBeenCalled();
       expect(insertDownloadedRegion).toHaveBeenCalledWith(
         expect.objectContaining({
           sizeBytes: MARYLAND.pmtilesSize + Buffer.byteLength(FUEL),
@@ -214,6 +223,13 @@ describe("downloadRegion", () => {
       expect(mockLoadPackagedFuelStations).not.toHaveBeenCalled();
       expect(deletedPaths()).toContain(FUEL_PATH);
       expect(insertDownloadedRegion).toHaveBeenCalled();
+      // A bad package must be seen, not just survived.
+      expect(mockCaptureError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining("verification") as unknown,
+        }),
+        { regionId: "md", stage: "packaged-fuel" },
+      );
     });
 
     it("keeps the map when the fuel download fails", async () => {
