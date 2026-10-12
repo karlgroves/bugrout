@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from "react";
 
 import { DEFAULT_REGIONS } from "@/constants/regions";
 import { cancelDownloadReminder } from "@/services/DownloadReminder";
+import { loadCachedResources } from "@/services/resources/ResourceSync";
 import * as TileManager from "@/services/tiles/TileManager";
 import { useMapStore } from "@/stores/useMapStore";
 
@@ -82,7 +83,7 @@ export function useTileManager(): UseTileManagerResult {
           },
         );
         setActiveDownload(null);
-        syncActiveRegion(downloaded);
+        await syncActiveRegion(downloaded);
         await refresh();
       } catch (error) {
         setActiveDownload(null);
@@ -124,12 +125,21 @@ export function useTileManager(): UseTileManagerResult {
  *
  * @param downloaded - The region record just written.
  */
-function syncActiveRegion(downloaded: DownloadedRegion): void {
+async function syncActiveRegion(downloaded: DownloadedRegion): Promise<void> {
   const mapStore = useMapStore.getState();
   const current = mapStore.activeRegion;
   if (current === null || current.id === downloaded.id) {
     mapStore.setActiveRegion(downloaded);
     mapStore.setTilesLoaded(true);
+    // The download may have loaded resources (packaged fuel, #200). The map
+    // shows the store, and the sync a new region triggers is rate-limited,
+    // so load them now. Best effort: the download itself succeeded, and the
+    // next sync loads them anyway.
+    try {
+      await loadCachedResources(downloaded.id);
+    } catch {
+      // Not a failed download; nothing to undo.
+    }
   }
   // A region is on the device now; the reminder to get one is moot.
   void cancelDownloadReminder();

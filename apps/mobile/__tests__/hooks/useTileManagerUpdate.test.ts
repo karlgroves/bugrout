@@ -43,6 +43,13 @@ jest.mock("@/services/DownloadReminder", () => ({
   cancelDownloadReminder: () => mockCancelReminder(),
 }));
 
+const mockLoadCachedResources = jest.fn((_regionId: string) =>
+  Promise.resolve(),
+);
+jest.mock("@/services/resources/ResourceSync", () => ({
+  loadCachedResources: (regionId: string) => mockLoadCachedResources(regionId),
+}));
+
 jest.mock("@/services/tiles/TileManager", () => ({
   fetchManifest: jest.fn(() => Promise.resolve([])),
   getDownloadedRegions: jest.fn(() => Promise.resolve([])),
@@ -56,6 +63,7 @@ describe("useTileManager.downloadRegion", () => {
   beforeEach(() => {
     useMapStore.setState({ activeRegion: null, tilesLoaded: false });
     mockCancelReminder.mockClear();
+    mockLoadCachedResources.mockClear();
   });
 
   it("points the map at the updated region when it is the one on screen", async () => {
@@ -64,6 +72,34 @@ describe("useTileManager.downloadRegion", () => {
 
     await act(async () => {
       await result.current.downloadRegion(PUBLISHED);
+    });
+
+    expect(useMapStore.getState().activeRegion?.version).toBe("2026.09.28");
+  });
+
+  // #200: the download may have loaded packaged fuel stations. The sync a new
+  // region triggers is rate-limited, so without this an update kept showing
+  // the old stations for up to five minutes.
+  it("shows the resources the download loaded, for the region on screen", async () => {
+    useMapStore.setState({ activeRegion: OLD });
+    const { result } = await renderHook(() => useTileManager());
+
+    await act(async () => {
+      await result.current.downloadRegion(PUBLISHED);
+    });
+
+    expect(mockLoadCachedResources).toHaveBeenCalledWith("md");
+  });
+
+  it("doesn't report a finished download as failed when that reload fails", async () => {
+    mockLoadCachedResources.mockRejectedValueOnce(new Error("database locked"));
+    useMapStore.setState({ activeRegion: OLD });
+    const { result } = await renderHook(() => useTileManager());
+
+    await act(async () => {
+      await expect(
+        result.current.downloadRegion(PUBLISHED),
+      ).resolves.toBeUndefined();
     });
 
     expect(useMapStore.getState().activeRegion?.version).toBe("2026.09.28");
@@ -79,6 +115,7 @@ describe("useTileManager.downloadRegion", () => {
     });
 
     expect(useMapStore.getState().activeRegion).toBe(other);
+    expect(mockLoadCachedResources).not.toHaveBeenCalled();
   });
 
   // #199: a first download used to change nothing on the map until the app
