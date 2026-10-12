@@ -8,7 +8,7 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, View, Pressable, Text } from "react-native";
 
-import { ShelterStatusNotice } from "@/components/map/ShelterStatusNotice";
+import { LayerStatusNotice } from "@/components/map/LayerStatusNotice";
 import { colors, spacing } from "@/constants/theme";
 import { useResourceStore } from "@/stores/useResourceStore";
 
@@ -75,7 +75,7 @@ export function ResourceFilterBar(): React.JSX.Element {
           );
         })}
       </View>
-      <ShelterStatusNotice />
+      <LayerStatusNotice />
     </View>
   );
 }

@@ -10,7 +10,14 @@
  * - An update deleted the existing file before downloading, so a failed update
  *   left the region with no map at all (#179). Downloads now land in a `.part`
  *   file that replaces the old one only on success.
+ *
+ * And for the packaged fuel stations (#200): a file is loaded only once it
+ * matches the manifest's SHA-256, and a fuel problem never costs the map.
  */
+import { createHash } from "crypto";
+import { readFileSync } from "fs";
+import { join } from "path";
+
 import { insertDownloadedRegion } from "@/db/queries/regions";
 import { downloadRegion } from "@/services/tiles/TileManager";
 
@@ -24,8 +31,14 @@ const mockMoveAsync = jest.fn((_options: { from: string; to: string }) =>
   Promise.resolve(),
 );
 
+const mockReadAsStringAsync = jest.fn((_path: string) => Promise.resolve(""));
+const mockLoadPackagedFuelStations = jest.fn(
+  (_text: string, _regionId: string, _builtAt: number) => Promise.resolve(3),
+);
+
 jest.mock("@/platform/fileSystem", () => ({
   documentDirectory: "file:///docs/",
+  readAsStringAsync: (path: string) => mockReadAsStringAsync(path),
   getInfoAsync: jest.fn(() => Promise.resolve({ exists: true })),
   makeDirectoryAsync: jest.fn(() => Promise.resolve()),
   deleteAsync: (path: string, options?: { idempotent?: boolean }) =>
@@ -45,6 +58,28 @@ jest.mock("@/db/queries/regions", () => ({
 }));
 jest.mock("@/db/queries/resources", () => ({
   deleteResourcesByRegion: jest.fn(() => Promise.resolve()),
+}));
+jest.mock("@/services/resources/FuelService", () => ({
+  loadPackagedFuelStations: (text: string, regionId: string, builtAt: number) =>
+    mockLoadPackagedFuelStations(text, regionId, builtAt),
+}));
+jest.mock("@/platform/crypto", () => ({
+  sha256Hex: (text: string) =>
+    Promise.resolve(
+      jest
+        .requireActual<{ createHash: typeof createHash }>("crypto")
+        .createHash("sha256")
+        .update(text)
+        .digest("hex"),
+    ),
+}));
+const mockCaptureError = jest.fn(
+  (_error: Error, _context?: Record<string, unknown>) => undefined,
+);
+jest.mock("@/services/CrashReporting", () => ({
+  captureError: (error: Error, context?: Record<string, unknown>) => {
+    mockCaptureError(error, context);
+  },
 }));
 jest.mock("@/platform/analytics", () => ({
   track: jest.fn(),
@@ -134,5 +169,91 @@ describe("downloadRegion", () => {
     expect(deletedPaths()).toContain(PART_PATH);
     expect(deletedPaths()).not.toContain(PMTILES_PATH);
     expect(mockMoveAsync).not.toHaveBeenCalled();
+  });
+
+  describe("packaged fuel stations (#200)", () => {
+    /** The pipeline's real output, as the tile server would serve it. */
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- this test's own fixture, at a path built from __dirname
+    const FUEL = readFileSync(
+      join(__dirname, "../fixtures/fuel-package.json"),
+      "utf8",
+    );
+    const WITH_FUEL: Region = {
+      ...MARYLAND,
+      updatedAt: 1_790_731_024_103,
+      fuelSize: Buffer.byteLength(FUEL),
+      fuelSha256: createHash("sha256").update(FUEL).digest("hex"),
+    };
+    const FUEL_PATH = "file:///docs/tiles/md/md.fuel.json";
+
+    /** Every URL the download requested. */
+    const requestedUrls = (): string[] =>
+      mockCreateDownloadResumable.mock.calls.map(([url]) => url as string);
+
+    beforeEach(() => {
+      mockReadAsStringAsync.mockResolvedValue(FUEL);
+    });
+
+    it("downloads, verifies and loads them with the map", async () => {
+      respondWith(200);
+
+      await downloadRegion(WITH_FUEL);
+
+      expect(requestedUrls().at(-1)).toMatch(/\/v1\/tiles\/md\/fuel$/);
+      expect(mockReadAsStringAsync).toHaveBeenCalledWith(FUEL_PATH);
+      expect(mockLoadPackagedFuelStations).toHaveBeenCalledWith(
+        FUEL,
+        "md",
+        WITH_FUEL.updatedAt,
+      );
+      expect(mockCaptureError).not.toHaveBeenCalled();
+      expect(insertDownloadedRegion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sizeBytes: MARYLAND.pmtilesSize + Buffer.byteLength(FUEL),
+        }),
+      );
+    });
+
+    it("discards a file that doesn't match the manifest, keeping the map", async () => {
+      respondWith(200);
+      mockReadAsStringAsync.mockResolvedValue(FUEL.replace("Shell", "Shelk"));
+
+      await downloadRegion(WITH_FUEL);
+
+      expect(mockLoadPackagedFuelStations).not.toHaveBeenCalled();
+      expect(deletedPaths()).toContain(FUEL_PATH);
+      expect(insertDownloadedRegion).toHaveBeenCalled();
+      // A bad package must be seen, not just survived.
+      expect(mockCaptureError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining("verification") as unknown,
+        }),
+        { regionId: "md", stage: "packaged-fuel" },
+      );
+    });
+
+    it("keeps the map when the fuel download fails", async () => {
+      mockCreateDownloadResumable.mockImplementation((url: string) => ({
+        downloadAsync: () =>
+          Promise.resolve({
+            uri: "",
+            status: url.endsWith("/fuel") ? 404 : 200,
+          }),
+      }));
+
+      await downloadRegion(WITH_FUEL);
+
+      expect(mockLoadPackagedFuelStations).not.toHaveBeenCalled();
+      expect(insertDownloadedRegion).toHaveBeenCalled();
+    });
+
+    it("asks for none from a package built before fuel was packaged", async () => {
+      respondWith(200);
+
+      await downloadRegion(MARYLAND);
+
+      expect(requestedUrls().some((u) => u.endsWith("/fuel"))).toBe(false);
+      expect(mockLoadPackagedFuelStations).not.toHaveBeenCalled();
+    });
   });
 });

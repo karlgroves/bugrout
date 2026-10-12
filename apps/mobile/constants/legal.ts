@@ -37,9 +37,9 @@ Some features work by asking someone else's server a question. When they do, tha
 
 - Destination search. When you type in the destination search box, what you typed is sent to Nominatim, the OpenStreetMap Foundation's geocoding service, to be turned into coordinates. Nominatim receives your search text and your IP address. Searches are sent only after you have accepted the disclaimer on first launch, only while you are online, and only after you pause typing. Saved scenarios and recent destinations do not trigger a search — they are already on your device. If you would rather not use this, you can reach any destination by saving a scenario or picking a point on the map.
 - Weather alerts. To find which state you are in, BugRout sends the centre point of your downloaded map region to the National Weather Service. This is the centre of a region you chose to download, not your live GPS position, but it is still an approximate indication of where you are.
-- Water sources. BugRout sends the bounding box of your downloaded map region to the OpenStreetMap Overpass API.
+- Water sources and fuel stations. BugRout sends the bounding box of your downloaded map region to the OpenStreetMap Overpass API.
 - Shelters. BugRout sends the bounding box of your downloaded map region to FEMA's open-shelters service.
-- Fire perimeters, fuel stations and water gauges. BugRout asks the services in section 4 for data covering your downloaded region — by state or nationwide — and filters it on your device.
+- Fire perimeters, water gauges and alternative-fuel stations. BugRout asks the services in section 4 for data covering your downloaded region — by state or nationwide — and filters it on your device.
 
 In every case above, what is transmitted describes an area you chose to download, not your live position, and none of it is sent to BugRout's own servers.
 
@@ -71,11 +71,11 @@ BugRout contacts the following external services. Each one sees your IP address 
 
 - OpenStreetMap (map data, open source) — map tiles are downloaded ahead of time, in whole regions you choose
 - Nominatim, operated by the OpenStreetMap Foundation (address search) — receives the text you type into the destination search box
-- OpenStreetMap Overpass API (drinking water locations) — receives the bounding box of your downloaded region
+- OpenStreetMap Overpass API (drinking water locations, fuel stations) — receives the bounding box of your downloaded region
 - National Weather Service, US government (weather alerts) — receives the centre point of your downloaded region
 - FEMA and USFS, US government (flood zones, fire perimeters) — receive no location from you; data is filtered on your device
 - NIFC fire perimeters, served via Esri ArcGIS Online (a commercial hosting provider) — receives no location from you
-- NREL, US government (fuel station data) — receives a US state code
+- NREL, US government (electric and alternative-fuel station data, in builds that enable it) — receives a US state code
 - USGS, US government (water gauge data) — receives a US state code
 - FEMA ESF6-SS, US government (open shelters, which include American Red Cross shelters) — receives the bounding box of your downloaded region
 - Sentry (crash reporting) — contacted only if you enable Crash Reports in Settings

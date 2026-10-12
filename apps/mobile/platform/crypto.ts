@@ -10,6 +10,8 @@
  * - `unsafeRandomId()` — `Math.random()`. For React keys, local row ids, and
  *   other values where a collision is a cosmetic bug. Never for a token.
  *
+ * Plus `sha256Hex()`, for checking a downloaded file against its manifest.
+ *
  * This split exists because the previous single `randomUUID()` fell back to
  * `Math.random()` on web and on any `expo-crypto` require failure, silently.
  * The Crowd Signal device token is minted here, and its whole purpose is that a
@@ -74,7 +76,12 @@ function uuidV4FromBytes(bytes: Uint8Array): string {
 
 /** expo-crypto, or undefined when it is not installed / not linked. */
 function expoCrypto():
-  | { randomUUID?: () => string; getRandomBytes?: (n: number) => Uint8Array }
+  | {
+      randomUUID?: () => string;
+      getRandomBytes?: (n: number) => Uint8Array;
+      digestStringAsync?: (algorithm: string, data: string) => Promise<string>;
+      CryptoDigestAlgorithm?: { SHA256: string };
+    }
   | undefined {
   try {
     // Indirect specifier: keeps the web bundle from statically pulling in the
@@ -138,4 +145,50 @@ export function unsafeRandomId(): string {
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+/** The SHA-256 digest of `text` as UTF-8 in lowercase hex, via Web Crypto. */
+async function webSha256Hex(text: string): Promise<string | undefined> {
+  const subtle = (
+    globalThis as {
+      crypto?: {
+        subtle?: {
+          digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer>;
+        };
+      };
+    }
+  ).crypto?.subtle;
+  if (!subtle) return undefined;
+  const digest = await subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+/**
+ * The SHA-256 digest of `text` (as UTF-8), in lowercase hex — the form
+ * `sha256sum` and the data pipeline's manifest use.
+ *
+ * Order: `expo-crypto` on native, then the Web Crypto API.
+ *
+ * @throws When neither is available: a file that can't be checked must not be
+ *   treated as one that passed.
+ */
+export async function sha256Hex(text: string): Promise<string> {
+  if (Platform.OS !== "web") {
+    const native = expoCrypto();
+    if (
+      typeof native?.digestStringAsync === "function" &&
+      native.CryptoDigestAlgorithm
+    ) {
+      const hex = await native.digestStringAsync(
+        native.CryptoDigestAlgorithm.SHA256,
+        text,
+      );
+      return hex.toLowerCase();
+    }
+  }
+  const hex = await webSha256Hex(text);
+  if (hex === undefined) throw new Error("No SHA-256 implementation available");
+  return hex;
 }

@@ -11,6 +11,13 @@ export interface Region {
   pmtilesSize: number;
   /** Valhalla tiles archive size in bytes */
   valhallaSize: number;
+  /**
+   * The packaged fuel stations' size in bytes and SHA-256 (#200). Absent for
+   * a package built before fuel was packaged; the app then fetches fuel
+   * online instead.
+   */
+  fuelSize?: number;
+  fuelSha256?: string;
   version: string;
   updatedAt: number;
 }

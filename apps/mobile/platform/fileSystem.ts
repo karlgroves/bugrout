@@ -27,6 +27,7 @@ interface ExpoFileSystem {
   ): Promise<void>;
   deleteAsync(path: string, options?: { idempotent?: boolean }): Promise<void>;
   moveAsync(options: { from: string; to: string }): Promise<void>;
+  readAsStringAsync(path: string): Promise<string>;
   getFreeDiskStorageAsync(): Promise<number>;
   createDownloadResumable(
     url: string,
@@ -121,6 +122,17 @@ export async function moveAsync(options: {
 }): Promise<void> {
   if (!nativeFileSystem) return;
   await nativeFileSystem.moveAsync(options);
+}
+
+/**
+ * Reads a file as UTF-8 text.
+ *
+ * @throws Where there is no file system: nothing was downloaded there, so
+ *   there is nothing to read, and an empty string would pass for a file.
+ */
+export async function readAsStringAsync(path: string): Promise<string> {
+  if (!nativeFileSystem) throw new Error("No file system to read from");
+  return nativeFileSystem.readAsStringAsync(path);
 }
 
 /**

@@ -8,7 +8,7 @@ set -euo pipefail
 # 2. Build Valhalla routing tiles
 # 3. Bake ELF weights into tiles
 # 4. Build PMTiles for map rendering
-# 5. Pre-fetch resource data (fuel, water, shelters)
+# 5. Extract fuel stations from OSM; pre-fetch water sources
 # 6. Extract FEMA flood zone data
 # 7. Assemble regional package
 # 8. Upload to Cloudflare R2
@@ -62,6 +62,13 @@ echo ""
 
 # --- Step 5: Pre-fetch resource data ---
 echo "=== Step 5/7: Pre-fetch resource data ==="
+# Gasoline and diesel stations from the extract itself (#200): no network and
+# no API key, so the fuel layer works offline from the moment a region is
+# downloaded. NREL's Alternative Fuel Stations API used to be fetched here; it
+# has no gasoline or diesel stations, and the app adds its EV and alternative
+# fuels at runtime when a key is configured.
+FUEL_FILE="$PACKAGE_DIR/${STATE}.fuel.json"
+"$SCRIPT_DIR/osm/extract-fuel.sh" "$STATE" "$FUEL_FILE"
 # Get state code from region definitions
 STATE_CODE=$(python3 -c "
 import json
@@ -76,12 +83,6 @@ for r in data['regions']:
 
 if [[ -n "$STATE_CODE" ]]; then
   echo "  State code: $STATE_CODE"
-
-  # Fetch NREL fuel stations
-  NREL_KEY="${NREL_API_KEY:?Error: NREL_API_KEY environment variable is required. Get one at https://developer.nrel.gov/signup/}"
-  echo "  Fetching fuel stations from NREL..."
-  curl -s "https://developer.nrel.gov/api/alt-fuel-stations/v1.json?api_key=${NREL_KEY}&state=$STATE_CODE&fuel_type=ELEC,E85,LPG,BD,CNG&status=E&access=public&limit=10000&format=json" \
-    -o "$PACKAGE_DIR/${STATE}.fuel.json" 2>/dev/null || echo "  (NREL fetch failed — will use empty)"
 
   # Fetch USGS water sources
   echo "  Fetching water sources from USGS..."
@@ -155,6 +156,9 @@ for r in data['regions']:
 
 PMTILES_SIZE=$(stat -f%z "$PACKAGE_DIR/${STATE}.pmtiles" 2>/dev/null || stat --format=%s "$PACKAGE_DIR/${STATE}.pmtiles" 2>/dev/null || echo "0")
 VALHALLA_SIZE=$(stat -f%z "$PACKAGE_DIR/${STATE}.valhalla.tar.gz" 2>/dev/null || stat --format=%s "$PACKAGE_DIR/${STATE}.valhalla.tar.gz" 2>/dev/null || echo "0")
+FUEL_SIZE=$(stat -f%z "$FUEL_FILE" 2>/dev/null || stat --format=%s "$FUEL_FILE" 2>/dev/null || echo "0")
+# The app checks the fuel file against this before loading it.
+FUEL_SHA256=$(python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$FUEL_FILE")
 
 cat > "$PACKAGE_DIR/manifest.json" << EOF
 {
@@ -172,7 +176,11 @@ cat > "$PACKAGE_DIR/manifest.json" << EOF
   },
   "sizes": {
     "pmtiles": $PMTILES_SIZE,
-    "valhalla": $VALHALLA_SIZE
+    "valhalla": $VALHALLA_SIZE,
+    "fuel": $FUEL_SIZE
+  },
+  "sha256": {
+    "fuel": "$FUEL_SHA256"
   }
 }
 EOF

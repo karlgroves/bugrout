@@ -10,12 +10,12 @@
 /* eslint-disable complexity, sonarjs/cognitive-complexity -- pre-existing; tracked in docs/tech-debt.md (parseUSGSRdb: tab-delimited RDB parser with header/column detection) */
 
 import { upsertResourcePoints } from "@/db/queries/resources";
+import { overpassQuery } from "@/services/osm/overpass";
 import { timeoutSignal } from "@/utils/abort";
 
 import type { ResourcePoint, BBox } from "@bugrout/shared";
 
 const USGS_BASE = "https://waterservices.usgs.gov/nwis/site/";
-const OVERPASS_BASE = "https://overpass-api.de/api/interpreter";
 const CACHE_TTL_MS = 86400000; // 24 hours
 
 /**
@@ -168,25 +168,10 @@ async function fetchOSMWaterSources(
     out body;
   `;
 
-  const resp = await fetch(OVERPASS_BASE, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(query)}`,
-    signal: timeoutSignal(30000),
-  });
+  // Throws when Overpass can't answer; fetchWaterSources keeps USGS's sites.
+  const elements = await overpassQuery(query, 30_000);
 
-  if (!resp.ok) return [];
-
-  const data = (await resp.json()) as {
-    elements: {
-      id: number;
-      lat: number;
-      lon: number;
-      tags?: Record<string, string>;
-    }[];
-  };
-
-  return data.elements
+  return elements
     .filter((el) => el.lat && el.lon)
     .map((el) => {
       const tags = el.tags ?? {};
@@ -203,8 +188,8 @@ async function fetchOSMWaterSources(
         id: `osm-${el.id}`,
         type: "water" as const,
         name,
-        lat: el.lat,
-        lng: el.lon,
+        lat: el.lat ?? 0,
+        lng: el.lon ?? 0,
         address: tags["addr:street"]
           ? `${tags["addr:street"]}, ${tags["addr:city"] ?? ""}`
           : null,

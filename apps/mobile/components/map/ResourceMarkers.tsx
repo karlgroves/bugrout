@@ -11,8 +11,8 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useCallback, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
+import { resourceDetail } from "@/components/map/LayerStatusNotice";
 import { MapDetailSheet } from "@/components/map/MapDetailSheet";
-import { shelterDetail } from "@/components/map/ShelterStatusNotice";
 import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useResourceStore } from "@/stores/useResourceStore";
@@ -77,6 +77,7 @@ export function ResourceMarkers({
       },
     })),
   };
+  const selectedDetail = resourceDetail(selectedResource, Date.now());
 
   return (
     <>
@@ -172,10 +173,8 @@ export function ResourceMarkers({
               </Text>
             ) : null}
 
-            {selectedResource.type === "shelter" ? (
-              <Text style={detailStyles.address}>
-                {shelterDetail(selectedResource, Date.now())}
-              </Text>
+            {selectedDetail !== null ? (
+              <Text style={detailStyles.address}>{selectedDetail}</Text>
             ) : null}
 
             {userLocation ? (

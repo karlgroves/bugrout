@@ -1,0 +1,41 @@
+name: Data Pipeline Tests
+
+# The pipeline's own build (data-pipeline.yml) is manual and takes hours, so
+# nothing used to check a pipeline change before it merged. These are the fast
+# checks that can: each runs a pipeline script against a small fixture.
+# Path-filtered, so only a change that can break them runs them.
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "data-pipeline/**"
+      - .github/workflows/data-pipeline-test.yml
+  push:
+    branches: [main, develop]
+    paths:
+      - "data-pipeline/**"
+      - .github/workflows/data-pipeline-test.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  extract-fuel:
+    name: Fuel extraction (osmium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install osmium-tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osmium-tool
+
+      - name: Test extract-fuel.sh
+        run: bash data-pipeline/osm/test-extract-fuel.sh
