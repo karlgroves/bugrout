@@ -20,7 +20,7 @@ for manifest in "$OUTPUT_DIR"/*/package/manifest.json; do
 import json
 with open('$manifest') as f:
     m = json.load(f)
-print(json.dumps({
+region = {
     'id': m['regionId'],
     'name': m.get('region', {}).get('name', m['regionId']),
     'bbox': m.get('region', {}).get('bbox', {}),
@@ -28,7 +28,13 @@ print(json.dumps({
     'valhallaSize': m.get('sizes', {}).get('valhalla', 0),
     'version': m['version'],
     'updatedAt': m['generatedAt']
-}))
+}
+# Only a package built with fuel (#200) lists it; for one built before, the
+# app fetches fuel online instead.
+if m.get('sha256', {}).get('fuel'):
+    region['fuelSize'] = m['sizes']['fuel']
+    region['fuelSha256'] = m['sha256']['fuel']
+print(json.dumps(region))
 ")
     REGIONS=$(echo "$REGIONS" | python3 -c "
 import json, sys

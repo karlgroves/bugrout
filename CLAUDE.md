@@ -45,6 +45,10 @@ pnpm run knip
 # Lint the GitHub Actions workflows (actionlint + shellcheck on `run:` blocks)
 pnpm run lint:actions
 
+# Test the data pipeline's scripts against small fixtures (needs osmium-tool:
+# brew install osmium-tool). CI runs it on PRs touching data-pipeline/
+pnpm run test:pipeline
+
 # Lint all workspaces / autofix
 pnpm run lint
 pnpm run lint:fix
@@ -269,8 +273,10 @@ breaks a listed feature, and re-check it before every submission.
 ## Data Sources (all free/open for MVP)
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
-(flood zones), USFS/NIFC (fire perimeters), NREL (fuel stations), USGS NWIS
-(water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
+(flood zones), USFS/NIFC (fire perimeters), OSM `amenity=fuel` (fuel stations:
+packaged with each region by `data-pipeline/osm/extract-fuel.sh`, refreshed
+online through Overpass; NREL adds EV/alternative fuels only when a key is set),
+USGS NWIS (water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
 (shelters; source and terms in `services/resources/ShelterService.ts`).
 
 ## Reviewing PRs
