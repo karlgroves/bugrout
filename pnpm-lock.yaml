@@ -202,7 +202,7 @@ importers:
         version: 0.32.17(expo@54.0.37)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       expo-router:
         specifier: ~6.0.23
-        version: 6.0.24(497816e1a7c5816ecdd4b250928fdff6)
+        version: 6.0.24(e927a27457372d747177d019f4ebf877)
       expo-sms:
         specifier: ~14.0.8
         version: 14.0.8(expo@54.0.37)
@@ -254,7 +254,7 @@ importers:
         version: 11.0.0(expo@54.0.37)
       '@testing-library/react-native':
         specifier: 14.0.1
-        version: 14.0.1(jest@29.7.0(@types/node@22.20.1))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(test-renderer@1.3.0(@types/react@19.1.17)(react@19.1.0))
+        version: 14.0.1(jest@29.7.0(@types/node@22.20.1))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(test-renderer@1.2.0(@types/react@19.1.17)(react@19.1.0))
       '@total-typescript/ts-reset':
         specifier: ^0.6.1
         version: 0.6.1
@@ -283,8 +283,8 @@ importers:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
       test-renderer:
-        specifier: 1.3.0
-        version: 1.3.0(@types/react@19.1.17)(react@19.1.0)
+        specifier: 1.2.0
+        version: 1.2.0(@types/react@19.1.17)(react@19.1.0)
       ts-jest:
         specifier: 29.4.14
         version: 29.4.14(@babel/core@7.29.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@22.20.1))(typescript@5.9.3)
@@ -6607,11 +6607,11 @@ packages:
       '@types/react':
         optional: true
 
-  react-reconciler@0.34.0:
-    resolution: {integrity: sha512-eVibvB1fc9j5Qf1KRkiM3GzRPBdjg2P6G6QV2f3P6Eb3OGMxRBhdg2rrUwjbV5JrQaJj8nOa8uajmmJA5tJWjQ==}
+  react-reconciler@0.33.0:
+    resolution: {integrity: sha512-KetWRytFv1epdpJc3J4G75I4WrplZE5jOL7Yq0p34+OVOKF4Se7WrdIdVC45XsSSmUTlht2FM/fM1FZb1mfQeA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: ^19.3.0
+      react: ^19.2.0
 
   react-refresh@0.14.2:
     resolution: {integrity: sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==}
@@ -6845,8 +6845,8 @@ packages:
   scheduler@0.26.0:
     resolution: {integrity: sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==}
 
-  scheduler@0.28.0:
-    resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
+  scheduler@0.27.0:
+    resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
 
   scslre@0.3.0:
     resolution: {integrity: sha512-3A6sD0WYP7+QrjbfNA2FN3FsOaGGFoekCVgTyypy53gPxhbkCIjtO6YWgdrfM+n/8sI8JeXZOIxsHjMTNxQ4nQ==}
@@ -7247,8 +7247,8 @@ packages:
     resolution: {integrity: sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w==}
     engines: {node: '>=8'}
 
-  test-renderer@1.3.0:
-    resolution: {integrity: sha512-DXyHv7JrVmDc5dKpfVHFhJ0Evo/EFY3TqlNt8CR65ua3SCsI09K/mQDJmYUOnZz36GANYqjp0ApeRER/mOxktQ==}
+  test-renderer@1.2.0:
+    resolution: {integrity: sha512-JYiEGbgBGtmHAWX8Kf99gGRL1HtjcRVHLrmJNTZL4vFs9XrnWcuL45Iszw/pO4094+JR7havSrN+ds6YTOpSQA==}
     peerDependencies:
       react: ^19.0.0
 
@@ -9209,7 +9209,7 @@ snapshots:
       wrap-ansi: 7.0.0
       ws: 8.21.1
     optionalDependencies:
-      expo-router: 6.0.24(497816e1a7c5816ecdd4b250928fdff6)
+      expo-router: 6.0.24(e927a27457372d747177d019f4ebf877)
       react-native: 0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0)
     transitivePeerDependencies:
       - bufferutil
@@ -10472,7 +10472,7 @@ snapshots:
 
   '@speed-highlight/core@1.2.24': {}
 
-  '@testing-library/react-native@14.0.1(jest@29.7.0(@types/node@22.20.1))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(test-renderer@1.3.0(@types/react@19.1.17)(react@19.1.0))':
+  '@testing-library/react-native@14.0.1(jest@29.7.0(@types/node@22.20.1))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(test-renderer@1.2.0(@types/react@19.1.17)(react@19.1.0))':
     dependencies:
       jest-matcher-utils: 30.4.1
       picocolors: 1.1.1
@@ -10480,7 +10480,7 @@ snapshots:
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0)
       redent: 3.0.0
-      test-renderer: 1.3.0(@types/react@19.1.17)(react@19.1.0)
+      test-renderer: 1.2.0(@types/react@19.1.17)(react@19.1.0)
     optionalDependencies:
       jest: 29.7.0(@types/node@22.20.1)
 
@@ -12540,7 +12540,7 @@ snapshots:
       - supports-color
       - typescript
 
-  expo-router@6.0.24(497816e1a7c5816ecdd4b250928fdff6):
+  expo-router@6.0.24(e927a27457372d747177d019f4ebf877):
     dependencies:
       '@expo/metro-runtime': 6.1.2(expo@54.0.37)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@expo/schema-utils': 0.1.8
@@ -12573,7 +12573,7 @@ snapshots:
       use-latest-callback: 0.2.6(react@19.1.0)
       vaul: 1.1.2(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     optionalDependencies:
-      '@testing-library/react-native': 14.0.1(jest@29.7.0(@types/node@22.20.1))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(test-renderer@1.3.0(@types/react@19.1.17)(react@19.1.0))
+      '@testing-library/react-native': 14.0.1(jest@29.7.0(@types/node@22.20.1))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(test-renderer@1.2.0(@types/react@19.1.17)(react@19.1.0))
       react-dom: 19.1.0(react@19.1.0)
       react-native-reanimated: 4.1.7(react-native-worklets@0.5.1(@babel/core@7.29.7)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-web: 0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -15318,10 +15318,10 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  react-reconciler@0.34.0(react@19.1.0):
+  react-reconciler@0.33.0(react@19.1.0):
     dependencies:
       react: 19.1.0
-      scheduler: 0.28.0
+      scheduler: 0.27.0
 
   react-refresh@0.14.2: {}
 
@@ -15564,7 +15564,7 @@ snapshots:
 
   scheduler@0.26.0: {}
 
-  scheduler@0.28.0: {}
+  scheduler@0.27.0: {}
 
   scslre@0.3.0:
     dependencies:
@@ -16017,11 +16017,11 @@ snapshots:
       glob: 7.2.3
       minimatch: 3.1.5
 
-  test-renderer@1.3.0(@types/react@19.1.17)(react@19.1.0):
+  test-renderer@1.2.0(@types/react@19.1.17)(react@19.1.0):
     dependencies:
       '@types/react-reconciler': 0.33.1(@types/react@19.1.17)
       react: 19.1.0
-      react-reconciler: 0.34.0(react@19.1.0)
+      react-reconciler: 0.33.0(react@19.1.0)
     transitivePeerDependencies:
       - '@types/react'
 
