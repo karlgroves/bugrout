@@ -31,8 +31,14 @@ jest.mock("@/services/resources/ShelterService", () => ({
   fetchShelters: (...args: unknown[]) => mockFetchShelters(...args) as unknown,
 }));
 
-jest.mock("@/services/resources/NRELService", () => ({
+const mockFetchOsmFuel = jest.fn();
+jest.mock("@/services/resources/FuelService", () => ({
   CACHE_TTL_MS: 86_400_000,
+  fetchOsmFuelStations: (...args: unknown[]) =>
+    mockFetchOsmFuel(...args) as unknown,
+}));
+
+jest.mock("@/services/resources/NRELService", () => ({
   fetchFuelStations: jest.fn().mockResolvedValue([]),
 }));
 
@@ -52,7 +58,7 @@ function point(
     lng: -76,
     address: null,
     metadata: {},
-    source: type === "shelter" ? "fema" : "usgs",
+    source: type === "shelter" ? "fema" : type === "fuel" ? "osm" : "usgs",
     fetchedAt,
     regionId: "md",
   };
@@ -63,10 +69,14 @@ describe("refreshResources", () => {
     mockGetResourcesByRegion.mockReset().mockResolvedValue([]);
     mockFetchWaterSources.mockReset().mockResolvedValue([]);
     mockFetchShelters.mockReset().mockResolvedValue([]);
+    mockFetchOsmFuel.mockReset().mockResolvedValue([]);
     useConnectivityStore.setState({ isOnline: true });
     useResourceStore.setState({
       resources: [],
-      shelterStatus: { asOf: null, failed: false },
+      layerStatus: {
+        fuel: { asOf: null, failed: false },
+        shelter: { asOf: null, failed: false },
+      },
     });
   });
 
@@ -92,7 +102,8 @@ describe("refreshResources", () => {
     const before = Date.now();
     await refreshResources("md", BBOX);
 
-    const { resources, shelterStatus } = useResourceStore.getState();
+    const { resources, layerStatus } = useResourceStore.getState();
+    const shelterStatus = layerStatus.shelter;
     expect(resources.map((r) => r.id).sort()).toEqual(["fema-1", "well"]);
     expect(shelterStatus.failed).toBe(false);
     expect(shelterStatus.asOf).toBeGreaterThanOrEqual(before);
@@ -105,7 +116,8 @@ describe("refreshResources", () => {
 
     await refreshResources("md", BBOX);
 
-    const { resources, shelterStatus } = useResourceStore.getState();
+    const { resources, layerStatus } = useResourceStore.getState();
+    const shelterStatus = layerStatus.shelter;
     expect(resources.map((r) => r.id)).toEqual(["old-shelter"]);
     expect(shelterStatus).toEqual({ asOf: 1_000, failed: true });
   });
@@ -120,7 +132,7 @@ describe("refreshResources", () => {
     await refreshResources("md", BBOX);
 
     expect(mockFetchShelters).not.toHaveBeenCalled();
-    expect(useResourceStore.getState().shelterStatus).toEqual({
+    expect(useResourceStore.getState().layerStatus.shelter).toEqual({
       asOf: 2_000,
       failed: false,
     });
@@ -129,7 +141,47 @@ describe("refreshResources", () => {
   it("offline with no shelters cached, says they couldn't be loaded", async () => {
     useConnectivityStore.setState({ isOnline: false });
     await refreshResources("md", BBOX);
-    expect(useResourceStore.getState().shelterStatus).toEqual({
+    expect(useResourceStore.getState().layerStatus.shelter).toEqual({
+      asOf: null,
+      failed: true,
+    });
+  });
+
+  it("loads gas and diesel from OpenStreetMap with no API key (#200)", async () => {
+    const station = point("osm-fuel-node-1", "fuel", Date.now());
+    mockFetchOsmFuel.mockResolvedValue([station]);
+    await refreshResources("md", BBOX);
+    expect(mockFetchOsmFuel).toHaveBeenCalledWith(BBOX, "md");
+    const { resources, layerStatus } = useResourceStore.getState();
+    expect(resources.map((r) => r.id)).toContain("osm-fuel-node-1");
+    expect(layerStatus.fuel.failed).toBe(false);
+  });
+
+  it("replaces OSM stations without dropping other sources' fuel", async () => {
+    const nrel = {
+      ...point("nrel-9", "fuel", Date.now()),
+      source: "nrel" as const,
+    };
+    const oldOsm = point("osm-fuel-node-old", "fuel", 1);
+    mockGetResourcesByRegion.mockResolvedValue([nrel, oldOsm]);
+    mockFetchOsmFuel.mockResolvedValue([
+      point("osm-fuel-node-new", "fuel", Date.now()),
+    ]);
+    await refreshResources("md", BBOX);
+    expect(
+      useResourceStore
+        .getState()
+        .resources.map((r) => r.id)
+        .sort(),
+    ).toEqual(["nrel-9", "osm-fuel-node-new"]);
+  });
+
+  it("reports a failed fuel fetch instead of an empty layer", async () => {
+    mockFetchOsmFuel.mockRejectedValue(
+      new Error("Overpass: the server is busy"),
+    );
+    await refreshResources("md", BBOX);
+    expect(useResourceStore.getState().layerStatus.fuel).toEqual({
       asOf: null,
       failed: true,
     });

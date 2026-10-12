@@ -13,7 +13,6 @@ import { timeoutSignal } from "@/utils/abort";
 import type { ResourcePoint } from "@bugrout/shared";
 
 const NREL_BASE = "https://developer.nrel.gov/api/alt-fuel-stations/v1.json";
-const CACHE_TTL_MS = 86400000; // 24 hours
 
 /**
  *
@@ -99,5 +98,3 @@ export async function fetchFuelStations(
 
   return resources;
 }
-
-export { CACHE_TTL_MS };

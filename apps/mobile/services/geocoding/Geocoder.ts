@@ -14,6 +14,7 @@
 
 import { getPreference } from "@/db/queries/preferences";
 import { timeoutSignal } from "@/utils/abort";
+import { appUserAgent } from "@/utils/userAgent";
 
 /** Nominatim search endpoint. US results only, capped at 8. */
 const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
@@ -27,37 +28,6 @@ const REQUEST_TIMEOUT_MS = 10_000;
  * picker's 400 ms debounce alone doesn't hold a steady typist to that.
  */
 const MIN_REQUEST_INTERVAL_MS = 1_000;
-
-/** Where the operator can reach us, as the usage policy requires. */
-const CONTACT_URL = "https://bugrout.app/support";
-
-/** Subset of the expo-constants module shape read for the app version. */
-interface ExpoConstantsModule {
-  expoConfig?: { version?: string } | null;
-  default?: { expoConfig?: { version?: string } | null };
-}
-
-/**
- * The User-Agent sent to Nominatim: the app and its version, plus a contact
- * URL. The usage policy requires a UA that identifies the application; a
- * generic one gets an app blocked, and it can be blocked without notice.
- *
- * @returns e.g. `"BugRout/1.0.0 (+https://bugrout.app/support)"`.
- */
-export function nominatimUserAgent(): string {
-  let version = "unknown";
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- native module loaded lazily; mocked on web
-    const Constants = require("expo-constants") as ExpoConstantsModule;
-    version =
-      Constants.default?.expoConfig?.version ??
-      Constants.expoConfig?.version ??
-      version;
-  } catch {
-    // Keep "unknown": the contact URL still identifies the app.
-  }
-  return `BugRout/${version} (+${CONTACT_URL})`;
-}
 
 /**
  * Thrown when a search is overtaken by a newer one while waiting for its turn
@@ -217,7 +187,8 @@ export async function searchDestinations(
   await takeRequestSlot();
 
   const resp = await fetch(`${NOMINATIM_SEARCH}?${params.toString()}`, {
-    headers: { "User-Agent": nominatimUserAgent() },
+    // Nominatim's usage policy requires a UA that identifies the app (#208).
+    headers: { "User-Agent": appUserAgent() },
     signal: timeoutSignal(REQUEST_TIMEOUT_MS),
   });
   if (!resp.ok) return [];
