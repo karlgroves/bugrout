@@ -6,6 +6,7 @@
 
 import { by, element, expect, waitFor } from "detox";
 
+import { acceptCoverageWarning } from "./support/coverage";
 import { fillField } from "./support/input";
 import { launchToMapScreen } from "./support/launch";
 
@@ -36,6 +37,11 @@ describe("Scenario Management", () => {
     await fillField(by.label("Destination latitude"), "34.0522");
     await fillField(by.label("Destination longitude"), "-118.2437");
     await element(by.text("Save Scenario")).tap();
+
+    // Los Angeles is outside Maryland, so this save raises the coverage
+    // warning on a developer's device as well as on CI, where no region is
+    // downloaded at all (#243). See support/coverage.ts.
+    await acceptCoverageWarning();
 
     // Assert on the card's accessible name, not on the bare scenario name.
     // `by.text("Wildfire East")` also matches the editor's own name field, so

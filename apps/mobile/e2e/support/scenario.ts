@@ -15,6 +15,7 @@
  */
 import { by, element, waitFor } from "detox";
 
+import { acceptCoverageWarning } from "./coverage";
 import { fillField } from "./input";
 
 /**
@@ -41,6 +42,11 @@ export async function createScenario(
   await fillField(by.label("Destination latitude"), String(lat));
   await fillField(by.label("Destination longitude"), String(lng));
   await element(by.text("Save Scenario")).tap();
+
+  // The save blocks on the coverage warning when the destination is outside
+  // every downloaded region — which on CI is every destination, there being no
+  // regions at all (#243). See support/coverage.ts.
+  await acceptCoverageWarning();
 
   // Assert on the card's accessible name, not the bare scenario name: the
   // latter also matches the editor's own name field, so it passes while the
