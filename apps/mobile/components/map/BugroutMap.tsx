@@ -12,6 +12,7 @@ import { StyleSheet, View } from "react-native";
 
 import { useDemoLocationView } from "@/components/map/DemoLocationLayer";
 import { MapZoomControls } from "@/components/map/MapZoomControls";
+import { useFitRoute } from "@/components/map/useFitRoute";
 import { colors } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import * as MapLibreGL from "@/platform/maplibre";
@@ -107,6 +108,18 @@ export function BugroutMap({
   const nativeFollow = demo.nativeFollow;
   const reducedMotion = useReducedMotion();
 
+  // Frame a newly drawn route, so it is visible rather than a line somewhere
+  // inside a view of the whole region (#190).
+  // `followUser`, not `nativeFollow`: with the demo location on (#205) the
+  // demo hook follows the position itself and `nativeFollow` is false, and a
+  // fit would fight it for the camera.
+  const { fitJustSettled } = useFitRoute(
+    cameraRef,
+    routeCoordinates,
+    followUser,
+    reducedMotion,
+  );
+
   // Only the user's own gestures move the base a button steps from. Camera
   // moves the app makes (a zoom animation, follow mode) also report here, and
   // taking those would let an animation still in flight overwrite the step a
@@ -116,11 +129,17 @@ export function BugroutMap({
       properties?: { zoomLevel?: number; isUserInteraction?: boolean };
     }) => {
       const level = feature.properties?.zoomLevel;
-      if (feature.properties?.isUserInteraction && typeof level === "number") {
+      if (typeof level !== "number") return;
+      if (feature.properties?.isUserInteraction) {
         setZoom(level);
+        return;
       }
+      // One exception to "only the user's gestures move the base": the fit
+      // onto a route (#190) picks its own zoom, and without adopting it the
+      // buttons would step from the level the map opened at and jump.
+      if (fitJustSettled()) setZoom(level);
     },
-    [],
+    [fitJustSettled],
   );
 
   const zoomBy = useCallback(
