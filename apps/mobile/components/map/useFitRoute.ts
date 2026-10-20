@@ -86,12 +86,18 @@ export function useFitRoute(
     const bounds = routeBounds(routeCoordinates);
     if (!bounds) return;
 
+    // Record the route as framed only once there is a camera to frame it
+    // with. Recording it first would mark an unframed route done and leave it
+    // sitting in the region-wide view this exists to fix.
+    const camera = cameraRef.current;
+    if (!camera) return;
+
     fittedKey.current = key;
     pendingFit.current = true;
     const duration = reducedMotion ? 0 : FIT_DURATION;
 
     if (isDegenerate(bounds)) {
-      cameraRef.current?.setCamera({
+      camera.setCamera({
         centerCoordinate: bounds.ne,
         zoomLevel: LOCATED_ZOOM,
         animationDuration: duration,
@@ -99,12 +105,7 @@ export function useFitRoute(
       return;
     }
 
-    cameraRef.current?.fitBounds(
-      bounds.ne,
-      bounds.sw,
-      ROUTE_FIT_PADDING,
-      duration,
-    );
+    camera.fitBounds(bounds.ne, bounds.sw, ROUTE_FIT_PADDING, duration);
     // `routeCoordinates` is covered by `key`, which is derived from it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraRef, key, followUser, reducedMotion]);

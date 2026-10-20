@@ -149,6 +149,24 @@ describe("useFitRoute", () => {
     );
   });
 
+  it("still frames the route when the camera arrives after the first render", async () => {
+    const camera = fakeCamera();
+    // The map's camera handle is not attached yet on the first run.
+    const ref = { current: null } as { current: CameraRef | null };
+
+    const { rerender } = await renderHook(
+      ({ reduced }: { reduced: boolean }) =>
+        useFitRoute(ref, ROUTE, false, reduced),
+      { initialProps: { reduced: false } },
+    );
+    expect(camera.fitBounds).not.toHaveBeenCalled();
+
+    ref.current = camera.ref.current;
+    await rerender({ reduced: true });
+
+    expect(camera.fitBounds).toHaveBeenCalledTimes(1);
+  });
+
   it("moves without animating when reduced motion is asked for", async () => {
     const camera = fakeCamera();
 
