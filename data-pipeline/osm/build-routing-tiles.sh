@@ -4,15 +4,16 @@ set -euo pipefail
 # Build Valhalla routing tiles from OSM PBF extracts.
 # Requires: valhalla_build_tiles (from valhalla package)
 # Usage: ./build-routing-tiles.sh [state]
-# Example: ./build-routing-tiles.sh california
+# Example: ./build-routing-tiles.sh md
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INPUT_DIR="${SCRIPT_DIR}/output"
 TILES_DIR="${SCRIPT_DIR}/output/valhalla-tiles"
 CONFIG="${SCRIPT_DIR}/valhalla-config.json"
 
-STATE="${1:-california}"
-PBF="${INPUT_DIR}/${STATE}-latest.osm.pbf"
+# The region id, which is what download-extracts.sh names the PBF (#241).
+REGION_ID="${1:-md}"
+PBF="${INPUT_DIR}/${REGION_ID}-latest.osm.pbf"
 
 if [[ ! -f "$PBF" ]]; then
   echo "Error: PBF not found at ${PBF}. Run download-extracts.sh first."
@@ -26,15 +27,15 @@ if ! command -v valhalla_build_tiles &> /dev/null; then
   exit 1
 fi
 
-STATE_TILE_DIR="${TILES_DIR}/${STATE}"
-RUN_CONFIG="${STATE_TILE_DIR}/valhalla-config.json"
-mkdir -p "$STATE_TILE_DIR"
+REGION_TILE_DIR="${TILES_DIR}/${REGION_ID}"
+RUN_CONFIG="${REGION_TILE_DIR}/valhalla-config.json"
+mkdir -p "$REGION_TILE_DIR"
 
 # valhalla_build_tiles writes the graph into mjolnir.tile_dir (from the config),
 # not to a CLI path — so derive a per-state config that points tile_dir at this
 # state's output dir. (The base config's /tmp path is a placeholder, and
-# bake-elf-weights.sh reads the tiles from STATE_TILE_DIR.)
-python3 - "$CONFIG" "$STATE_TILE_DIR" "$RUN_CONFIG" <<'PY'
+# bake-elf-weights.sh reads the tiles from REGION_TILE_DIR.)
+python3 - "$CONFIG" "$REGION_TILE_DIR" "$RUN_CONFIG" <<'PY'
 import json, sys
 base, tile_dir, out = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(base) as f:
@@ -47,13 +48,13 @@ with open(out, "w") as f:
     json.dump(cfg, f, indent=2)
 PY
 
-echo "Building Valhalla tiles for ${STATE}..."
+echo "Building Valhalla tiles for ${REGION_ID}..."
 echo "  Input:  ${PBF}"
-echo "  Output: ${STATE_TILE_DIR}"
+echo "  Output: ${REGION_TILE_DIR}"
 
 # NOTE: no -e flag. In Valhalla `-e`/`--end-stage` selects a build *stage*, not an
 # output path — the previous `-e …/valhalla_tiles.tar` was silently wrong. The
 # mmap'd tile_extract archive is produced later, in build-region.sh.
 valhalla_build_tiles -c "$RUN_CONFIG" "$PBF"
 
-echo "Valhalla tiles built successfully → ${STATE_TILE_DIR}"
+echo "Valhalla tiles built successfully → ${REGION_TILE_DIR}"

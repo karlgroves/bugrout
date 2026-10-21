@@ -20,21 +20,23 @@ set -euo pipefail
 # - npm packages installed in packages/elf-model/
 #
 # Usage: ./bake-elf-weights.sh [state]
-# Example: ./bake-elf-weights.sh california
+# Example: ./bake-elf-weights.sh md
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_DIR="$(dirname "$SCRIPT_DIR")"
 ROOT_DIR="$(dirname "$PIPELINE_DIR")"
-STATE="${1:-california}"
+# The region id, which is what download-extracts.sh names the PBF, and
+# what the weight table's REGION_ID placeholder is filled with (#241).
+REGION_ID="${1:-md}"
 
 OSM_DIR="${PIPELINE_DIR}/osm/output"
-PBF="${OSM_DIR}/${STATE}-latest.osm.pbf"
-VALHALLA_TILES="${OSM_DIR}/valhalla-tiles/${STATE}"
-ELF_OUTPUT="${SCRIPT_DIR}/output/${STATE}"
+PBF="${OSM_DIR}/${REGION_ID}-latest.osm.pbf"
+VALHALLA_TILES="${OSM_DIR}/valhalla-tiles/${REGION_ID}"
+ELF_OUTPUT="${SCRIPT_DIR}/output/${REGION_ID}"
 WEIGHT_TABLE="${ELF_OUTPUT}/elf-weights.json"
 
 echo "=== BugRout ELF Weight Baking Pipeline ==="
-echo "State: ${STATE}"
+echo "Region: ${REGION_ID}"
 echo "PBF: ${PBF}"
 echo "Valhalla tiles: ${VALHALLA_TILES}"
 echo ""
@@ -100,10 +102,10 @@ JSONEOF
 
 # Replace placeholders
 if [[ "$(uname)" == "Darwin" ]]; then
-  sed -i '' "s/REGION_ID/${STATE}/g" "$WEIGHT_TABLE"
+  sed -i '' "s/REGION_ID/${REGION_ID}/g" "$WEIGHT_TABLE"
   sed -i '' "s/TIMESTAMP/$(date +%s)000/g" "$WEIGHT_TABLE"
 else
-  sed -i "s/REGION_ID/${STATE}/g" "$WEIGHT_TABLE"
+  sed -i "s/REGION_ID/${REGION_ID}/g" "$WEIGHT_TABLE"
   sed -i "s/TIMESTAMP/$(date +%s)000/g" "$WEIGHT_TABLE"
 fi
 
@@ -127,7 +129,7 @@ echo "Step 3: Packaging for distribution..."
 # Create the regional package manifest
 cat > "${ELF_OUTPUT}/manifest.json" << MANIFESTEOF
 {
-  "regionId": "${STATE}",
+  "regionId": "${REGION_ID}",
   "version": "$(date +%Y.%m.%d)",
   "generatedAt": $(date +%s)000,
   "contents": {
@@ -160,10 +162,10 @@ if [[ "$TILE_COUNT" -eq 0 ]]; then
 fi
 
 echo ""
-echo "=== ELF baking complete for ${STATE} ==="
+echo "=== ELF baking complete for ${REGION_ID} ==="
 echo "Output: ${ELF_OUTPUT}"
 echo ""
 echo "To upload to Cloudflare R2:"
-echo "  wrangler r2 object put bugrout-tiles/${STATE}/elf-weights.json --file ${WEIGHT_TABLE}"
-echo "  tar -czf ${STATE}.valhalla.tar.gz -C ${ELF_OUTPUT} valhalla-tiles/"
-echo "  wrangler r2 object put bugrout-tiles/${STATE}/${STATE}.valhalla.tar.gz --file ${STATE}.valhalla.tar.gz"
+echo "  wrangler r2 object put bugrout-tiles/${REGION_ID}/elf-weights.json --file ${WEIGHT_TABLE}"
+echo "  tar -czf ${REGION_ID}.valhalla.tar.gz -C ${ELF_OUTPUT} valhalla-tiles/"
+echo "  wrangler r2 object put bugrout-tiles/${REGION_ID}/${REGION_ID}.valhalla.tar.gz --file ${REGION_ID}.valhalla.tar.gz"

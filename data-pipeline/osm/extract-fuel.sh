@@ -24,14 +24,16 @@ set -euo pipefail
 # Requires osmium-tool (macOS: brew install osmium-tool;
 # Ubuntu: apt-get install osmium-tool) and python3.
 #
-# Usage: ./extract-fuel.sh <state-slug> <output.json> [input.osm.pbf]
-#   The input defaults to output/<state-slug>-latest.osm.pbf, where
-#   download-extracts.sh puts it; test-extract-fuel.sh passes a fixture.
+# Usage: ./extract-fuel.sh <region-id> <output.json> [input.osm.pbf]
+#   The input defaults to output/<region-id>-latest.osm.pbf, where
+#   download-extracts.sh puts it (#241); test-extract-fuel.sh passes a
+#   fixture name and an explicit path instead, so this argument is a file
+#   name here and is deliberately not validated as a region id.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-STATE="${1:?Usage: $0 <state-slug> <output.json> [input.osm.pbf]}"
-OUTPUT="${2:?Usage: $0 <state-slug> <output.json> [input.osm.pbf]}"
-PBF="${3:-${SCRIPT_DIR}/output/${STATE}-latest.osm.pbf}"
+REGION_ID="${1:?Usage: $0 <region-id> <output.json> [input.osm.pbf]}"
+OUTPUT="${2:?Usage: $0 <region-id> <output.json> [input.osm.pbf]}"
+PBF="${3:-${SCRIPT_DIR}/output/${REGION_ID}-latest.osm.pbf}"
 
 if [[ ! -f "$PBF" ]]; then
   echo "Error: PBF not found at ${PBF}. Run download-extracts.sh first."

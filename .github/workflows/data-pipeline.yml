@@ -16,9 +16,9 @@ name: Data Pipeline
 on:
   workflow_dispatch:
     inputs:
-      states:
-        description: "Comma-separated state slugs (e.g., california,texas)"
-        default: "california"
+      regions:
+        description: "Comma-separated region ids (e.g., md,ca) — ids, not Geofabrik slugs (#241)"
+        default: "md"
       upload:
         description: "Upload to R2 after building"
         type: boolean
@@ -33,17 +33,17 @@ permissions:
 
 jobs:
   prepare:
-    name: Resolve State Matrix
+    name: Resolve Region Matrix
     runs-on: ubuntu-latest
     outputs:
-      states: ${{ steps.parse.outputs.states }}
+      regions: ${{ steps.parse.outputs.regions }}
     steps:
-      - name: Parse state list
+      - name: Parse region list
         id: parse
         env:
-          STATES: ${{ github.event.inputs.states || 'california' }}
+          REGIONS: ${{ github.event.inputs.regions || 'md' }}
         run: |
-          echo "states=$(jq -cn --arg s "$STATES" '$s | split(",") | map(gsub("^\\s+|\\s+$"; ""))')" >> "$GITHUB_OUTPUT"
+          echo "regions=$(jq -cn --arg s "$REGIONS" '$s | split(",") | map(gsub("^\\s+|\\s+$"; ""))')" >> "$GITHUB_OUTPUT"
 
   build-regions:
     name: Build Regional Packages
@@ -52,7 +52,7 @@ jobs:
     timeout-minutes: 180
     strategy:
       matrix:
-        state: ${{ fromJson(needs.prepare.outputs.states) }}
+        region: ${{ fromJson(needs.prepare.outputs.regions) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -73,13 +73,13 @@ jobs:
 
       - name: Build regional package
         working-directory: data-pipeline
-        run: ./build-region.sh ${{ matrix.state }}
+        run: ./build-region.sh ${{ matrix.region }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: package-${{ matrix.state }}
-          path: data-pipeline/output/${{ matrix.state }}/package/
+          name: package-${{ matrix.region }}
+          path: data-pipeline/output/${{ matrix.region }}/package/
           retention-days: 7
 
   upload-to-r2:
@@ -115,12 +115,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           for pkg_dir in output/package-*/; do
-            STATE=$(basename "$pkg_dir" | sed 's/package-//')
-            echo "Uploading $STATE..."
+            REGION_ID=$(basename "$pkg_dir" | sed 's/package-//')
+            echo "Uploading $REGION_ID..."
 
             for file in "$pkg_dir"/*; do
               FILENAME=$(basename "$file")
-              wrangler r2 object put "bugrout-tiles/${STATE}/${FILENAME}" \
+              wrangler r2 object put "bugrout-tiles/${REGION_ID}/${FILENAME}" \
                 --file "$file"
             done
           done
@@ -131,8 +131,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           for pkg_dir in output/package-*/; do
-            STATE=$(basename "$pkg_dir" | sed 's/package-//')
-            mkdir -p "output/$STATE/package"
-            cp "$pkg_dir"/* "output/$STATE/package/"
+            REGION_ID=$(basename "$pkg_dir" | sed 's/package-//')
+            mkdir -p "output/$REGION_ID/package"
+            cp "$pkg_dir"/* "output/$REGION_ID/package/"
           done
           ./build-manifest.sh --upload
