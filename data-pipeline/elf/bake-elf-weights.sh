@@ -36,7 +36,7 @@ ELF_OUTPUT="${SCRIPT_DIR}/output/${REGION_ID}"
 WEIGHT_TABLE="${ELF_OUTPUT}/elf-weights.json"
 
 echo "=== BugRout ELF Weight Baking Pipeline ==="
-echo "State: ${REGION_ID}"
+echo "Region: ${REGION_ID}"
 echo "PBF: ${PBF}"
 echo "Valhalla tiles: ${VALHALLA_TILES}"
 echo ""
