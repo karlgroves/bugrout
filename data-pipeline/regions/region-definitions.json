@@ -1,6 +1,17 @@
 {
   "regions": [
     {
+      "id": "md",
+      "name": "Maryland",
+      "bbox": {
+        "west": -79.487651,
+        "south": 37.911717,
+        "east": -75.048939,
+        "north": 39.723043
+      },
+      "geofabrikSlug": "maryland"
+    },
+    {
       "id": "ca",
       "name": "California",
       "bbox": {
