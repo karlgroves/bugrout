@@ -44,8 +44,50 @@ describe("privacy policy — third-party disclosure", () => {
     // collected, which was true of BugRout's servers and false of the device.
     expect(PRIVACY_POLICY).not.toContain("Your route history or destinations");
     expect(PRIVACY_POLICY).toMatch(
-      /destination does leave your device[\s\S]*?Nominatim, not to BugRout/,
+      /destination does leave your device[\s\S]*?routing service[\s\S]*?Nominatim/,
     );
+  });
+
+  it("does not claim the destination goes to Nominatim and not to us (#206)", () => {
+    // It goes to both: Nominatim as search text, and BugRout's own routing
+    // service as a coordinate pair. The old wording named only the first and
+    // explicitly ruled out the second.
+    expect(PRIVACY_POLICY).not.toContain("Nominatim, not to BugRout");
+    expect(PRIVACY_POLICY).not.toContain(
+      "no route you plan is ever sent to us",
+    );
+  });
+
+  it("does not claim route calculation happens on the device (#206)", () => {
+    // Every eas.json profile sets EXPO_PUBLIC_VALHALLA_URL, so routing is a
+    // request to a server. The policy listed it under "Processed On-Device
+    // Only" and promised the GPS position never left except for Crowd Signal.
+    expect(PRIVACY_POLICY).not.toContain(
+      "Route calculations (performed entirely on your device",
+    );
+    expect(PRIVACY_POLICY).not.toContain(
+      "never sent to our servers unless you opt in to Crowd Signal",
+    );
+  });
+
+  it("discloses the route request as data transmitted to us (#206)", () => {
+    expect(PRIVACY_POLICY).toMatch(
+      /Route requests\. Every time you ask for a route, your starting point and your destination are sent to BugRout's routing service/,
+    );
+    // The heading used to promise everything in the section was opt-in.
+    expect(PRIVACY_POLICY).not.toContain(
+      "b) Data Transmitted to Us (Only When Online and Opted In)",
+    );
+  });
+
+  it("no longer lists precise location as never collected (#206)", () => {
+    expect(PRIVACY_POLICY).not.toContain(
+      "Your precise location (only rounded coordinates",
+    );
+  });
+
+  it("names Fly.io as the host of the routing service (#206)", () => {
+    expect(PRIVACY_POLICY).toContain("Fly.io");
   });
 
   it("names every third-party host the app actually contacts", () => {

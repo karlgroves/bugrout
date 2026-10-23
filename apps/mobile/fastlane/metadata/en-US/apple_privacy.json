@@ -1,19 +1,40 @@
 {
-  "comment": "iOS App Privacy nutrition label — declare what data the app collects.",
+  "comment": "iOS App Privacy nutrition label — declare what data the app collects. It has to match what the build actually sends: constants/legal.ts, android_data_safety.json and the hosted policy at bugrout.app/privacy all describe the same list (#206). PostHog is deliberately absent: no eas.json profile sets EXPO_PUBLIC_POSTHOG_KEY, so no shipped build initialises it. Setting that key means adding Usage Data (Product Interaction) and a second Device ID entry here and in the other three.",
   "data_types": [
+    {
+      "data_type": "Precise Location",
+      "purpose": "App Functionality",
+      "linked_to_user": false,
+      "used_for_tracking": false,
+      "collection": "Required for routing — the trip's start point and destination are sent to BugRout's routing service (EXPO_PUBLIC_VALHALLA_URL). Also sent with the optional Crowd Signal opt-in, rounded to 4 decimal places (~11 m), which Apple counts as precise."
+    },
     {
       "data_type": "Coarse Location",
       "purpose": "App Functionality",
       "linked_to_user": false,
       "used_for_tracking": false,
-      "collection": "Optional — only with Crowd Signal opt-in"
+      "collection": "The centre point or bounding box of a map region you chose to download, sent to the National Weather Service, Overpass and FEMA ESF6-SS to fetch threats and resources"
+    },
+    {
+      "data_type": "Search History",
+      "purpose": "App Functionality",
+      "linked_to_user": false,
+      "used_for_tracking": false,
+      "collection": "Destination search text is sent to Nominatim, the OpenStreetMap Foundation's geocoder, to be turned into coordinates (#208)"
+    },
+    {
+      "data_type": "Device ID",
+      "purpose": "App Functionality",
+      "linked_to_user": false,
+      "used_for_tracking": false,
+      "collection": "Optional — the Crowd Signal opt-in sends a random token that rotates every 24 hours, so signals from one device are grouped within that window"
     },
     {
       "data_type": "Crash Data",
       "purpose": "App Functionality",
       "linked_to_user": false,
       "used_for_tracking": false,
-      "collection": "Automatic via Sentry when app crashes"
+      "collection": "Optional — sent via Sentry only after the Crash Reports opt-in in Settings, which is off by default"
     }
   ],
   "data_not_collected": [
@@ -21,11 +42,9 @@
     "Email Address",
     "Phone Number",
     "Physical Address",
-    "Precise Location",
     "Contacts",
     "Browsing History",
-    "Search History",
-    "Identifiers",
+    "User ID",
     "Purchases",
     "Financial Info",
     "Health & Fitness",
