@@ -146,25 +146,37 @@ the entries here crossed an _exact_ pin:
 | `markdownlint-cli2@0.23.2`     | `js-yaml@5.2.2`      | `5.4.2`   |
 | `markdownlint-cli2@0.23.2`     | `markdown-it@14.3.0` | `14.3.2`  |
 
-**Two cross a pin today, and neither is one of the five above.** The 2026-10-11
+**Three cross a pin today, and none is one of the five above.** The 2026-10-11
 tooling update moved both consumers onto the fixed versions themselves
 (`wrangler@4.147.0` brings `miniflare@5.20261001.0-alpha`, which declares
 `sharp@0.35.4` and `undici@7.29.1` exactly; `markdownlint-cli2@0.23.3` declares
-`smol-toml@1.8.0`, `js-yaml@5.4.1` and `markdown-it@15.0.1`), and then two new
-advisories landed above two of those pins on the same day:
+`smol-toml@1.8.0`, `js-yaml@5.4.1` and `markdown-it@15.0.1`), and then new
+advisories landed above three of those pins — two on the same day, and
+`markdown-it`'s in October:
 
-| consumer                       | declares          | forced to | advisory            |
-| ------------------------------ | ----------------- | --------- | ------------------- |
-| `miniflare@5.20261001.0-alpha` | `sharp@0.35.4`    | `0.35.5`  | GHSA-wq5f-xc86-pv6w |
-| `markdownlint-cli2@0.23.3`     | `smol-toml@1.8.0` | `1.9.0`   | GHSA-r4xh-jqrq-34v2 |
+| consumer                       | declares             | forced to | advisory            |
+| ------------------------------ | -------------------- | --------- | ------------------- |
+| `miniflare@5.20261001.0-alpha` | `sharp@0.35.4`       | `0.35.5`  | GHSA-wq5f-xc86-pv6w |
+| `markdownlint-cli2@0.23.3`     | `smol-toml@1.8.0`    | `1.9.0`   | GHSA-r4xh-jqrq-34v2 |
+| `markdownlint-cli2@0.23.3`     | `markdown-it@15.0.1` | `15.0.3`  | GHSA-gfr2-rv44-r23c |
 
-Both were exercised through the live resolution path. `sharp@0.35.5` loads from
-miniflare's own `node_modules` link (libvips 8.18.7) and encodes a PNG, and
+All three were exercised through the live resolution path. `sharp@0.35.5` loads
+from miniflare's own `node_modules` link (libvips 8.18.7) and encodes a PNG, and
 `wrangler dev` serves the tile-server's `/health` with `check-headers.js`
 passing. `smol-toml@1.9.0` parses a document through `markdownlint-cli2`'s link,
-and `pnpm run markdownlint` passes. Re-read these consumers' declared versions
-whenever `wrangler` or `markdownlint-cli2` moves. The rest of this section
-records how the original five were checked while they crossed.
+and `pnpm run markdownlint` passes. `markdown-it@15.0.3` resolves from
+`markdownlint-cli2`'s own link and renders headings, a list and inline code, and
+`pnpm run markdownlint` passes on all 25 files.
+
+`markdown-it` is the one to drop first: **`markdownlint-cli2@0.24.0` declares
+`markdown-it@15.0.3` itself**, so the override becomes redundant the moment that
+release is installable. It was published 2026-10-21 and `minimumReleaseAge` is
+10080 minutes, so it matures on **2026-10-28**; bump the devDependency then and
+delete the `markdown-it@>=15 <15.0.3` entry. The override exists only because
+three advisories (two at 7.5) sat open against 15.0.1 and 15.0.3 had itself only
+just matured. Re-read these consumers' declared versions whenever `wrangler` or
+`markdownlint-cli2` moves. The rest of this section records how the original
+five were checked while they crossed.
 
 All five were exercised rather than argued. `sharp` is a native package, so the
 check is that it loads through the live resolution path — `wrangler` →
