@@ -1,19 +1,62 @@
 {
-  "comment": "Android Play Store Data Safety section declaration.",
-  "data_shared": [],
-  "data_collected": [
+  "comment": "Android Play Store Data Safety section declaration. It has to match what the build actually sends: apple_privacy.json, constants/legal.ts and the hosted policy at bugrout.app/privacy all describe the same list (#206). PostHog is deliberately absent — no eas.json profile sets EXPO_PUBLIC_POSTHOG_KEY, so no shipped build initialises it.",
+  "data_shared": [
+    {
+      "data_type": "Search history",
+      "purpose": "App functionality (turning a typed destination into coordinates)",
+      "optional": false,
+      "recipient": "Nominatim, operated by the OpenStreetMap Foundation",
+      "encrypted_in_transit": true,
+      "deletion_available": "Retained per the OpenStreetMap Foundation's own policy; BugRout never receives or stores the query"
+    },
     {
       "data_type": "Approximate location",
-      "purpose": "App functionality (anonymous crowd congestion signal)",
+      "purpose": "App functionality (weather alerts, water sources, fuel stations, shelters)",
+      "optional": false,
+      "recipient": "National Weather Service, OpenStreetMap Overpass API, FEMA ESF6-SS, USGS and NREL",
+      "encrypted_in_transit": true,
+      "deletion_available": "Retained per each service's own policy. What is sent is the centre point or bounding box of a region you chose to download, not your live position."
+    }
+  ],
+  "data_collected": [
+    {
+      "data_type": "Precise location",
+      "purpose": "App functionality (calculating the route; anonymous crowd congestion signal)",
+      "optional": false,
+      "user_consent": "Required for routing — the trip's start point and destination are sent to BugRout's routing service on every route request. The crowd-signal half is separate and optional: the user must opt in via Settings > Crowd Signal.",
+      "encrypted_in_transit": true,
+      "deletion_available": "No database of routes or destinations; a route request can appear in the routing service's operational logs. Crowd-signal data auto-deletes after 48 hours, and its token rotates every 24 hours.",
+      "note": "Declared precise rather than approximate for two independent reasons: routing sends exact coordinates, and crowd-signal coordinates are rounded to 4 decimal places (~11 m), which both stores still count as precise."
+    },
+    {
+      "data_type": "Approximate location",
+      "purpose": "App functionality (threat and resource data for a downloaded region)",
+      "optional": false,
+      "user_consent": "Derived from a map region you chose to download, not from your live position",
+      "encrypted_in_transit": true,
+      "deletion_available": "Not stored by BugRout"
+    },
+    {
+      "data_type": "Search history",
+      "purpose": "App functionality (destination search)",
+      "optional": false,
+      "user_consent": "Sent only after the first-launch disclaimer is accepted, only while online, and only after you pause typing",
+      "encrypted_in_transit": true,
+      "deletion_available": "Not stored by BugRout"
+    },
+    {
+      "data_type": "Device or other IDs",
+      "purpose": "App functionality (grouping crowd signals from one device)",
       "optional": true,
       "user_consent": "User must opt in via Settings > Crowd Signal",
       "encrypted_in_transit": true,
-      "deletion_available": "Data auto-deletes after 48 hours. Token rotates every 24 hours."
+      "deletion_available": "Token rotates every 24 hours and can be force-rotated in Settings"
     },
     {
       "data_type": "App crash logs",
       "purpose": "Analytics (crash-free rate monitoring)",
-      "optional": false,
+      "optional": true,
+      "user_consent": "User must opt in via Settings > Crash Reports, which is off by default",
       "encrypted_in_transit": true,
       "deletion_available": "Retained per Sentry data retention policy (90 days)"
     }

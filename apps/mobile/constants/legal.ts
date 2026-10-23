@@ -17,12 +17,14 @@ BugRout is designed with privacy as a core principle. We collect the minimum dat
 Read section 1(c) even if you read nothing else. Some data leaves your device without an opt-in, because the features that need it cannot work otherwise.
 
 a) Data Processed On-Device Only
-- Your GPS location (used for navigation; never sent to our servers unless you opt in to Crowd Signal, and never sent to anyone else)
+- Your GPS location while you navigate, for following the route, speaking the next turn, and noticing that you have left it. Your live position leaves your device only in the two cases described in sections 1(b) and 1(c).
 - Downloaded map tiles (stored locally on your device)
 - Saved scenarios, emergency contacts, and preferences (stored locally in SQLite)
-- Route calculations (performed entirely on your device via the Valhalla engine)
+- Drawing the map, voice guidance, deviation detection, and checking your route against cached threat areas
 
-b) Data Transmitted to Us (Only When Online and Opted In)
+b) Data Transmitted to Us
+
+- Route requests. Every time you ask for a route, your starting point and your destination are sent to BugRout's routing service to be turned into directions. This is not optional and there is no separate opt-in, because route calculation does not yet run on your device. BugRout keeps no database of your routes or destinations. The routing service does write operational logs, as any server does, so a route request can appear in them. Moving routing onto the device, so that this stops being necessary, is work we have not finished.
 - Crowd Signal Telemetry: If you enable Crowd Signal in Settings, we collect anonymous speed and heading data to help other users avoid congestion. This data:
   - Contains NO personally identifiable information
   - Uses a rotating device token (a new random identifier every 24 hours)
@@ -45,11 +47,10 @@ In every case above, what is transmitted describes an area you chose to download
 
 d) Data We Never Collect
 - Your name, email, phone number, or any account information (no account required)
-- Your precise location (only rounded coordinates, and only if Crowd Signal is enabled)
 - Your contacts or address book
-- Your route history
+- A history of the routes you have taken, on your device or on ours
 
-We never store your destinations on our servers, and no route you plan is ever sent to us. Your destination does leave your device when you use the destination search box, as described in section 1(c) — it goes to Nominatim, not to BugRout.
+Your destination does leave your device, in two ways rather than none. It goes to BugRout's routing service whenever a route is calculated, as described in section 1(b), and it goes to Nominatim as search text if you found it with the destination search box, as described in section 1(c). Neither goes into any database of ours; the routing service's operational logs are the one place a route request can appear.
 
 - Any advertising identifiers
 
@@ -79,6 +80,7 @@ BugRout contacts the following external services. Each one sees your IP address 
 - USGS, US government (water gauge data) — receives a US state code
 - FEMA ESF6-SS, US government (open shelters, which include American Red Cross shelters) — receives the bounding box of your downloaded region
 - Sentry (crash reporting) — contacted only if you enable Crash Reports in Settings
+- Fly.io (hosting) — runs BugRout's own routing service, which receives your starting point and destination as described in section 1(b)
 
 None of these services receives your name, email, phone number, contacts, or any account identifier, because BugRout does not have them. Several of them do receive an approximate indication of the area you are operating in, as set out above and in section 1(c).
 

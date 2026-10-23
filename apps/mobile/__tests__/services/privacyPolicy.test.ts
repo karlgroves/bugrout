@@ -44,8 +44,66 @@ describe("privacy policy — third-party disclosure", () => {
     // collected, which was true of BugRout's servers and false of the device.
     expect(PRIVACY_POLICY).not.toContain("Your route history or destinations");
     expect(PRIVACY_POLICY).toMatch(
-      /destination does leave your device[\s\S]*?Nominatim, not to BugRout/,
+      /destination does leave your device[\s\S]*?routing service[\s\S]*?Nominatim/,
     );
+  });
+
+  it("does not claim the destination goes to Nominatim and not to us (#206)", () => {
+    // It goes to both: Nominatim as search text, and BugRout's own routing
+    // service as a coordinate pair. The old wording named only the first and
+    // explicitly ruled out the second.
+    expect(PRIVACY_POLICY).not.toContain("Nominatim, not to BugRout");
+    expect(PRIVACY_POLICY).not.toContain(
+      "no route you plan is ever sent to us",
+    );
+  });
+
+  it("does not claim route calculation happens on the device (#206)", () => {
+    // Every eas.json profile sets EXPO_PUBLIC_VALHALLA_URL, so routing is a
+    // request to a server. The policy listed it under "Processed On-Device
+    // Only" and promised the GPS position never left except for Crowd Signal.
+    expect(PRIVACY_POLICY).not.toContain(
+      "Route calculations (performed entirely on your device",
+    );
+    expect(PRIVACY_POLICY).not.toContain(
+      "never sent to our servers unless you opt in to Crowd Signal",
+    );
+  });
+
+  it("discloses the route request as data transmitted to us (#206)", () => {
+    expect(PRIVACY_POLICY).toMatch(
+      /Route requests\. Every time you ask for a route, your starting point and your destination are sent to BugRout's routing service/,
+    );
+    // The heading used to promise everything in the section was opt-in.
+    expect(PRIVACY_POLICY).not.toContain(
+      "b) Data Transmitted to Us (Only When Online and Opted In)",
+    );
+  });
+
+  it("no longer lists precise location as never collected (#206)", () => {
+    expect(PRIVACY_POLICY).not.toContain(
+      "Your precise location (only rounded coordinates",
+    );
+  });
+
+  it("promises no retention property the code does not establish (#206)", () => {
+    // Caught reviewing the first pass of this change, which replaced the old
+    // false claim with a new unverifiable one. backend/services/valhalla's
+    // Dockerfile runs valhalla_build_config with only --mjolnir-* and
+    // --service-limits-* flags, so Valhalla's default top-level logging block
+    // applies — {"type": "std_out"} — and fly.toml configures no logging, so
+    // request logging goes to stdout and Fly retains it. "Keeps no history of
+    // the routes it has calculated" was a promise nothing here backs.
+    expect(PRIVACY_POLICY).not.toMatch(/keeps no history of the routes/);
+    expect(PRIVACY_POLICY).not.toMatch(/we store no destination and no route/);
+    expect(PRIVACY_POLICY).toContain("operational logs");
+    // What is defensible is the absence of a store, which is checkable: no
+    // service in this repository receives or persists a route.
+    expect(PRIVACY_POLICY).toContain("keeps no database of your routes");
+  });
+
+  it("names Fly.io as the host of the routing service (#206)", () => {
+    expect(PRIVACY_POLICY).toContain("Fly.io");
   });
 
   it("names every third-party host the app actually contacts", () => {

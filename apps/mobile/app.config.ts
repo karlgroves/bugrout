@@ -27,6 +27,68 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         "BugRout uses your location continuously during navigation to provide turn-by-turn directions and deviation alerts, even when the app is in the background.",
       UIBackgroundModes: ["location"],
     },
+    // Expo generates PrivacyInfo.xcprivacy with the required-reason API types
+    // of the autolinked modules, but leaves NSPrivacyCollectedDataTypes an
+    // empty array — so the manifest declared nothing collected while the app
+    // sends location, search text and a device token off-device (#206).
+    // @expo/config-plugins' mergePrivacyInfo appends these and leaves the
+    // generated API-type reasons alone, so nothing here replaces that half.
+    //
+    // Keep in step with fastlane/metadata/en-US/apple_privacy.json;
+    // __tests__/docs/privacyLabelDrift.test.ts fails when the two disagree.
+    privacyManifests: {
+      NSPrivacyCollectedDataTypes: [
+        {
+          // Route start and destination, to BugRout's routing service; and
+          // Crowd Signal coordinates, which are precise at 4 decimal places.
+          NSPrivacyCollectedDataType:
+            "NSPrivacyCollectedDataTypePreciseLocation",
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: [
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+          ],
+        },
+        {
+          // The centre point or bounding box of a downloaded region.
+          NSPrivacyCollectedDataType:
+            "NSPrivacyCollectedDataTypeCoarseLocation",
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: [
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+          ],
+        },
+        {
+          // Destination search text, to Nominatim.
+          NSPrivacyCollectedDataType: "NSPrivacyCollectedDataTypeSearchHistory",
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: [
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+          ],
+        },
+        {
+          // The Crowd Signal token, which rotates every 24 hours.
+          NSPrivacyCollectedDataType: "NSPrivacyCollectedDataTypeDeviceID",
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: [
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+          ],
+        },
+        {
+          // Sentry, only after the Crash Reports opt-in.
+          NSPrivacyCollectedDataType: "NSPrivacyCollectedDataTypeCrashData",
+          NSPrivacyCollectedDataTypeLinked: false,
+          NSPrivacyCollectedDataTypeTracking: false,
+          NSPrivacyCollectedDataTypePurposes: [
+            "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+          ],
+        },
+      ],
+      NSPrivacyTracking: false,
+    },
   },
   android: {
     adaptiveIcon: {
