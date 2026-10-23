@@ -21,20 +21,12 @@
   "data_collected": [
     {
       "data_type": "Precise location",
-      "purpose": "App functionality (calculating the route)",
+      "purpose": "App functionality (calculating the route; anonymous crowd congestion signal)",
       "optional": false,
-      "user_consent": "Required for routing — the trip's start point and destination are sent to BugRout's routing service",
+      "user_consent": "Required for routing — the trip's start point and destination are sent to BugRout's routing service on every route request. The crowd-signal half is separate and optional: the user must opt in via Settings > Crowd Signal.",
       "encrypted_in_transit": true,
-      "deletion_available": "Not stored: the routing service answers the request and keeps no route history"
-    },
-    {
-      "data_type": "Precise location",
-      "purpose": "App functionality (anonymous crowd congestion signal)",
-      "optional": true,
-      "user_consent": "User must opt in via Settings > Crowd Signal",
-      "encrypted_in_transit": true,
-      "deletion_available": "Data auto-deletes after 48 hours. Token rotates every 24 hours.",
-      "note": "Coordinates are rounded to 4 decimal places (~11 m), which both stores count as precise rather than approximate."
+      "deletion_available": "No database of routes or destinations; a route request can appear in the routing service's operational logs. Crowd-signal data auto-deletes after 48 hours, and its token rotates every 24 hours.",
+      "note": "Declared precise rather than approximate for two independent reasons: routing sends exact coordinates, and crowd-signal coordinates are rounded to 4 decimal places (~11 m), which both stores still count as precise."
     },
     {
       "data_type": "Approximate location",

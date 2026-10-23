@@ -24,7 +24,7 @@ a) Data Processed On-Device Only
 
 b) Data Transmitted to Us
 
-- Route requests. Every time you ask for a route, your starting point and your destination are sent to BugRout's routing service to be turned into directions. This is not optional and there is no separate opt-in, because route calculation does not yet run on your device. The service answers the request and keeps no history of the routes it has calculated. Moving routing onto the device, so that this stops being necessary, is work we have not finished.
+- Route requests. Every time you ask for a route, your starting point and your destination are sent to BugRout's routing service to be turned into directions. This is not optional and there is no separate opt-in, because route calculation does not yet run on your device. BugRout keeps no database of your routes or destinations. The routing service does write operational logs, as any server does, so a route request can appear in them. Moving routing onto the device, so that this stops being necessary, is work we have not finished.
 - Crowd Signal Telemetry: If you enable Crowd Signal in Settings, we collect anonymous speed and heading data to help other users avoid congestion. This data:
   - Contains NO personally identifiable information
   - Uses a rotating device token (a new random identifier every 24 hours)
@@ -50,7 +50,7 @@ d) Data We Never Collect
 - Your contacts or address book
 - A history of the routes you have taken, on your device or on ours
 
-Your destination does leave your device, in two ways rather than none. It goes to BugRout's routing service whenever a route is calculated, as described in section 1(b), and it goes to Nominatim as search text if you found it with the destination search box, as described in section 1(c). Neither is kept: we store no destination and no route.
+Your destination does leave your device, in two ways rather than none. It goes to BugRout's routing service whenever a route is calculated, as described in section 1(b), and it goes to Nominatim as search text if you found it with the destination search box, as described in section 1(c). Neither goes into any database of ours; the routing service's operational logs are the one place a route request can appear.
 
 - Any advertising identifiers
 
