@@ -170,11 +170,3 @@ declares ^0.16.0, and 0.18 is a breaking 0.x line. Unreachable: katex is \
 imported only by the extension's lib/html.js (mathHtml), which markdownlint \
 never calls; it uses the syntax extension alone, and no Markdown in this \
 repository contains math. Lint-time devDependency only."""
-
-[[IgnoredVulns]]
-id = "GHSA-hp3w-g68c-fv3c"
-ignoreUntil = 2026-12-05
-reason = """sprintf-js unbounded precision specifier DoS. No fixed version \
-published: the advisory names 1.1.3, the latest, as affected. Reached through \
-argparse@1.0.10 (via js-yaml 3 in Jest's istanbul config loading), which \
-passes only its own format strings. devDependency, never fed outside input."""
