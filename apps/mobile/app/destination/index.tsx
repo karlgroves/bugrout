@@ -364,11 +364,11 @@ function DestinationScreen(): React.JSX.Element {
                 }}
                 disabled={calculating}
                 accessibilityRole="button"
-                accessibilityLabel={`Use scenario: ${item.name}`}
+                accessibilityLabel={`Use plan: ${item.name}`}
                 accessibilityHint={
                   hasStops
                     ? "Routes via your configured fuel and water stops and shows the route preview"
-                    : "Routes directly to this scenario's destination and shows the route preview"
+                    : "Routes directly to this plan's destination and shows the route preview"
                 }
                 accessibilityState={{
                   selected: isSelected(item.lat, item.lng),
@@ -514,7 +514,7 @@ function buildListData(
           {
             _type: "header" as const,
             id: "__scenarios__",
-            label: "Saved Scenarios",
+            label: "Saved Plans",
             lat: 0,
             lng: 0,
           },

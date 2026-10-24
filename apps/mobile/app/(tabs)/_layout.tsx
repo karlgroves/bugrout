@@ -22,7 +22,7 @@ function SettingsTabIcon({ color }: { color: string }): React.JSX.Element {
   return <TabBarIcon name="cog" color={color} />;
 }
 
-/** Bottom tab navigator wiring the Map, Scenarios, and Settings screens. */
+/** Bottom tab navigator wiring the Map, Plans, and Settings screens. */
 export default function TabLayout(): React.JSX.Element {
   return (
     <Tabs
@@ -51,7 +51,7 @@ export default function TabLayout(): React.JSX.Element {
       <Tabs.Screen
         name="scenarios"
         options={{
-          title: "Scenarios",
+          title: "Plans",
           tabBarIcon: ScenariosTabIcon,
         }}
       />

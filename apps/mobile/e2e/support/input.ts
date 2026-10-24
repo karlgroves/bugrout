@@ -16,7 +16,7 @@
  *   save-contact-btn      contacts   primary. The add form never closed, so the
  *                                    contact was never written and the two
  *                                    assertions after it had nothing to see.
- *   Save Scenario         scenarios  primary. The editor never popped, so the
+ *   Save Plan         scenarios  primary. The editor never popped, so the
  *                                    tab bar carrying "Map" was never on screen
  *                                    for the test that failed.
  *   route-and-go-button   full-nav   co-blocker. What actually stopped those

@@ -144,7 +144,7 @@ describe("Full evacuation journey", () => {
   it("routes to the saved scenario, offline, and previews the route", async () => {
     // Tap 2. Choosing the destination routes to it: there is no separate
     // "Route & Go" step any more (#197).
-    await element(by.label(`Use scenario: ${SCENARIO_NAME}`)).tap();
+    await element(by.label(`Use plan: ${SCENARIO_NAME}`)).tap();
     journeyTaps += 1;
 
     // Longer than the screens above: this waits on the whole routing pass —

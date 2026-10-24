@@ -23,7 +23,7 @@ import { fillField } from "./input";
  *
  * Starts and ends on the map screen, so a spec can call it mid-flow.
  *
- * @param name - Scenario name, which becomes its row's accessible name.
+ * @param name - Plan name, which becomes its row's accessible name.
  * @param lat - Destination latitude.
  * @param lng - Destination longitude.
  */
@@ -33,15 +33,15 @@ export async function createScenario(
   lng: number,
 ): Promise<void> {
   await element(by.text("Scenarios")).tap();
-  await element(by.text("Create Scenario")).tap();
+  await element(by.text("Create Plan")).tap();
 
-  // fillField, not typeText: "Save Scenario" is the last control on the editor
+  // fillField, not typeText: "Save Plan" is the last control on the editor
   // and the on-screen keyboard covers it, so a tap after typing is swallowed by
   // the IME while Espresso reports it as performed. See support/input.ts.
-  await fillField(by.label("Scenario name"), name);
+  await fillField(by.label("Plan name"), name);
   await fillField(by.label("Destination latitude"), String(lat));
   await fillField(by.label("Destination longitude"), String(lng));
-  await element(by.text("Save Scenario")).tap();
+  await element(by.text("Save Plan")).tap();
 
   // The save blocks on the coverage warning when the destination is outside
   // every downloaded region — which on CI is every destination, there being no
@@ -50,9 +50,9 @@ export async function createScenario(
 
   // Assert on the card's accessible name, not the bare scenario name: the
   // latter also matches the editor's own name field, so it passes while the
-  // editor is still open and the save has done nothing. "Edit scenario: …"
+  // editor is still open and the save has done nothing. "Edit plan: …"
   // exists only on the list.
-  await waitFor(element(by.label(`Edit scenario: ${name}`)))
+  await waitFor(element(by.label(`Edit plan: ${name}`)))
     .toBeVisible()
     .withTimeout(10000);
 

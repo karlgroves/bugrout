@@ -142,7 +142,7 @@ export default function RootLayout(): React.JSX.Element | null {
         <Stack.Screen
           name="scenarios/edit"
           options={{
-            title: "Edit Scenario",
+            title: "Edit Plan",
             presentation: "modal",
           }}
         />

@@ -86,7 +86,7 @@ describe("destination picker — recents", () => {
     expect(
       await screen.findByLabelText("Use recent destination: Annapolis"),
     ).toBeTruthy();
-    expect(screen.getByLabelText("Use scenario: Mom's house")).toBeTruthy();
+    expect(screen.getByLabelText("Use plan: Mom's house")).toBeTruthy();
     expect(
       screen.queryByLabelText("Use recent destination: Map pin"),
     ).toBeNull();
@@ -108,7 +108,7 @@ describe("destination picker — recents", () => {
     await waitFor(() => {
       expect(mockGetRecentDestinations).toHaveBeenCalled();
     });
-    expect(screen.getByText("Saved Scenarios")).toBeTruthy();
+    expect(screen.getByText("Saved Plans")).toBeTruthy();
     expect(screen.queryByText("Recent Destinations")).toBeNull();
   });
 
