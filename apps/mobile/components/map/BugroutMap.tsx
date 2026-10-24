@@ -182,6 +182,9 @@ export function BugroutMap({
   return (
     <View style={styles.container}>
       <MapLibreGL.MapView
+        // The Detox specs tap the map to drop a plan's pin (#187). by.label
+        // would be ambiguous against the overlays drawn on top of it.
+        testID="bugrout-map"
         ref={mapRef}
         style={styles.map}
         mapStyle={style}

@@ -7,6 +7,7 @@ import {
   formatDistance,
   formatDuration,
   placeKey,
+  pointFromStrings,
   projectOntoPolyline,
 } from "@/utils/geo";
 
@@ -317,5 +318,32 @@ describe("projectOntoPolyline", () => {
   it("clamps a point before the start to the first vertex", () => {
     const projection = projectOntoPolyline({ lat: 39.0, lng: -77.5 }, line);
     expect(projection?.alongMeters).toBe(0);
+  });
+});
+
+describe("pointFromStrings", () => {
+  it("parses a pair of numeric strings", () => {
+    expect(pointFromStrings("39.3138", "-76.6021")).toEqual({
+      lat: 39.3138,
+      lng: -76.6021,
+    });
+  });
+
+  it("reads a missing param as no point, not as NaN", () => {
+    expect(pointFromStrings(undefined, "-76.6")).toBe(null);
+    expect(pointFromStrings("39.3", undefined)).toBe(null);
+    expect(pointFromStrings(undefined, undefined)).toBe(null);
+  });
+
+  it("refuses a value that is not a number", () => {
+    // A deep link is outside input: "NaN, NaN" would be a point somewhere off
+    // the globe, which must never reach a plan.
+    expect(pointFromStrings("north", "-76.6")).toBe(null);
+    expect(pointFromStrings("39.3", "")).toBe(null);
+    expect(pointFromStrings("Infinity", "-76.6")).toBe(null);
+  });
+
+  it("accepts zero, which is a real coordinate", () => {
+    expect(pointFromStrings("0", "0")).toEqual({ lat: 0, lng: 0 });
   });
 });

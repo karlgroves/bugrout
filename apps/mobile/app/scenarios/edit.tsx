@@ -47,14 +47,25 @@ import {
 import { reverseGeocode } from "@/services/geocoding/Geocoder";
 import { confirmCoverage } from "@/services/routing/coverage";
 import { useScenarioStore } from "@/stores/useScenarioStore";
+import { pointFromStrings } from "@/utils/geo";
 
 import type { GeocodeResult } from "@/services/geocoding/Geocoder";
 import type { LatLng, Scenario, ResourceStopPreference } from "@bugrout/shared";
 
-/** Editor for creating or updating an evacuation scenario and its resource stops. */
+/** Editor for creating or updating an evacuation plan and its resource stops. */
 function ScenarioEditScreen(): React.JSX.Element {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // `lat`/`lng` let a destination be handed straight to a new plan — from a
+  // deep link (`bugrout://scenarios/edit?lat=…&lng=…`), which is also the one
+  // way the Detox suite can set a *known* destination: its replay server
+  // matches recorded endpoints to within 150 m, and neither an address lookup
+  // (no answer from a datacenter IP) nor a map tap can hit that.
+  const { id, lat, lng } = useLocalSearchParams<{
+    id?: string;
+    lat?: string;
+    lng?: string;
+  }>();
+  const handedDestination = pointFromStrings(lat, lng);
   const { scenarios, addScenario, updateScenario, deleteScenario } =
     useScenarioStore();
 
@@ -84,7 +95,9 @@ function ScenarioEditScreen(): React.JSX.Element {
   } | null>(
     existing
       ? { point: existing.destination, address: existing.address }
-      : null,
+      : handedDestination
+        ? { point: handedDestination, address: null }
+        : null,
   );
 
   /** Matches awaiting the user's choice; never resolved by taking the first. */
