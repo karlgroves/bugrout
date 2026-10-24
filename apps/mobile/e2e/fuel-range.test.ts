@@ -30,10 +30,10 @@ const SCENARIO_NAME = "Fuel";
 /** From the map, pick the scenario and open the route preview. */
 async function openPreview(): Promise<void> {
   await element(by.id("bug-out-fab")).tap();
-  await waitFor(element(by.label(`Use scenario: ${SCENARIO_NAME}`)))
+  await waitFor(element(by.label(`Use plan: ${SCENARIO_NAME}`)))
     .toBeVisible()
     .withTimeout(10000);
-  await element(by.label(`Use scenario: ${SCENARIO_NAME}`)).tap();
+  await element(by.label(`Use plan: ${SCENARIO_NAME}`)).tap();
   await waitFor(element(by.id("route-preview-go-btn")))
     .toBeVisible()
     .withTimeout(30000);

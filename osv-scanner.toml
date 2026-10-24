@@ -93,21 +93,23 @@ calls — pinning it breaks `detox --version` outright, and detox@latest is \
 ignore / filter / replace filters, and neither Detox nor bunyamin imports \
 one. devDependency, local self-produced JSONL input, AV:L availability-only."""
 
-# braces and node-forge: no fixed version is published — category 1 above.
-# Both advisories name the latest release as `last_affected` (braces 3.0.3,
-# node-forge 1.4.0), so there is nothing to pin. The upstream fixes exist only
-# as unmerged pull requests (micromatch/braces#72 and #75, digitalbazaar/forge
-# #1152) as of 2026-10-04.
+# node-forge: no fixed version is published — category 1 above. The advisory
+# names the latest release as `last_affected` (1.4.0), so there is nothing to
+# pin, and the upstream fix exists only as an unmerged pull request
+# (digitalbazaar/forge#1152) as of 2026-10-04.
 #
-# Exposure: neither package reaches the app bundle or a backend service. Both
-# are pulled in by the Expo toolchain that `expo` lists as a runtime dependency,
-# which is why `pnpm audit --prod` counts them; neither is imported by app code.
+# `braces` (GHSA-vfj7-8cjw-p6xm) was here too until 2026-10-24, on the same
+# ground. It is gone because the advisory was **withdrawn upstream** on
+# 2026-10-23 — not because it was fixed and not because the exposure argument
+# changed. OSV-Scanner then reported the entry under "unused ignores" and
+# exited 1, which is the signal this file's header describes, and is what
+# removing it answers. The matching `pnpm.auditConfig.ignoreGhsas` entry went
+# with it; `pnpm audit --prod --audit-level=high` was measured passing both
+# with and without it, so nothing was holding that gate shut either.
 #
-# braces (stack-exhaustion DoS via deeply nested patterns): reached only through
-# micromatch, in Metro's file map, Jest and markdownlint-cli2 (directly and via
-# globby/fast-glob). The patterns it expands are the glob and watch patterns in
-# this repository's own config and scripts, written by its developers. Nothing a
-# user or a server sends ever becomes a brace pattern.
+# Exposure: node-forge does not reach the app bundle or a backend service. It is
+# pulled in by the Expo toolchain that `expo` lists as a runtime dependency,
+# which is why `pnpm audit --prod` counts it; no app code imports it.
 #
 # node-forge (PKCS#1 v1.5 signature forgery with low-exponent keys): reached only
 # through @expo/cli's code-signing helpers. `Security.js` only parses PEM
@@ -121,15 +123,6 @@ one. devDependency, local self-produced JSONL input, AV:L availability-only."""
 #
 # Remove each block when its package ships a fix: pin it with a bounded
 # override instead, and drop the matching `pnpm.auditConfig.ignoreGhsas` entry.
-
-[[IgnoredVulns]]
-id = "GHSA-vfj7-8cjw-p6xm"
-ignoreUntil = 2026-12-05
-reason = """braces <=3.0.3 stack-exhaustion DoS (CVE-2026-93687). No fixed \
-version published; the upstream fixes are unmerged PRs. Build-time only: \
-reached through micromatch in Metro's file map, Jest and markdownlint-cli2, \
-expanding glob patterns from this repository's own config. Never in the app bundle or a \
-backend, and never fed user or network input."""
 
 [[IgnoredVulns]]
 id = "GHSA-86w9-cpqp-85rv"

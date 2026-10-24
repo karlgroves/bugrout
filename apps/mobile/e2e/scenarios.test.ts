@@ -16,7 +16,7 @@ describe("Scenario Management", () => {
   });
 
   it("should navigate to scenarios tab", async () => {
-    await element(by.text("Scenarios")).tap();
+    await element(by.text("Plans")).tap();
     await expect(element(by.text("No Plans Saved"))).toBeVisible();
   });
 
