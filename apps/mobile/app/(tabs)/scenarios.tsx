@@ -17,7 +17,7 @@ import { useScenarioStore } from "@/stores/useScenarioStore";
 
 const MAX_SCENARIOS = 3;
 
-/** Lists saved evacuation scenarios (max 3) and links to the scenario editor. */
+/** Lists saved evacuation plans (max 3) and links to the plan editor. */
 function ScenariosScreen(): React.JSX.Element {
   const router = useRouter();
   const { scenarios, setScenarios } = useScenarioStore();
@@ -39,16 +39,16 @@ function ScenariosScreen(): React.JSX.Element {
             style={styles.emptyTitle}
             accessibilityRole="header"
             // Level 2: this tab DOES get an h1 from the navigator header
-            // ("Scenarios"), so a level-1 empty-state title put a second h1 on
+            // ("Plans"), so a level-1 empty-state title put a second h1 on
             // the page. Same mistake #102 caught in the destination picker —
             // react-native-web maps a bare header role to <h1>.
             aria-level={2}
           >
-            No Scenarios Saved
+            No Plans Saved
           </Text>
           <Text style={styles.emptyDescription}>
-            Pre-configure up to 3 evacuation scenarios with destinations,
-            preferred routes, and resource stops.
+            Pre-configure up to 3 evacuation plans with destinations, preferred
+            routes, and resource stops.
           </Text>
           <Pressable
             testID="create-scenario-btn"
@@ -56,11 +56,11 @@ function ScenariosScreen(): React.JSX.Element {
             onPress={() => {
               router.push("/scenarios/edit");
             }}
-            accessibilityLabel="Create Scenario"
-            accessibilityHint="Opens the editor to configure a new evacuation scenario"
+            accessibilityLabel="Create Plan"
+            accessibilityHint="Opens the editor to configure a new evacuation plan"
             accessibilityRole="button"
           >
-            <Text style={styles.addButtonText}>Create Scenario</Text>
+            <Text style={styles.addButtonText}>Create Plan</Text>
           </Pressable>
         </View>
       ) : (
@@ -78,8 +78,8 @@ function ScenariosScreen(): React.JSX.Element {
                     params: { id: item.id },
                   });
                 }}
-                accessibilityLabel={`Edit scenario: ${item.name}`}
-                accessibilityHint="Opens the editor to change this scenario's destination and stops"
+                accessibilityLabel={`Edit plan: ${item.name}`}
+                accessibilityHint="Opens the editor to change this plan's destination and stops"
                 accessibilityRole="button"
               >
                 <View style={styles.scenarioInfo}>
@@ -113,12 +113,12 @@ function ScenariosScreen(): React.JSX.Element {
               onPress={() => {
                 router.push("/scenarios/edit");
               }}
-              accessibilityLabel="Add Scenario"
-              accessibilityHint="Opens the editor to configure an additional evacuation scenario"
+              accessibilityLabel="Add Plan"
+              accessibilityHint="Opens the editor to configure an additional evacuation plan"
               accessibilityRole="button"
             >
               <FontAwesome name="plus" size={16} color={colors.accent} />
-              <Text style={styles.addOutlineText}>Add Scenario</Text>
+              <Text style={styles.addOutlineText}>Add Plan</Text>
             </Pressable>
           )}
         </>
@@ -195,4 +195,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default withScreenTitle(ScenariosScreen, "Scenarios");
+export default withScreenTitle(ScenariosScreen, "Plans");

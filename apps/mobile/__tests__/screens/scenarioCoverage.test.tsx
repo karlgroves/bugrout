@@ -88,10 +88,7 @@ describe("saving a scenario", () => {
     lng: number;
   }): Promise<{ pressing: Promise<unknown> }> {
     const screen = await render(<ScenarioEditScreen />);
-    await fireEvent.changeText(
-      screen.getByLabelText("Scenario name"),
-      "Family",
-    );
+    await fireEvent.changeText(screen.getByLabelText("Plan name"), "Family");
     await fireEvent.changeText(
       screen.getByLabelText("Destination latitude"),
       String(destination.lat),
@@ -102,7 +99,7 @@ describe("saving a scenario", () => {
     );
     // Not awaited: the save waits on the coverage alert, which the test answers.
     return {
-      pressing: fireEvent.press(screen.getByLabelText("Save Scenario")),
+      pressing: fireEvent.press(screen.getByLabelText("Save Plan")),
     };
   }
 

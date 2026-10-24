@@ -30,11 +30,11 @@ describe("Routing outside the road data", () => {
     await createScenario(SCENARIO_NAME, 38.2542, -85.7594); // Louisville, KY
 
     await element(by.id("bug-out-fab")).tap();
-    await waitFor(element(by.label(`Use scenario: ${SCENARIO_NAME}`)))
+    await waitFor(element(by.label(`Use plan: ${SCENARIO_NAME}`)))
       .toBeVisible()
       .withTimeout(10000);
     // Choosing the scenario routes to it (#197).
-    await element(by.label(`Use scenario: ${SCENARIO_NAME}`)).tap();
+    await element(by.label(`Use plan: ${SCENARIO_NAME}`)).tap();
 
     await waitFor(element(by.id("route-unavailable")))
       .toBeVisible()

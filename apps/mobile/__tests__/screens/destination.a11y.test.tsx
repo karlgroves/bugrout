@@ -82,25 +82,25 @@ describe("destination picker — every row is named", () => {
   it("names a saved scenario without running its detail into the name", async () => {
     const { findByLabelText } = await render(<DestinationScreen />);
 
-    const row = await findByLabelText("Use scenario: Wildfire East");
-    expect(row.props.accessibilityLabel).toBe("Use scenario: Wildfire East");
+    const row = await findByLabelText("Use plan: Wildfire East");
+    expect(row.props.accessibilityLabel).toBe("Use plan: Wildfire East");
   });
 
   it("puts the resource-stop detail in the hint, not the name", async () => {
     const { findByLabelText } = await render(<DestinationScreen />);
 
     expect(
-      (await findByLabelText("Use scenario: Wildfire East")).props
+      (await findByLabelText("Use plan: Wildfire East")).props
         .accessibilityHint,
     ).toBe(
       "Routes via your configured fuel and water stops and shows the route preview",
     );
 
     expect(
-      (await findByLabelText("Use scenario: Coastal Flood")).props
+      (await findByLabelText("Use plan: Coastal Flood")).props
         .accessibilityHint,
     ).toBe(
-      "Routes directly to this scenario's destination and shows the route preview",
+      "Routes directly to this plan's destination and shows the route preview",
     );
   });
 
@@ -118,7 +118,7 @@ describe("destination picker — every row is named", () => {
     const { findByLabelText } = await render(<DestinationScreen />);
 
     expect(
-      (await findByLabelText("Use scenario: Wildfire East")).props
+      (await findByLabelText("Use plan: Wildfire East")).props
         .accessibilityState,
     ).toMatchObject({ selected: false });
   });
@@ -128,7 +128,7 @@ describe("destination picker — every row is named", () => {
     // second h1 on the page beside the screen title.
     const { findByText } = await render(<DestinationScreen />);
 
-    const heading = await findByText("Saved Scenarios");
+    const heading = await findByText("Saved Plans");
     expect(heading.props.accessibilityRole).toBe("header");
     expect(heading.props["aria-level"]).toBe(2);
   });

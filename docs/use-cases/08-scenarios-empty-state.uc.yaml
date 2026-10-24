@@ -1,22 +1,22 @@
 id: scenarios-empty-state
-title: "The scenarios tab explains itself when nothing is saved"
+title: "The plans tab explains itself when nothing is saved"
 type: negative
 description:
-  "Verify the saved-scenarios tab shows a named empty state with an operable
-  create control, rather than a blank screen. A scenario is what makes the
+  "Verify the saved-plans tab shows a named empty state with an operable
+  create control, rather than a blank screen. A plan is what makes the
   two-tap evacuation path possible, so the empty state is where a user learns
   that path exists at all."
 
 preconditions:
   - "The disclaimer has been accepted in this session"
-  - "No scenarios are saved"
+  - "No plans are saved"
 
 start_location: "http://localhost:4599/"
 
 expected_result: "The empty state is shown and the create control is reachable by keyboard."
 
 data:
-  tab_scenarios: "Scenarios"
+  tab_scenarios: "Plans"
 
 steps:
   - activate: button "I Understand — Continue"
@@ -28,14 +28,14 @@ steps:
   - focus: tab "{{ tab_scenarios }}"
   - activate: tab "{{ tab_scenarios }}"
 
-  - verify: text "No Scenarios Saved"
+  - verify: text "No Plans Saved"
 
-  - locate: button "Create Scenario"
-  - focus: button "Create Scenario"
+  - locate: button "Create Plan"
+  - focus: button "Create Plan"
 
   - audit: page
 
-  - activate: button "Create Scenario"
-  - locate: field "Scenario name"
-  - focus: field "Scenario name"
-  - locate: button "Save Scenario"
+  - activate: button "Create Plan"
+  - locate: field "Plan name"
+  - focus: field "Plan name"
+  - locate: button "Save Plan"

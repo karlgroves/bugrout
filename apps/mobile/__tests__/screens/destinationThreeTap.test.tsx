@@ -94,7 +94,7 @@ describe("destination picker — one tap from destination to preview", () => {
     const screen = await render(<DestinationScreen />);
 
     await fireEvent.press(
-      await screen.findByLabelText("Use scenario: Mom's house"),
+      await screen.findByLabelText("Use plan: Mom's house"),
     );
 
     expect(mockCalculateRoute).toHaveBeenCalledWith(
@@ -109,7 +109,7 @@ describe("destination picker — one tap from destination to preview", () => {
     const screen = await render(<DestinationScreen />);
 
     await fireEvent.press(
-      await screen.findByLabelText("Use scenario: Shelter run"),
+      await screen.findByLabelText("Use plan: Shelter run"),
     );
 
     expect(mockCalculateRouteWithStops).toHaveBeenCalledWith(
@@ -134,7 +134,7 @@ describe("destination picker — one tap from destination to preview", () => {
 
   it("has no Route & Go step, and no button promising to go", async () => {
     const screen = await render(<DestinationScreen />);
-    await screen.findByLabelText("Use scenario: Mom's house");
+    await screen.findByLabelText("Use plan: Mom's house");
 
     expect(screen.queryByText("Route & Go")).toBeNull();
     expect(screen.queryByTestId("route-and-go-button")).toBeNull();
@@ -147,7 +147,7 @@ describe("destination picker — one tap from destination to preview", () => {
     const screen = await render(<DestinationScreen />);
 
     await fireEvent.press(
-      await screen.findByLabelText("Use scenario: Mom's house"),
+      await screen.findByLabelText("Use plan: Mom's house"),
     );
 
     expect(mockGetPosition).toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe("destination picker — one tap from destination to preview", () => {
     const screen = await render(<DestinationScreen />);
 
     await fireEvent.press(
-      await screen.findByLabelText("Use scenario: Mom's house"),
+      await screen.findByLabelText("Use plan: Mom's house"),
     );
 
     expect(alert).toHaveBeenCalledWith(

@@ -65,7 +65,7 @@ function ScenarioEditScreen(): React.JSX.Element {
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
-      Alert.alert("Name Required", "Enter a name for this scenario.");
+      Alert.alert("Name Required", "Enter a name for this plan.");
       return;
     }
 
@@ -119,7 +119,7 @@ function ScenarioEditScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(() => {
     if (!existing) return;
-    Alert.alert("Delete Scenario", `Delete "${existing.name}"?`, [
+    Alert.alert("Delete Plan", `Delete "${existing.name}"?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -138,7 +138,7 @@ function ScenarioEditScreen(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.label}>Scenario Name</Text>
+      <Text style={styles.label}>Plan Name</Text>
       <TextInput
         style={styles.input}
         value={name}
@@ -146,8 +146,8 @@ function ScenarioEditScreen(): React.JSX.Element {
         placeholder="e.g., Wildfire East, Grid Down"
         placeholderTextColor={colors.textMuted}
         maxLength={40}
-        accessibilityLabel="Scenario name"
-        accessibilityHint="Enter a short name to identify this evacuation scenario"
+        accessibilityLabel="Plan name"
+        accessibilityHint="Enter a short name to identify this evacuation plan"
       />
 
       <Text style={styles.label}>Destination Coordinates</Text>
@@ -185,7 +185,7 @@ function ScenarioEditScreen(): React.JSX.Element {
           value={fuelStop}
           onValueChange={setFuelStop}
           accessibilityLabel="Include fuel stop"
-          accessibilityHint="Routes this scenario via a fuel station"
+          accessibilityHint="Routes this plan via a fuel station"
           trackColor={switchColors.trackColor}
           thumbColor={switchColors.thumbColor}
         />
@@ -197,7 +197,7 @@ function ScenarioEditScreen(): React.JSX.Element {
           value={waterStop}
           onValueChange={setWaterStop}
           accessibilityLabel="Include water stop"
-          accessibilityHint="Routes this scenario via a water source"
+          accessibilityHint="Routes this plan via a water source"
           trackColor={switchColors.trackColor}
           thumbColor={switchColors.thumbColor}
         />
@@ -206,12 +206,12 @@ function ScenarioEditScreen(): React.JSX.Element {
       <Pressable
         style={styles.saveButton}
         onPress={handleSave}
-        accessibilityLabel={existing ? "Update Scenario" : "Save Scenario"}
-        accessibilityHint="Saves this scenario and returns to the scenarios list"
+        accessibilityLabel={existing ? "Update Plan" : "Save Plan"}
+        accessibilityHint="Saves this plan and returns to the plans list"
         accessibilityRole="button"
       >
         <Text style={styles.saveText}>
-          {existing ? "Update Scenario" : "Save Scenario"}
+          {existing ? "Update Plan" : "Save Plan"}
         </Text>
       </Pressable>
 
@@ -219,11 +219,11 @@ function ScenarioEditScreen(): React.JSX.Element {
         <Pressable
           style={styles.deleteButton}
           onPress={handleDelete}
-          accessibilityLabel="Delete scenario"
-          accessibilityHint="Permanently removes this scenario after confirmation"
+          accessibilityLabel="Delete plan"
+          accessibilityHint="Permanently removes this plan after confirmation"
           accessibilityRole="button"
         >
-          <Text style={styles.deleteText}>Delete Scenario</Text>
+          <Text style={styles.deleteText}>Delete Plan</Text>
         </Pressable>
       ) : null}
     </ScrollView>
@@ -313,4 +313,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default withScreenTitle(ScenarioEditScreen, "Edit Scenario");
+export default withScreenTitle(ScenarioEditScreen, "Edit Plan");

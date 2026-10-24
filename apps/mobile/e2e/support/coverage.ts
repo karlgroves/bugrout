@@ -44,7 +44,7 @@
  *
  * Crucially, absence cannot hide a failure. This function asserts nothing: if
  * the Alert is missing because the save silently did nothing, the caller's own
- * `waitFor` on `Edit scenario: …` still fails, in the same place and with the
+ * `waitFor` on `Edit plan: …` still fails, in the same place and with the
  * same message as before this existed. The only thing swallowed is the wait for
  * a dialog that was never raised.
  */
