@@ -27,11 +27,11 @@ person who cannot start their route.
 | `05-settings-and-legal.uc.yaml`                      | positive | Every settings row; the offline maps screen               |
 | `06-emergency-contacts.uc.yaml`                      | positive | Add a contact through the accessibility tree              |
 | `07-no-tiles-downloaded.uc.yaml`                     | negative | No offline maps: named, and the fix is offered            |
-| `08-scenarios-empty-state.uc.yaml`                   | negative | The scenarios tab explains itself when empty              |
+| `08-scenarios-empty-state.uc.yaml`                   | negative | The plans tab explains itself when empty                  |
 | `native/09-route-preview-and-go.uc.yaml`             | positive | Route preview; Go and Back both operable                  |
 | `native/10-active-navigation-advisory-badge.uc.yaml` | positive | "Advisory Only" badge and emergency SMS during navigation |
 | `native/11-contact-limit-reached.uc.yaml`            | negative | Five contacts: the limit is stated, not silent            |
-| `native/12-offline-no-connectivity.uc.yaml`          | negative | Offline: announced, and scenarios still route             |
+| `native/12-offline-no-connectivity.uc.yaml`          | negative | Offline: announced, and plans still route                 |
 
 ## The web/native split
 
@@ -181,7 +181,7 @@ filing.
 
 ## What is not covered
 
-- The active navigation screen, the route preview, and the scenario editor's
-  save path, all of which need a device — documented under `native/`.
+- The active navigation screen, the route preview, and the plan editor's save
+  path, all of which need a device — documented under `native/`.
 - Tile download progress, which needs `expo-file-system`.
 - Any `audit:` result, pending the engine.
