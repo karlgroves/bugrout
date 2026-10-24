@@ -153,3 +153,84 @@ function toRad(deg: number): number {
 export function placeKey(point: LatLng): string {
   return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
 }
+
+/**
+ * Where a point falls relative to a polyline: how far along it, and how far
+ * off it.
+ *
+ * Returned by {@link projectOntoPolyline}.
+ */
+export interface PolylineProjection {
+  /** Metres from the polyline's start to the nearest point on it. */
+  alongMeters: number;
+  /** Metres from the point to that nearest point on the polyline. */
+  offMeters: number;
+}
+
+/**
+ * Project a point onto a polyline, returning both how far along the line the
+ * nearest point sits and how far the point is from the line there.
+ *
+ * Used to order fuel stations along the route ahead of the driver (#203):
+ * "nearest to the route" alone is not enough, because a station behind the
+ * driver is as close to the line as one in front of them.
+ *
+ * Each segment is projected on a locally flat plane with longitude scaled by
+ * the latitude, which is accurate well past the length of a route segment.
+ *
+ * @param point - The point to project.
+ * @param polyline - The line to project it onto.
+ * @returns The projection, or `null` for an empty polyline.
+ */
+export function projectOntoPolyline(
+  point: LatLng,
+  polyline: LatLng[],
+): PolylineProjection | null {
+  const first = polyline[0];
+  if (!first) return null;
+  if (polyline.length === 1) {
+    return { alongMeters: 0, offMeters: haversineDistance(point, first) };
+  }
+
+  let best: PolylineProjection = { alongMeters: 0, offMeters: Infinity };
+  let travelled = 0;
+
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const a = polyline[i];
+    const b = polyline[i + 1];
+    if (!a || !b) continue;
+
+    const segment = haversineDistance(a, b);
+    const t = fractionAlongSegment(point, a, b);
+    const nearest: LatLng = {
+      lat: a.lat + t * (b.lat - a.lat),
+      lng: a.lng + t * (b.lng - a.lng),
+    };
+    const off = haversineDistance(point, nearest);
+
+    if (off < best.offMeters) {
+      best = { alongMeters: travelled + t * segment, offMeters: off };
+    }
+    travelled += segment;
+  }
+
+  return best;
+}
+
+/**
+ * How far along segment `a`→`b` the foot of the perpendicular from `p` falls,
+ * clamped to the segment's ends.
+ *
+ * @returns 0 at `a`, 1 at `b`.
+ */
+function fractionAlongSegment(p: LatLng, a: LatLng, b: LatLng): number {
+  const latScale = Math.cos(toRad((a.lat + b.lat) / 2));
+  const bx = (b.lng - a.lng) * latScale;
+  const by = b.lat - a.lat;
+  const denominator = bx * bx + by * by;
+  if (denominator === 0) return 0;
+
+  const px = (p.lng - a.lng) * latScale;
+  const py = p.lat - a.lat;
+  return Math.min(1, Math.max(0, (px * bx + py * by) / denominator));
+}

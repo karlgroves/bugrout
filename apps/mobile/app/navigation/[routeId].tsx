@@ -17,6 +17,7 @@ import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { StatusIndicator } from "@/components/common/StatusIndicator";
 import { BatteryWarning } from "@/components/navigation/BatteryWarning";
 import { DeviationBanner } from "@/components/navigation/DeviationBanner";
+import { FuelRangeWarning } from "@/components/navigation/FuelRangeWarning";
 import { ManeuverCard } from "@/components/navigation/ManeuverCard";
 import { RouteBody } from "@/components/navigation/RouteBody";
 import { RouteBottomBar } from "@/components/navigation/RouteBottomBar";
@@ -25,12 +26,14 @@ import { alertRouteUnavailable } from "@/components/routing/RouteUnavailableNoti
 import { colors, spacing, statusIndicator } from "@/constants/theme";
 import { getEmergencyContacts } from "@/db/queries/preferences";
 import { useBattery } from "@/hooks/useBattery";
+import { useFuelRange } from "@/hooks/useFuelRange";
 import * as NavController from "@/services/navigation/NavigationController";
 import {
   estimateRemaining,
   calculateSmartRoute,
 } from "@/services/routing/RouteEngine";
 import { useRouteStore } from "@/stores/useRouteStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 import { haversineDistance } from "@/utils/geo";
 import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 
@@ -49,12 +52,15 @@ function NavigationScreen(): React.JSX.Element {
     setRouteView,
   } = useRouteStore();
   const battery = useBattery();
+  const { units } = useSettingsStore();
 
   const [position, setPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState(0);
   const [maneuverIndex, setManeuverIndex] = useState(0);
   const [remaining, setRemaining] = useState({ distance: 0, duration: 0 });
   const deviationAlertShown = useRef(false);
+
+  const fuel = useFuelRange(activeRoute, position, remaining.distance);
 
   // Handle events from NavigationController
   const handleNavEvent = useCallback(
@@ -164,6 +170,38 @@ function NavigationScreen(): React.JSX.Element {
     }
   }, [position, activeRoute, setStatus, router]);
 
+  // Reroute through the station the fuel banner is pointing at (#203). It is
+  // the same local graph as any other route, so this works offline.
+  const handleAddFuelStop = useCallback(async () => {
+    const stop = fuel.stop;
+    if (!position || !stop) return;
+
+    const dest = activeRoute
+      ? (activeRoute.coordinates[activeRoute.coordinates.length - 1] ?? null)
+      : null;
+    if (!dest) return;
+
+    setStatus("rerouting");
+    try {
+      const newRoute = await calculateSmartRoute(position, dest, undefined, {
+        waypoints: [{ lat: stop.resource.lat, lng: stop.resource.lng }],
+      });
+      useRouteStore.getState().setRoute(newRoute);
+      NavController.updateRoute(newRoute);
+    } catch (err) {
+      // The trip continues on the route it is on; say why the stop could not
+      // be added rather than dropping the driver into a dead end.
+      setStatus("active");
+      alertRouteUnavailable(
+        err,
+        () => {
+          router.push("/downloads");
+        },
+        "Keep current route",
+      );
+    }
+  }, [fuel.stop, position, activeRoute, setStatus, router]);
+
   const handleEmergencyContact = useCallback(async () => {
     if (!position) return;
 
@@ -239,6 +277,20 @@ function NavigationScreen(): React.JSX.Element {
 
       {/* Low battery warning; renders nothing unless the level is known and low */}
       {!hasDeviated ? <BatteryWarning battery={battery} /> : null}
+
+      {/* Fuel range; renders nothing unless a range was given and is running
+          short of the next station on the route (#203) */}
+      {!hasDeviated ? (
+        <FuelRangeWarning
+          stop={fuel.stop}
+          rangeRemaining={fuel.rangeRemaining}
+          warn={fuel.warn}
+          units={units}
+          onAddFuelStop={() => {
+            void handleAddFuelStop();
+          }}
+        />
+      ) : null}
 
       {/* The essentials stay outside the switch: the advisory badge and
           status above, the ETA and Stop below (#192, #189). */}

@@ -19,6 +19,12 @@ interface RouteState {
   destination: LatLng | null;
   /** Map or directions list; chosen on the preview, kept for the trip (#192). */
   routeView: RouteView;
+  /**
+   * How far the driver said they can drive on the fuel they have, in metres,
+   * or `null` when they skipped the question. Trip-scoped: a tank is a fact
+   * about this drive, not a setting, so it clears with the route (#203).
+   */
+  fuelRangeMeters: number | null;
 
   /**
    * Store a calculated route. It is `previewing` until {@link startNavigation},
@@ -33,6 +39,8 @@ interface RouteState {
   setDeviated: (deviated: boolean) => void;
   setDestination: (dest: LatLng | null) => void;
   setRouteView: (view: RouteView) => void;
+  /** Record the driver's stated range, or `null` when they skip it (#203). */
+  setFuelRange: (meters: number | null) => void;
   clearRoute: () => void;
 }
 
@@ -46,6 +54,7 @@ const useRouteStore = create<RouteState>((set) => ({
   hasDeviated: false,
   destination: null,
   routeView: "map",
+  fuelRangeMeters: null,
 
   setRoute: (route) => {
     set((state) => ({
@@ -72,6 +81,9 @@ const useRouteStore = create<RouteState>((set) => ({
   setRouteView: (view) => {
     set({ routeView: view });
   },
+  setFuelRange: (meters) => {
+    set({ fuelRangeMeters: meters });
+  },
   clearRoute: () => {
     set({
       activeRoute: null,
@@ -80,6 +92,7 @@ const useRouteStore = create<RouteState>((set) => ({
       hasDeviated: false,
       destination: null,
       routeView: "map",
+      fuelRangeMeters: null,
     });
   },
 }));
