@@ -24,9 +24,39 @@ import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { BugroutMap } from "@/components/map/BugroutMap";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useLocation } from "@/hooks/useLocation";
+import * as MapLibreGL from "@/platform/maplibre";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 
 import type { LatLng } from "@bugrout/shared";
+
+/**
+ * The chosen point, drawn as a pin.
+ *
+ * A Point layer, not a one-coordinate `routeCoordinates` line: a LineString
+ * needs two positions, so a single one is invalid GeoJSON and draws nothing.
+ */
+function PickedPointMarker({ point }: { point: LatLng }): React.JSX.Element {
+  return (
+    <MapLibreGL.ShapeSource
+      id="picked-destination"
+      shape={{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [point.lng, point.lat] },
+        properties: {},
+      }}
+    >
+      <MapLibreGL.CircleLayer
+        id="picked-destination-dot"
+        style={{
+          circleRadius: 9,
+          circleColor: colors.accent,
+          circleStrokeColor: "#ffffff",
+          circleStrokeWidth: 3,
+        }}
+      />
+    </MapLibreGL.ShapeSource>
+  );
+}
 
 /** Full-screen map for choosing a plan's destination by tapping it. */
 function PickLocationScreen(): React.JSX.Element {
@@ -45,11 +75,9 @@ function PickLocationScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
-        <BugroutMap
-          userLocation={picked ?? position}
-          routeCoordinates={picked ? [picked] : undefined}
-          onMapPress={setPicked}
-        />
+        <BugroutMap userLocation={position} onMapPress={setPicked}>
+          {picked ? <PickedPointMarker point={picked} /> : null}
+        </BugroutMap>
       </View>
 
       <View style={styles.panel}>
