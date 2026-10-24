@@ -118,6 +118,11 @@ function RoutePreviewScreen(): React.JSX.Element | null {
         <ScrollView
           style={styles.infoScroll}
           showsVerticalScrollIndicator={false}
+          // The panel sits at the bottom of the screen, where the keyboard
+          // opens over it, so the fuel range field would be behind the number
+          // pad. This insets the scroll view for the keyboard without touching
+          // the panel's flex layout above. Android resizes the window itself.
+          automaticallyAdjustKeyboardInsets
         >
           {/* Summary row */}
           <View style={styles.summaryRow}>

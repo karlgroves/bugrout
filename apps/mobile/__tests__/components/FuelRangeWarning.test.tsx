@@ -39,6 +39,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn={false}
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -52,6 +53,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={null}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -65,6 +67,7 @@ describe("FuelRangeWarning", () => {
         stop={null}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -78,6 +81,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -95,6 +99,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="km"
         onAddFuelStop={jest.fn()}
       />,
@@ -116,6 +121,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -140,6 +146,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -149,6 +156,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={jest.fn()}
       />,
@@ -165,6 +173,7 @@ describe("FuelRangeWarning", () => {
         stop={STOP}
         rangeRemaining={RANGE_LEFT}
         warn
+        stopAdded={false}
         units="mi"
         onAddFuelStop={onAddFuelStop}
       />,
@@ -178,5 +187,24 @@ describe("FuelRangeWarning", () => {
 
     fireEvent.press(button);
     expect(onAddFuelStop).toHaveBeenCalledTimes(1);
+  });
+  it("reports an added stop instead of offering it again", async () => {
+    const screen = await render(
+      <FuelRangeWarning
+        stop={STOP}
+        rangeRemaining={RANGE_LEFT}
+        warn
+        stopAdded
+        units="mi"
+        onAddFuelStop={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Fuel: stop added in 42.0 mi — about 50.0 mi of range left",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByTestId("fuel-range-add-stop-btn")).toBe(null);
   });
 });

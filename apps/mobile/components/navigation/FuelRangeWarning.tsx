@@ -34,6 +34,8 @@ interface FuelRangeWarningProps {
   rangeRemaining: number | null;
   /** Whether the threshold has been crossed. */
   warn: boolean;
+  /** Whether this station is already a stop on the route. */
+  stopAdded: boolean;
   /** Preferred units, from settings. */
   units: "mi" | "km";
   /** Reroute through the station. */
@@ -51,6 +53,7 @@ export function FuelRangeWarning({
   stop,
   rangeRemaining,
   warn,
+  stopAdded,
   units,
   onAddFuelStop,
 }: FuelRangeWarningProps): React.JSX.Element | null {
@@ -61,7 +64,7 @@ export function FuelRangeWarning({
   const left =
     rangeRemaining === null ? "" : formatDistance(rangeRemaining, units);
   const message = showing
-    ? `Fuel: next station on route in ${toStop} — about ${left} of range left`
+    ? `Fuel: ${stopAdded ? "stop added" : "next station on route"} in ${toStop} — about ${left} of range left`
     : "";
 
   // Announced once per crossing, not on every GPS tick. announceForAccessibility
@@ -87,16 +90,20 @@ export function FuelRangeWarning({
     >
       <FontAwesome name="tint" size={16} color={colors.warning} />
       <Text style={styles.text}>{message}</Text>
-      <Pressable
-        testID="fuel-range-add-stop-btn"
-        style={styles.action}
-        onPress={onAddFuelStop}
-        accessibilityLabel="Add fuel stop"
-        accessibilityHint={`Reroutes your trip through ${stop.resource.name}`}
-        accessibilityRole="button"
-      >
-        <Text style={styles.actionText}>Add fuel stop</Text>
-      </Pressable>
+      {/* Once the station is a stop on the route there is nothing left to add,
+          so the driver is told where it is rather than offered it again. */}
+      {stopAdded ? null : (
+        <Pressable
+          testID="fuel-range-add-stop-btn"
+          style={styles.action}
+          onPress={onAddFuelStop}
+          accessibilityLabel="Add fuel stop"
+          accessibilityHint={`Reroutes your trip through ${stop.resource.name}`}
+          accessibilityRole="button"
+        >
+          <Text style={styles.actionText}>Add fuel stop</Text>
+        </Pressable>
+      )}
     </View>
   );
 }

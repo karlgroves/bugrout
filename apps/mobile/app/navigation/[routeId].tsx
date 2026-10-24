@@ -7,7 +7,7 @@
 
 /* eslint-disable max-lines-per-function -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
 import { useRouter } from "expo-router";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -59,8 +59,13 @@ function NavigationScreen(): React.JSX.Element {
   const [maneuverIndex, setManeuverIndex] = useState(0);
   const [remaining, setRemaining] = useState({ distance: 0, duration: 0 });
   const deviationAlertShown = useRef(false);
+  const [addedStopId, setAddedStopId] = useState<string | null>(null);
 
-  const fuel = useFuelRange(activeRoute, position, remaining.distance);
+  const fuel = useFuelRange(activeRoute, position);
+  const fuelStopAdded = useMemo(
+    () => fuel.stop !== null && fuel.stop.resource.id === addedStopId,
+    [fuel.stop, addedStopId],
+  );
 
   // Handle events from NavigationController
   const handleNavEvent = useCallback(
@@ -188,6 +193,7 @@ function NavigationScreen(): React.JSX.Element {
       });
       useRouteStore.getState().setRoute(newRoute);
       NavController.updateRoute(newRoute);
+      setAddedStopId(stop.resource.id);
     } catch (err) {
       // The trip continues on the route it is on; say why the stop could not
       // be added rather than dropping the driver into a dead end.
@@ -285,6 +291,7 @@ function NavigationScreen(): React.JSX.Element {
           stop={fuel.stop}
           rangeRemaining={fuel.rangeRemaining}
           warn={fuel.warn}
+          stopAdded={fuelStopAdded}
           units={units}
           onAddFuelStop={() => {
             void handleAddFuelStop();
