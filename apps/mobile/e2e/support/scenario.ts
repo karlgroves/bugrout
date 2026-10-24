@@ -32,7 +32,7 @@ export async function createScenario(
   lat: number,
   lng: number,
 ): Promise<void> {
-  await element(by.text("Scenarios")).tap();
+  await element(by.text("Plans")).tap();
   await element(by.text("Create Plan")).tap();
 
   // fillField, not typeText: "Save Plan" is the last control on the editor

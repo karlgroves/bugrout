@@ -135,7 +135,7 @@ describe("Full evacuation journey", () => {
     // platform rather than on React: getCurrentPositionAsync asks for
     // Accuracy.High and takes as long as the emulator's GPS takes.
     await waitFor(
-      element(by.text("Search for an address or select a scenario above")),
+      element(by.text("Search for an address or select a plan above")),
     )
       .toBeVisible()
       .withTimeout(30000);

@@ -459,7 +459,7 @@ function DestinationScreen(): React.JSX.Element {
       ) : null}
       {!gettingLocation && position && !selectedDest ? (
         <Text style={styles.statusText}>
-          Search for an address or select a scenario above
+          Search for an address or select a plan above
         </Text>
       ) : null}
       {routeError ? <RouteUnavailableNotice error={routeError} /> : null}
