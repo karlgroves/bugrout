@@ -37,7 +37,9 @@ c) Data Transmitted to Third Parties Without an Opt-In
 
 Some features work by asking someone else's server a question. When they do, that server sees the question and your device's IP address. This happens without a separate opt-in, and it is not something BugRout can do on your behalf privately.
 
-- Destination search. When you type in the destination search box, what you typed is sent to Nominatim, the OpenStreetMap Foundation's geocoding service, to be turned into coordinates. Nominatim receives your search text and your IP address. Searches are sent only after you have accepted the disclaimer on first launch, only while you are online, and only after you pause typing. Saved plans and recent destinations do not trigger a search — they are already on your device. If you would rather not use this, you can reach any destination by saving a plan or picking a point on the map.
+- Destination search. When you type in the destination search box, what you typed is sent to Nominatim, the OpenStreetMap Foundation's geocoding service, to be turned into coordinates. Nominatim receives your search text and your IP address. Searches are sent only after you have accepted the disclaimer on first launch, only while you are online, and only after you pause typing.
+- Saving a plan by address. When you save a plan with an address, that address is sent to Nominatim at the moment you save, to turn it into coordinates. This happens once, while you are setting the plan up — not when you use it. Using a saved plan sends nothing: its coordinates are already on your device, which is what lets a plan work with no connection.
+- Dropping a pin instead. You can set a plan's destination by tapping a point on the map. Nothing is sent when you do, and no address is needed. If you would rather not use Nominatim at all, this is the way to reach any destination.
 - Weather alerts. To find which state you are in, BugRout sends the centre point of your downloaded map region to the National Weather Service. This is the centre of a region you chose to download, not your live GPS position, but it is still an approximate indication of where you are.
 - Water sources and fuel stations. BugRout sends the bounding box of your downloaded map region to the OpenStreetMap Overpass API.
 - Shelters. BugRout sends the bounding box of your downloaded map region to FEMA's open-shelters service.
@@ -90,7 +92,7 @@ None of these services receives your name, email, phone number, contacts, or any
 - You can disable Crowd Signal at any time in Settings
 - You can disable Crash Reports at any time in Settings
 - You can force-rotate your anonymous device token in Settings
-- You can avoid the destination search entirely by using saved plans, recent destinations, or a point on the map
+- You can avoid Nominatim entirely by dropping a pin on the map, or by using a plan or recent destination you have already saved
 - No account exists to delete — we don't have your information
 
 6. CHILDREN'S PRIVACY

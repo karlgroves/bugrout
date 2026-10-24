@@ -16,8 +16,13 @@ import { getPreference } from "@/db/queries/preferences";
 import { timeoutSignal } from "@/utils/abort";
 import { appUserAgent } from "@/utils/userAgent";
 
+import type { LatLng } from "@bugrout/shared";
+
 /** Nominatim search endpoint. US results only, capped at 8. */
 const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
+
+/** Nominatim reverse endpoint: coordinates to an address. */
+const NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse";
 
 /** Abort a geocoding request that has not answered in this many ms. */
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -200,4 +205,44 @@ export async function searchDestinations(
     lat: parseFloat(d.lat),
     lng: parseFloat(d.lon),
   }));
+}
+
+/**
+ * The address at a point, for labelling a plan set by dropping a pin (#187).
+ *
+ * Sends coordinates rather than typed text, but it is the same third party
+ * receiving the same kind of fact — where the user is interested in going — so
+ * it goes through the same gate and the same rate limit as a search, and the
+ * bundled policy covers it.
+ *
+ * A pin is allowed to have no address: a field rally point or a trailhead
+ * genuinely has none, and the caller shows a readable label instead.
+ *
+ * @param point - The point to look up.
+ * @returns The display name, or `null` when there is none or the lookup fails.
+ * @throws {DisclaimerNotAcceptedError} When the disclaimer has not been accepted.
+ * @throws {SearchSupersededError} When a newer request replaced this one.
+ */
+export async function reverseGeocode(point: LatLng): Promise<string | null> {
+  if (!(await hasAcceptedDisclaimer())) {
+    throw new DisclaimerNotAcceptedError();
+  }
+
+  const params = new URLSearchParams({
+    lat: String(point.lat),
+    lon: String(point.lng),
+    format: "json",
+    addressdetails: "1",
+  });
+
+  await takeRequestSlot();
+
+  const resp = await fetch(`${NOMINATIM_REVERSE}?${params.toString()}`, {
+    headers: { "User-Agent": appUserAgent() },
+    signal: timeoutSignal(REQUEST_TIMEOUT_MS),
+  });
+  if (!resp.ok) return null;
+
+  const data = (await resp.json()) as Partial<NominatimResult>;
+  return data.display_name ?? null;
 }

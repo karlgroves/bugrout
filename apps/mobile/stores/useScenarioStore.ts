@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { Scenario } from "@bugrout/shared";
+import type { LatLng, Scenario } from "@bugrout/shared";
 
 const MAX_SCENARIOS = 3;
 
@@ -9,11 +9,22 @@ const MAX_SCENARIOS = 3;
  */
 interface ScenarioState {
   scenarios: Scenario[];
+  /**
+   * A point just chosen on the map for the plan being edited (#187).
+   *
+   * The pick screen and the editor are separate routes, and the editor must
+   * keep the name and stop switches the user has already set, so the point
+   * cannot come back as a navigation param that replaces the screen. The
+   * editor consumes this and clears it.
+   */
+  pickedDestination: LatLng | null;
 
   addScenario: (scenario: Scenario) => void;
   updateScenario: (id: string, updates: Partial<Scenario>) => void;
   deleteScenario: (id: string) => void;
   setScenarios: (scenarios: Scenario[]) => void;
+  /** Hand a chosen point to the editor, or clear it once consumed. */
+  setPickedDestination: (point: LatLng | null) => void;
 }
 
 export /**
@@ -21,6 +32,7 @@ export /**
  */
 const useScenarioStore = create<ScenarioState>((set) => ({
   scenarios: [],
+  pickedDestination: null,
 
   addScenario: (scenario) => {
     set((state) => {
@@ -42,5 +54,8 @@ const useScenarioStore = create<ScenarioState>((set) => ({
   },
   setScenarios: (scenarios) => {
     set({ scenarios });
+  },
+  setPickedDestination: (point) => {
+    set({ pickedDestination: point });
   },
 }));

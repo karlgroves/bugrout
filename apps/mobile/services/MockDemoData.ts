@@ -179,6 +179,7 @@ export function loadMockDemoData(): void {
       id: "demo-scenario-1",
       name: "Wildfire East",
       destination: { lat: 37.3382, lng: -121.8863 }, // San Jose
+      address: "San Jose, Santa Clara County, California, United States",
       avoidZones: [],
       resourceStops: [
         { type: "fuel", maxDetour: 16000, enabled: true },

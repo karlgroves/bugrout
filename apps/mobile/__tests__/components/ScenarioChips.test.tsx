@@ -43,6 +43,7 @@ describe("ScenarioChips — routing fails", () => {
           id: "s1",
           name: "Louisville",
           destination: { lat: 38.254, lng: -85.759 },
+          address: null,
           resourceStops: [],
           avoidZones: [],
           createdAt: 0,

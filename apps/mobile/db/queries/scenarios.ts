@@ -13,12 +13,13 @@ export async function upsertScenario(scenario: Scenario): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `INSERT OR REPLACE INTO scenarios
-     (id, name, destination_lat, destination_lng, avoid_zones, resource_stops, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, name, destination_lat, destination_lng, destination_address, avoid_zones, resource_stops, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     scenario.id,
     scenario.name,
     scenario.destination.lat,
     scenario.destination.lng,
+    scenario.address,
     JSON.stringify(scenario.avoidZones),
     JSON.stringify(scenario.resourceStops),
     scenario.createdAt,
@@ -36,6 +37,7 @@ export async function getScenarios(): Promise<Scenario[]> {
     name: string;
     destination_lat: number;
     destination_lng: number;
+    destination_address: string | null;
     avoid_zones: string | null;
     resource_stops: string | null;
     created_at: number;
@@ -46,6 +48,9 @@ export async function getScenarios(): Promise<Scenario[]> {
     id: row.id,
     name: row.name,
     destination: { lat: row.destination_lat, lng: row.destination_lng },
+    // Plans saved before #187 have no column value at all, and a plan set by
+    // a dropped pin has none by design; both read as null.
+    address: row.destination_address ?? null,
     avoidZones: JSON.parse(row.avoid_zones ?? "[]") as Scenario["avoidZones"],
     resourceStops: JSON.parse(
       row.resource_stops ?? "[]",
