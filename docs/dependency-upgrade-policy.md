@@ -178,6 +178,30 @@ just matured. Re-read these consumers' declared versions whenever `wrangler` or
 `markdownlint-cli2` moves. The rest of this section records how the original
 five were checked while they crossed.
 
+`undici` and `zod` moved on 2026-10-24 by raising the bound on an override that
+already existed, which is the cheap case: `undici@<6.28.1` became `<6.29.1` and
+`undici@>=7 <7.29.1` became `>=7 <7.30.1`, closing GHSA-xjj6-f33q-929c,
+GHSA-4qv8-2p9j-2685 and GHSA-f72v-6w45-q472. `zod` is a new entry,
+`zod@>=4 <4.6.6` → `>=4.6.6 <5`, closing GHSA-mrhx-c7xc-m3w5 against the two
+copies `eslint-plugin-react-hooks` and `knip` pull in. All three fixed versions
+had matured: undici 6.29.1 and 7.30.1 on 2026-10-15, zod 4.6.6 on 2026-10-11.
+
+**`fast-uri` is the one left open, and deliberately.** Four advisories
+(GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr,
+GHSA-xhq7-xmqj-769h — two Low, two Moderate) stand against 4.2.1 and are fixed
+in 4.2.3, but 4.2.3 was published 2026-10-19 and the quarantine refuses it:
+
+```text
+ERR_PNPM_NO_MATURE_MATCHING_VERSION  Version 4.2.3 (released 4 days ago) of
+fast-uri does not meet the minimumReleaseAge constraint
+```
+
+`--minimum-release-age 0` would take it today. It is not worth it here: the
+package is reached only through `detox`, so it never ships, and trading a
+supply-chain control for two Low and two Moderate findings in a test-only path
+is the wrong side of that bargain when waiting costs two days. It matures on
+**2026-10-26**; bump `fast-uri@<4.1.4` to `<4.2.3` → `>=4.2.3 <5` then.
+
 All five were exercised rather than argued. `sharp` is a native package, so the
 check is that it loads through the live resolution path — `wrangler` →
 `miniflare` → `sharp@0.35.4`, libvips 8.18.6, API responding — and not merely
