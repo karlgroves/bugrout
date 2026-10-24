@@ -7,9 +7,10 @@ import {
   formatDistance,
   formatDuration,
   placeKey,
+  projectOntoPolyline,
 } from "@/utils/geo";
 
-import type { ThreatZone } from "@bugrout/shared";
+import type { LatLng, ThreatZone } from "@bugrout/shared";
 
 describe("haversineDistance", () => {
   it("returns 0 for same point", () => {
@@ -263,5 +264,58 @@ describe("placeKey", () => {
     expect(placeKey({ lat: 39.3138, lng: -76.6021 })).not.toBe(
       placeKey({ lat: 39.314, lng: -76.6021 }),
     );
+  });
+});
+
+describe("projectOntoPolyline", () => {
+  /** A due-east run along the 39.0 parallel. */
+  const line: LatLng[] = [
+    { lat: 39.0, lng: -77.0 },
+    { lat: 39.0, lng: -76.5 },
+    { lat: 39.0, lng: -76.0 },
+  ];
+
+  it("returns null for an empty polyline", () => {
+    expect(projectOntoPolyline({ lat: 39, lng: -77 }, [])).toBe(null);
+  });
+
+  it("measures distance to a single-point polyline", () => {
+    const projection = projectOntoPolyline({ lat: 39.0, lng: -76.9 }, [
+      { lat: 39.0, lng: -77.0 },
+    ]);
+    expect(projection?.alongMeters).toBe(0);
+    expect(projection?.offMeters).toBeGreaterThan(8000);
+  });
+
+  it("puts a point on the line at zero off-distance", () => {
+    const projection = projectOntoPolyline({ lat: 39.0, lng: -76.75 }, line);
+    expect(projection?.offMeters).toBeLessThan(1);
+  });
+
+  it("measures how far along the line the nearest point sits", () => {
+    const projection = projectOntoPolyline({ lat: 39.0, lng: -76.75 }, line);
+    // A quarter of a 0.5°+0.5° run at 39°N: ~21.6 km.
+    expect(projection?.alongMeters).toBeGreaterThan(21000);
+    expect(projection?.alongMeters).toBeLessThan(22200);
+  });
+
+  it("measures perpendicular distance off the line", () => {
+    const projection = projectOntoPolyline({ lat: 39.1, lng: -76.75 }, line);
+    // 0.1° of latitude is ~11.1 km, whatever the longitude.
+    expect(projection?.offMeters).toBeGreaterThan(10500);
+    expect(projection?.offMeters).toBeLessThan(11600);
+    expect(projection?.alongMeters).toBeGreaterThan(21000);
+  });
+
+  it("clamps a point beyond the end to the last vertex", () => {
+    const projection = projectOntoPolyline({ lat: 39.0, lng: -75.5 }, line);
+    const [start, , end] = line;
+    const total = haversineDistance(start!, end!);
+    expect(projection?.alongMeters).toBeCloseTo(total, -2);
+  });
+
+  it("clamps a point before the start to the first vertex", () => {
+    const projection = projectOntoPolyline({ lat: 39.0, lng: -77.5 }, line);
+    expect(projection?.alongMeters).toBe(0);
   });
 });

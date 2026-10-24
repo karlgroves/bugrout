@@ -23,6 +23,8 @@ import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { DirectionsList } from "@/components/navigation/DirectionsList";
 import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
+import { FuelRangeField } from "@/components/routing/FuelRangeField";
+import { RouteThreatWarnings } from "@/components/routing/RouteThreatWarnings";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { routeIntersectsThreat } from "@/services/routing/ThreatAvoidance";
@@ -34,8 +36,14 @@ import { formatDistance, formatDuration } from "@/utils/geo";
 /** Route confirmation screen showing distance, ETA, threats, and Go/Back actions. */
 function RoutePreviewScreen(): React.JSX.Element | null {
   const router = useRouter();
-  const { activeRoute, startNavigation, routeView, setRouteView } =
-    useRouteStore();
+  const {
+    activeRoute,
+    startNavigation,
+    routeView,
+    setRouteView,
+    fuelRangeMeters,
+    setFuelRange,
+  } = useRouteStore();
 
   // However the preview closes without Go — its Back button, an iOS swipe, the
   // Android back button — the route was never started, so drop it. It used to
@@ -110,6 +118,11 @@ function RoutePreviewScreen(): React.JSX.Element | null {
         <ScrollView
           style={styles.infoScroll}
           showsVerticalScrollIndicator={false}
+          // The panel sits at the bottom of the screen, where the keyboard
+          // opens over it, so the fuel range field would be behind the number
+          // pad. This insets the scroll view for the keyboard without touching
+          // the panel's flex layout above. Android resizes the window itself.
+          automaticallyAdjustKeyboardInsets
         >
           {/* Summary row */}
           <View style={styles.summaryRow}>
@@ -148,26 +161,14 @@ function RoutePreviewScreen(): React.JSX.Element | null {
           )}
 
           {/* Threat warnings */}
-          {threatWarnings.length > 0 && (
-            <View style={styles.warningBox}>
-              <FontAwesome
-                name="exclamation-triangle"
-                size={16}
-                color={colors.warning}
-              />
-              <View style={styles.warningText}>
-                <Text style={styles.warningTitle}>
-                  Route passes near {threatWarnings.length} active threat
-                  {threatWarnings.length > 1 ? "s" : ""}
-                </Text>
-                {threatWarnings.slice(0, 3).map((t) => (
-                  <Text key={t.id} style={styles.warningDetail}>
-                    {t.headline}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
+          <RouteThreatWarnings threats={threatWarnings} />
+
+          {/* Fuel range, for the warning during navigation (#203) */}
+          <FuelRangeField
+            value={fuelRangeMeters}
+            units={units}
+            onChange={setFuelRange}
+          />
 
           {/* Advisory disclaimer */}
           <Text style={styles.disclaimer}>{DISCLAIMER_SHORT}</Text>
@@ -291,29 +292,6 @@ const styles = StyleSheet.create({
   infoText: {
     ...typography.body,
     color: colors.accent,
-  },
-  warningBox: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    backgroundColor: "rgba(245, 158, 11, 0.1)",
-    borderRadius: 8,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  warningText: {
-    flex: 1,
-  },
-  warningTitle: {
-    ...typography.body,
-    fontWeight: "600",
-    color: colors.warning,
-  },
-  warningDetail: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
   },
   disclaimer: {
     ...typography.caption,
