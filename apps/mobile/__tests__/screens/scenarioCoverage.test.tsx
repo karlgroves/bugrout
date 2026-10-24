@@ -17,6 +17,8 @@ const MARYLAND = {
 const ANNAPOLIS = { lat: 38.9784, lng: -76.4922 };
 const LOUISVILLE = { lat: 38.2527, lng: -85.7585 };
 
+import type * as AddressLookupModule from "@/services/geocoding/AddressLookup";
+
 const mockGetDownloadedRegions = jest.fn();
 jest.mock("@/db/queries/regions", () => ({
   getDownloadedRegions: () => mockGetDownloadedRegions() as unknown,
@@ -31,8 +33,25 @@ jest.mock("@/db/queries/scenarios", () => ({
 
 const mockBack = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ back: mockBack }),
+  useRouter: () => ({ back: mockBack, push: jest.fn() }),
   useLocalSearchParams: () => ({}),
+}));
+
+// The destination is an address now (#187); the lookup itself is covered in
+// __tests__/services/AddressLookup.test.ts. Here it just resolves to the
+// coordinates each case is about.
+const mockLookupAddress = jest.fn();
+jest.mock("@/services/geocoding/AddressLookup", () => {
+  const actual = jest.requireActual<typeof AddressLookupModule>(
+    "@/services/geocoding/AddressLookup",
+  );
+  return {
+    ...actual,
+    lookupAddress: (address: string) => mockLookupAddress(address) as unknown,
+  };
+});
+jest.mock("@/services/geocoding/Geocoder", () => ({
+  reverseGeocode: jest.fn().mockResolvedValue(null),
 }));
 
 /** The buttons of the most recent alert. */
@@ -72,6 +91,7 @@ describe("saving a scenario", () => {
     mockGetDownloadedRegions.mockReset().mockResolvedValue([MARYLAND]);
     mockUpsertScenario.mockClear();
     mockBack.mockClear();
+    mockLookupAddress.mockReset();
     useScenarioStore.setState({ scenarios: [] });
   });
 
@@ -87,15 +107,21 @@ describe("saving a scenario", () => {
     lat: number;
     lng: number;
   }): Promise<{ pressing: Promise<unknown> }> {
+    mockLookupAddress.mockResolvedValue({
+      kind: "one",
+      match: {
+        displayName: "Somewhere, USA",
+        shortName: "Somewhere",
+        lat: destination.lat,
+        lng: destination.lng,
+      },
+    });
+
     const screen = await render(<ScenarioEditScreen />);
     await fireEvent.changeText(screen.getByLabelText("Plan name"), "Family");
     await fireEvent.changeText(
-      screen.getByLabelText("Destination latitude"),
-      String(destination.lat),
-    );
-    await fireEvent.changeText(
-      screen.getByLabelText("Destination longitude"),
-      String(destination.lng),
+      screen.getByLabelText("Destination address"),
+      "Somewhere",
     );
     // Not awaited: the save waits on the coverage alert, which the test answers.
     return {

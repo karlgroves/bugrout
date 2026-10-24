@@ -58,6 +58,7 @@ const CREATE_TABLES_SQL = `
     name TEXT NOT NULL,
     destination_lat REAL NOT NULL,
     destination_lng REAL NOT NULL,
+    destination_address TEXT,
     avoid_zones TEXT,
     resource_stops TEXT,
     created_at INTEGER NOT NULL,

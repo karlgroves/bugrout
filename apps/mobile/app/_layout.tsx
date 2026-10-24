@@ -147,6 +147,13 @@ export default function RootLayout(): React.JSX.Element | null {
           }}
         />
         <Stack.Screen
+          name="scenarios/pick-location"
+          options={{
+            title: "Choose Destination",
+            presentation: "modal",
+          }}
+        />
+        <Stack.Screen
           name="contacts/index"
           options={{
             title: "Emergency Contacts",

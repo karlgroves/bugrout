@@ -39,6 +39,7 @@ describe("useScenarioStore", () => {
     id: "s1",
     name: "Test",
     destination: { lat: 37.0, lng: -122.0 },
+    address: null,
     avoidZones: [],
     resourceStops: [],
     createdAt: Date.now(),

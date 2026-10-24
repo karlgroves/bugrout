@@ -14,6 +14,7 @@ import {
 } from "@/constants/theme";
 import { getScenarios } from "@/db/queries/scenarios";
 import { useScenarioStore } from "@/stores/useScenarioStore";
+import { planDestinationLabel } from "@/utils/planLabel";
 
 const MAX_SCENARIOS = 3;
 
@@ -84,9 +85,8 @@ function ScenariosScreen(): React.JSX.Element {
               >
                 <View style={styles.scenarioInfo}>
                   <Text style={styles.scenarioName}>{item.name}</Text>
-                  <Text style={styles.scenarioDestination}>
-                    {item.destination.lat.toFixed(4)},{" "}
-                    {item.destination.lng.toFixed(4)}
+                  <Text style={styles.scenarioDestination} numberOfLines={2}>
+                    {planDestinationLabel(item)}
                   </Text>
                   {item.resourceStops.some((r) => r.enabled) && (
                     <Text style={styles.scenarioStops}>

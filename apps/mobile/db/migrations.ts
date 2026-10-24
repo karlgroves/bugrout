@@ -66,6 +66,37 @@ export async function collapseRecentDestinations(
 }
 
 /**
+ * Add `scenarios.destination_address` to a table that predates it.
+ *
+ * The schema is `CREATE TABLE IF NOT EXISTS`, so a device that already has a
+ * `scenarios` table never gets the new column from it. Reading survives that —
+ * `getScenarios` selects `*`, so the field simply comes back undefined — but
+ * `upsertScenario` names `destination_address` in its INSERT, which fails with
+ * "table scenarios has no column named destination_address". So without this,
+ * existing plans still load and route, and saving or editing any plan breaks
+ * (#187).
+ *
+ * Idempotent by asking the table what it has: SQLite has no
+ * `ADD COLUMN IF NOT EXISTS`, and a second `ALTER TABLE` throws.
+ *
+ * @param db - An open database with the schema created.
+ * @returns True when the column was added, false when it was already there.
+ */
+export async function addScenarioAddressColumn(
+  db: SQLiteDatabase,
+): Promise<boolean> {
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(scenarios)",
+  );
+  if (columns.some((c) => c.name === "destination_address")) return false;
+
+  await db.execAsync(
+    "ALTER TABLE scenarios ADD COLUMN destination_address TEXT",
+  );
+  return true;
+}
+
+/**
  * Run every data migration. A failure is logged and doesn't fail start-up:
  * these tidy existing data, and the app works without them.
  *
@@ -73,6 +104,8 @@ export async function collapseRecentDestinations(
  */
 export async function runDataMigrations(db: SQLiteDatabase): Promise<void> {
   try {
+    // Before anything else: saving a plan fails until this column exists.
+    await addScenarioAddressColumn(db);
     await collapseRecentDestinations(db);
   } catch (err) {
     console.warn("[BugRout] Data migration failed; continuing:", err);

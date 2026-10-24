@@ -155,6 +155,31 @@ export function placeKey(point: LatLng): string {
 }
 
 /**
+ * A point from two strings, when both are present and are real numbers.
+ *
+ * Route params and deep links arrive as strings, and a malformed one must read
+ * as "no point given" rather than as `NaN` coordinates somewhere off the globe.
+ *
+ * @param lat - The latitude, as text.
+ * @param lng - The longitude, as text.
+ * @returns The point, or `null` when either is missing or not a number.
+ */
+export function pointFromStrings(
+  lat: string | undefined,
+  lng: string | undefined,
+): LatLng | null {
+  if (lat === undefined || lng === undefined) return null;
+  // Number("") is 0, so a blank param would otherwise read as a coordinate on
+  // the equator rather than as nothing given.
+  if (lat.trim() === "" || lng.trim() === "") return null;
+
+  const parsedLat = Number(lat);
+  const parsedLng = Number(lng);
+  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return null;
+  return { lat: parsedLat, lng: parsedLng };
+}
+
+/**
  * Where a point falls relative to a polyline: how far along it, and how far
  * off it.
  *
