@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bake ELF (Evacuation Load Factor) weights into Valhalla routing tiles.
+# Package ELF (Evacuation Load Factor) weights alongside Valhalla routing tiles.
 #
-# This modifies edge speeds in the Valhalla tiles so that roads predicted
-# to be congested during evacuations are penalized. The routing engine
-# then naturally avoids these roads without any runtime custom costing.
+# NOT YET APPLIED (#195): this script writes the weight table and then copies
+# the Valhalla tiles UNCHANGED. Nothing modifies edge speeds, and no code reads
+# elf-weights.json at query time, so every route is plain fastest-path. The
+# intended step 3 below is unimplemented; where ELF is applied (rebuilt tiles
+# or query-time costing) is still an open design decision on #195.
 #
 # Pipeline:
 # 1. Extract road segment features from OSM PBF
 # 2. Compute ELF multipliers using the lookup table
-# 3. Modify Valhalla tile edge speeds: effective_speed = base_speed / elf_multiplier
-# 4. Output ELF-weighted Valhalla tiles
+# 3. (not implemented) Modify Valhalla tile edge speeds:
+#    effective_speed = base_speed / elf_multiplier
+# 4. Output the weight table and an unmodified copy of the tiles
 #
 # Prerequisites:
 # - Node.js 20+
@@ -113,14 +116,14 @@ echo "  Weight table written to: ${WEIGHT_TABLE}"
 
 # Step 2: Modify Valhalla tiles
 echo ""
-echo "Step 2: Baking weights into Valhalla tiles..."
-echo "  (In production, this modifies edge speeds in the tile binary format)"
-echo "  (For MVP, the weight table is bundled alongside tiles and applied at query time)"
+echo "Step 2: Copying Valhalla tiles (ELF weights are NOT applied, #195)..."
+echo "  The tiles are copied unchanged and nothing reads the weight table yet,"
+echo "  so routes built from this output are not congestion-weighted."
 
-# Copy tiles to ELF output directory
+# Copy tiles to ELF output directory, unmodified
 cp -r "${VALHALLA_TILES}" "${ELF_OUTPUT}/valhalla-tiles"
 
-echo "  ELF-weighted tiles: ${ELF_OUTPUT}/valhalla-tiles"
+echo "  Unmodified tiles: ${ELF_OUTPUT}/valhalla-tiles"
 
 # Step 3: Package for app distribution
 echo ""
