@@ -25,7 +25,16 @@
    justification as the source-walking tests in apps/mobile/__tests__. */
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -153,5 +162,87 @@ describe("secret scanner fails closed", () => {
     assert.ok(args.includes("--fail"), `--fail missing from: ${printed}`);
     assert.ok(args.includes("--fail-on-scan-errors"));
     assert.ok(args.includes("--no-verification"));
+  });
+});
+
+/**
+ * Environment for a git fixture: everything but `GIT_*`.
+ *
+ * pre-push runs this suite with git's `GIT_DIR` and friends exported, and a
+ * fixture that inherits them acts on the real repository instead of its temp
+ * directory. The identity is passed here too, so nothing writes a git config.
+ *
+ * @returns The scrubbed environment.
+ */
+function fixtureEnv(): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+  );
+  return {
+    ...env,
+    GIT_AUTHOR_NAME: "fixture",
+    GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+    GIT_COMMITTER_NAME: "fixture",
+    GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+  };
+}
+
+/**
+ * Run git in a fixture directory and fail the test if it fails.
+ *
+ * @param cwd - Fixture directory.
+ * @param args - git arguments.
+ * @returns git's trimmed stdout.
+ */
+function git(cwd: string, args: string[]): string {
+  const out = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    env: fixtureEnv(),
+  });
+  assert.equal(out.status, 0, `git ${args.join(" ")}: ${out.stderr}`);
+  return out.stdout.trim();
+}
+
+describe("secret scanner target", () => {
+  it("scans the main work tree when run from a linked worktree", () => {
+    // `file://.` was the target. In a linked worktree `.git` is a pointer
+    // file that trufflehog cannot open, so the full-history gate failed in
+    // every worktree, and pre-push could not pass from one. The main checkout
+    // cannot show this — there `.` is the right answer — hence the fixture.
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "bugrout-thwt-")));
+    stubDirs.push(base);
+    const main = join(base, "main");
+    const linked = join(base, "linked");
+    mkdirSync(main);
+    git(main, ["init", "--quiet"]);
+    // Plumbing, so no hook of any kind runs in the fixture.
+    const tree = git(main, ["write-tree"]);
+    const commit = git(main, ["commit-tree", tree, "-m", "init"]);
+    git(main, ["update-ref", "refs/heads/fixture", commit]);
+    git(main, ["worktree", "add", "--quiet", linked, "fixture"]);
+
+    // The wrapper resolves everything from its own location, so a copy inside
+    // the linked worktree behaves exactly as the real one does in ours.
+    const wrapper = join(linked, "security", "scripts", "trufflehog.mjs");
+    mkdirSync(dirname(wrapper), { recursive: true });
+    copyFileSync(WRAPPER, wrapper);
+
+    const stubDir = join(base, "bin");
+    const seen = join(base, "target.txt");
+    mkdirSync(stubDir);
+    writeFileSync(
+      join(stubDir, "trufflehog"),
+      `#!/bin/sh\nprintf '%s' "$2" > '${seen}'\nexit 0\n`,
+    );
+    chmodSync(join(stubDir, "trufflehog"), 0o755);
+
+    const run = spawnSync(process.execPath, [wrapper], {
+      cwd: linked,
+      encoding: "utf8",
+      env: { ...fixtureEnv(), PATH: `${stubDir}:${process.env.PATH ?? ""}` },
+    });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(readFileSync(seen, "utf8"), `file://${main}`);
   });
 });
