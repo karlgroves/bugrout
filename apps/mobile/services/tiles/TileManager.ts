@@ -28,6 +28,7 @@ import { useMapStore } from "@/stores/useMapStore";
 import { timeoutSignal } from "@/utils/abort";
 import { fetchWithRetry } from "@/utils/retry";
 
+import { downloadSizeBytes, packagedFuelSize } from "./regionSize";
 import { isRegionStale, publishedVersionsFrom } from "./TileVersions";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
@@ -137,7 +138,7 @@ export async function downloadRegion(
   const valhallaPath = `${regionDir}${region.id}.valhalla.tar.gz`;
 
   const fuelSize = packagedFuelSize(region);
-  const totalSize = region.pmtilesSize + region.valhallaSize + fuelSize;
+  const totalSize = downloadSizeBytes(region);
   let downloaded = 0;
 
   const reportProgress = (status: DownloadProgress["status"]) => {
@@ -231,11 +232,6 @@ export async function downloadRegion(
   });
 
   return result;
-}
-
-/** The packaged fuel file's size, or 0 when the package has none. */
-function packagedFuelSize(region: Region): number {
-  return region.fuelSha256 === undefined ? 0 : (region.fuelSize ?? 0);
 }
 
 /**
