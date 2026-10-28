@@ -36,6 +36,7 @@
     "security:secrets": "node security/scripts/trufflehog.mjs",
     "security:tests": "node --import tsx --test security/tests/*.test.ts",
     "security:headers": "node security/scripts/check-headers.js",
+    "security:store-urls": "node security/scripts/check-store-urls.mjs",
     "security:report": "node security/scripts/generate-security-report.mjs",
     "security": "run-p security:audit security:osv security:secrets security:tests security:fs security:docker security:iac",
     "license:check": "node scripts/check-licenses.mjs",
