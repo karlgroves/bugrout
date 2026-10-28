@@ -43,16 +43,30 @@ import type { LatLng } from "@bugrout/shared";
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
-  const {
-    activeRoute,
-    hasDeviated,
-    clearRoute,
-    setStatus,
-    routeView,
-    setRouteView,
-  } = useRouteStore();
+  /*
+   * Selectors, not `useRouteStore()` / `useSettingsStore()`.
+   *
+   * Calling the hook with no selector subscribes to the whole store, so this
+   * screen re-rendered whenever *any* field changed — including
+   * `currentManeuverIndex`, which NavigationController writes on every GPS
+   * tick and which this screen never reads (it keeps its own `maneuverIndex`
+   * in local state). #189 reports the navigation screen as slow to respond,
+   * with taps lagging just after navigation starts, and asks for exactly this:
+   * "profile the navigation screen's render and JS load, and fix whatever
+   * keeps the JS thread busy."
+   *
+   * Field by field, so a write to a field this screen does not display costs
+   * it nothing. The setters are stable references in Zustand, so selecting
+   * them adds no subscription churn of its own.
+   */
+  const activeRoute = useRouteStore((s) => s.activeRoute);
+  const hasDeviated = useRouteStore((s) => s.hasDeviated);
+  const clearRoute = useRouteStore((s) => s.clearRoute);
+  const setStatus = useRouteStore((s) => s.setStatus);
+  const routeView = useRouteStore((s) => s.routeView);
+  const setRouteView = useRouteStore((s) => s.setRouteView);
   const battery = useBattery();
-  const { units } = useSettingsStore();
+  const units = useSettingsStore((s) => s.units);
 
   const [position, setPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState(0);
