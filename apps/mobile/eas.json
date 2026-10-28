@@ -18,7 +18,8 @@
       "env": {
         "EXPO_PUBLIC_VALHALLA_APPROACH": "http",
         "EXPO_PUBLIC_VALHALLA_URL": "https://bugrout-valhalla.fly.dev",
-        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev"
+        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev",
+        "EXPO_PUBLIC_SIGNAL_URL": "https://signal.bugrout.app"
       }
     },
     "development-simulator": {
@@ -39,7 +40,8 @@
       "env": {
         "EXPO_PUBLIC_VALHALLA_APPROACH": "http",
         "EXPO_PUBLIC_VALHALLA_URL": "https://bugrout-valhalla.fly.dev",
-        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev"
+        "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev",
+        "EXPO_PUBLIC_SIGNAL_URL": "https://signal.bugrout.app"
       }
     },
     "production": {
@@ -55,6 +57,7 @@
         "EXPO_PUBLIC_VALHALLA_APPROACH": "http",
         "EXPO_PUBLIC_VALHALLA_URL": "https://bugrout-valhalla.fly.dev",
         "EXPO_PUBLIC_TILE_SERVER_URL": "https://bugrout-tile-server.karlgroves.workers.dev",
+        "EXPO_PUBLIC_SIGNAL_URL": "https://signal.bugrout.app",
         "EXPO_PUBLIC_SENTRY_DSN": "YOUR_SENTRY_DSN"
       }
     }
