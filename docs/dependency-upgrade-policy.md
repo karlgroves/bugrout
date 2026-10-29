@@ -186,7 +186,7 @@ GHSA-4qv8-2p9j-2685 and GHSA-f72v-6w45-q472. `zod` is a new entry,
 copies `eslint-plugin-react-hooks` and `knip` pull in. All three fixed versions
 had matured: undici 6.29.1 and 7.30.1 on 2026-10-15, zod 4.6.6 on 2026-10-11.
 
-`fast-uri` was held back a week, deliberately. Four advisories
+`fast-uri` was held back until it matured, deliberately. Four advisories
 (GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr,
 GHSA-xhq7-xmqj-769h — two Low, two Moderate) stood against 4.2.1 and are fixed
 in 4.2.3, but 4.2.3 was published 2026-10-19 and the quarantine refused it:
