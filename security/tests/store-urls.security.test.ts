@@ -18,11 +18,14 @@
  */
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { after, describe, test } from "node:test";
+import { after, before, describe, test } from "node:test";
+
+import type { AddressInfo } from "node:net";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 const script = path.join(repoRoot, "security/scripts/check-store-urls.mjs");
@@ -145,6 +148,112 @@ describe("policy wording", () => {
     ]);
 
     assert.equal(status, 0, output);
+  });
+});
+
+describe("the command line", () => {
+  test("--file followed by a flag is a usage error, not a crash", () => {
+    const run = spawnSync(process.execPath, [script, "--file", "--no-policy"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+
+    assert.equal(run.status, 1, run.stderr);
+    assert.match(run.stderr, /--file needs a path/);
+  });
+});
+
+/**
+ * The network path, against a local server so no third-party host is needed:
+ * `--file` skips the fetch entirely, so status handling, redirect following
+ * and the "could not be reached" exit code are only exercised here.
+ */
+describe("fetching a URL", () => {
+  let server: Server;
+  let origin = "";
+
+  before(async () => {
+    server = createServer((req, res) => {
+      if (req.url === "/policy") {
+        res.writeHead(200, { "Content-Type": "text/html" }).end(REAL_POLICY);
+      } else if (req.url === "/support") {
+        res.writeHead(200, { "Content-Type": "text/html" }).end(MARKETING_PAGE);
+      } else if (req.url === "/moved") {
+        res.writeHead(302, { Location: "/parked" }).end();
+      } else if (req.url === "/parked") {
+        res.writeHead(200, { "Content-Type": "text/html" }).end(PARKED_STUB);
+      } else {
+        res.writeHead(404).end();
+      }
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  });
+
+  after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  /**
+   * Run the check against URLs. Asynchronous, unlike `check`, because the
+   * server answering it lives in this process's event loop.
+   *
+   * @param args - URLs and flags.
+   * @returns The exit status and the combined output.
+   */
+  function fetchCheck(
+    args: string[],
+  ): Promise<{ status: number; output: string }> {
+    return new Promise((resolve) => {
+      execFile(
+        process.execPath,
+        [script, ...args],
+        { cwd: repoRoot, encoding: "utf8" },
+        (err, stdout, stderr) => {
+          const code = err && typeof err.code === "number" ? err.code : 0;
+          resolve({ status: code, output: `${stdout}${stderr}` });
+        },
+      );
+    });
+  }
+
+  test("a served policy passes", async () => {
+    const { status, output } = await fetchCheck([`${origin}/policy`]);
+
+    assert.equal(status, 0, output);
+  });
+
+  test("a redirect is followed to the stub it lands on", async () => {
+    const { status, output } = await fetchCheck([`${origin}/moved`]);
+
+    assert.equal(status, 1, output);
+    assert.match(output, /parked-domain stub/);
+  });
+
+  test("--no-policy is honoured for a URL, as it is for --file", async () => {
+    const strict = await fetchCheck([`${origin}/support`]);
+    assert.equal(strict.status, 1, strict.output);
+    assert.match(strict.output, /does not read as a privacy policy/);
+
+    const lenient = await fetchCheck(["--no-policy", `${origin}/support`]);
+    assert.equal(lenient.status, 0, lenient.output);
+  });
+
+  test("an error status exits 2 and names the status", async () => {
+    const { status, output } = await fetchCheck([`${origin}/missing`]);
+
+    assert.equal(status, 2, output);
+    assert.match(output, /answered HTTP 404/);
+  });
+
+  test("a host that does not answer exits 2", async () => {
+    // Port 9 (discard) on loopback: nothing listens, so the connect is refused.
+    const { status, output } = await fetchCheck(["http://127.0.0.1:9/"]);
+
+    assert.equal(status, 2, output);
+    assert.match(output, /could not be reached/);
   });
 });
 

@@ -34,6 +34,10 @@
  *
  *   pnpm run security:store-urls
  *   node security/scripts/check-store-urls.mjs <url> ...
+ *   node security/scripts/check-store-urls.mjs --file <saved-body.html>
+ *
+ * A URL or file named on the command line is judged as a privacy policy;
+ * `--no-policy` asks only for readable content, as the support URL does.
  *
  * Exit codes, matching check-headers.js:
  *   0  every submitted URL serves real content
@@ -148,8 +152,8 @@ export function classifyBody(body, { requirePolicy = false } = {}) {
 /**
  * Fetch one submitted URL and judge what came back.
  *
- * `fetchImpl` is injected so the rules above can be exercised without a
- * network, which is the whole of the logic worth testing.
+ * `fetchImpl` defaults to the global fetch; the tests drive this path through
+ * the command line against a local server instead.
  *
  * @param options - The URL, whether policy wording is required, and the fetch to use.
  * @returns The verdict, with `unreachable` set when the host could not answer.
@@ -233,7 +237,7 @@ async function main() {
 
   if (fileAt !== -1) {
     const path = args[fileAt + 1];
-    if (!path) {
+    if (!path || path.startsWith("-")) {
       console.error("--file needs a path.");
       return 1;
     }
@@ -250,9 +254,10 @@ async function main() {
   }
 
   const named = args.filter((a) => !a.startsWith("-"));
+  const requirePolicy = !args.includes("--no-policy");
   const targets =
     named.length > 0
-      ? named.map((url) => ({ url, file: "(argument)", requirePolicy: true }))
+      ? named.map((url) => ({ url, file: "argument", requirePolicy }))
       : submittedUrls();
 
   let worst = 0;
