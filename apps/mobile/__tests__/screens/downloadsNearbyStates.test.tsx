@@ -101,8 +101,7 @@ describe("Downloads — nearby states", () => {
     const screen = await render(<DownloadsScreen />);
 
     expect(screen.getAllByLabelText(/Download Delaware,/)).toHaveLength(1);
-    // New Jersey is unpublished and borders Pennsylvania only; DC borders
-    // Maryland only; West Virginia borders both and is named once.
+    // Unpublished, and also bordering both: named once, not twice.
     expect(screen.getAllByText("West Virginia")).toHaveLength(1);
   });
 
