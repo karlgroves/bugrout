@@ -15,27 +15,16 @@
  * navigation screen, and the map tab behind it, which stays mounted under the
  * tab navigator throughout.
  *
- * Two independent fixes, both pinned here:
+ * Two independent fixes:
  *   1. the setters return early when the value has not changed, which helps
- *      every subscriber including the ones not touched in that pass;
+ *      every subscriber including the ones not touched in that pass — pinned
+ *      here;
  *   2. the screens in the per-tick path read through selectors, so a write to
- *      a field they do not display costs them nothing.
+ *      a field they do not display costs them nothing — pinned by
+ *      `screens/navigationSubscriptions.test.ts`.
  */
 
 import { useRouteStore } from "@/stores/useRouteStore";
-
-import type { Route } from "@bugrout/shared";
-
-const ROUTE = {
-  id: "r1",
-  distance: 1000,
-  duration: 600,
-  coordinates: [
-    { lat: 39.29, lng: -76.61 },
-    { lat: 39.3, lng: -76.6 },
-  ],
-  legs: [],
-} as unknown as Route;
 
 beforeEach(() => {
   useRouteStore.getState().clearRoute();
@@ -77,29 +66,5 @@ describe("a tick that changes nothing", () => {
     expect(listener).toHaveBeenCalledTimes(2);
     expect(useRouteStore.getState().currentManeuverIndex).toBe(1);
     expect(useRouteStore.getState().hasDeviated).toBe(true);
-  });
-});
-
-describe("a tick that advances the maneuver", () => {
-  it("leaves a selector on an unrelated field untouched", () => {
-    useRouteStore.getState().setRoute(ROUTE);
-
-    // What the navigation screen and the map screen actually read.
-    const seen: (Route | null)[] = [];
-    const unsubscribe = useRouteStore.subscribe((state, previous) => {
-      if (state.activeRoute !== previous.activeRoute) {
-        seen.push(state.activeRoute);
-      }
-    });
-
-    useRouteStore.getState().setCurrentManeuverIndex(1);
-    useRouteStore.getState().setCurrentManeuverIndex(2);
-    useRouteStore.getState().setDeviated(true);
-    unsubscribe();
-
-    // A real index change does replace the state object, so a whole-store
-    // subscriber re-renders. A subscriber reading `activeRoute` must not.
-    expect(seen).toEqual([]);
-    expect(useRouteStore.getState().activeRoute).toBe(ROUTE);
   });
 });
