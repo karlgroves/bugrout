@@ -40,11 +40,11 @@ import type { LatLng } from "@bugrout/shared";
  * could not be set at build time.
  *
  * It matters here because `signal.bugrout.app` has never resolved — NXDOMAIN
- * on 2026-09-30, 2026-10-22 and again today — so Crowd Signal reaches nothing
- * even once the worker is deployed (#144). Which host it should name is not
- * settled: a custom domain routed to the worker, or the `workers.dev` origin
- * the tile server uses (#160). This does not decide that; it makes either one
- * an `eas.json` edit instead of a code change and a release.
+ * on 2026-09-30, 2026-10-22 and again on 2026-10-28 — so Crowd Signal reaches
+ * nothing even once the worker is deployed (#144). Which host it should name
+ * is not settled: a custom domain routed to the worker, or the `workers.dev`
+ * origin the tile server uses (#160). This does not decide that; it makes
+ * either one an `eas.json` edit instead of a code change and a release.
  */
 const SIGNAL_BASE =
   process.env.EXPO_PUBLIC_SIGNAL_URL ?? "https://signal.bugrout.app";

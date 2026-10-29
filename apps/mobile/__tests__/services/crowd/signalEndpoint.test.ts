@@ -70,28 +70,30 @@ async function postedUrl(signalUrl: string | undefined): Promise<string> {
   );
   global.fetch = fetchSpy as unknown as typeof fetch;
 
-  let mod: typeof CrowdSignalNamespace | undefined;
-  jest.isolateModules(() => {
-    /* eslint-disable @typescript-eslint/no-require-imports -- isolateModules needs requires to re-read process.env at module scope */
-    mod =
-      require("@/services/crowd/CrowdSignal") as typeof CrowdSignalNamespace;
-    const { useSettingsStore } =
-      require("@/stores/useSettingsStore") as typeof SettingsStoreNamespace;
-    const { useConnectivityStore } =
-      require("@/stores/useConnectivityStore") as typeof ConnectivityStoreNamespace;
-    /* eslint-enable @typescript-eslint/no-require-imports */
-    useSettingsStore.getState().setCrowdSignalOptIn(true);
-    useSettingsStore.getState().setDemoLocation(false);
-    useConnectivityStore.getState().setOnline(true);
-  });
-  if (!mod) throw new Error("failed to load CrowdSignal");
+  try {
+    let mod: typeof CrowdSignalNamespace | undefined;
+    jest.isolateModules(() => {
+      /* eslint-disable @typescript-eslint/no-require-imports -- isolateModules needs requires to re-read process.env at module scope */
+      mod =
+        require("@/services/crowd/CrowdSignal") as typeof CrowdSignalNamespace;
+      const { useSettingsStore } =
+        require("@/stores/useSettingsStore") as typeof SettingsStoreNamespace;
+      const { useConnectivityStore } =
+        require("@/stores/useConnectivityStore") as typeof ConnectivityStoreNamespace;
+      /* eslint-enable @typescript-eslint/no-require-imports */
+      useSettingsStore.getState().setCrowdSignalOptIn(true);
+      useSettingsStore.getState().setDemoLocation(false);
+      useConnectivityStore.getState().setOnline(true);
+    });
+    if (!mod) throw new Error("failed to load CrowdSignal");
 
-  mockGetPreference.mockResolvedValue(null);
-  mockSetPreference.mockResolvedValue(undefined);
-  await mod.sendSignal(POSITION, 20, 90);
-
-  if (before === undefined) delete process.env.EXPO_PUBLIC_SIGNAL_URL;
-  else process.env.EXPO_PUBLIC_SIGNAL_URL = before;
+    mockGetPreference.mockResolvedValue(null);
+    mockSetPreference.mockResolvedValue(undefined);
+    await mod.sendSignal(POSITION, 20, 90);
+  } finally {
+    if (before === undefined) delete process.env.EXPO_PUBLIC_SIGNAL_URL;
+    else process.env.EXPO_PUBLIC_SIGNAL_URL = before;
+  }
 
   const url = fetchSpy.mock.calls[0]?.[0];
   if (url === undefined) throw new Error("no signal was sent");
