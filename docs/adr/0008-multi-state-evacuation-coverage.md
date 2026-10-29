@@ -61,8 +61,9 @@ retry, and produces the same per-region artifact R2 needs.
 Valhalla image from US South plus US Northeast, or the whole US, instead of
 Maryland. Behind R0 this is one build-argument change (`PBF_URL`) and every
 destination in that area routes immediately; without R0 it is not — see R0.
-Costs: a much larger image and volume, a longer build, and more memory on the
-machine; and routing still needs a connection.
+Costs: a much larger graph artifact and volume (in the image itself without R0),
+a longer build, and more memory on the machine; and routing still needs a
+connection.
 
 **R2. On-device graph per downloaded region (#146, #193).** Routing works with
 no signal, which is the product's promise. But a route can only cross into a
@@ -120,5 +121,5 @@ timed against Maryland's tiles (~1.7 s at 250 km of total perimeter, ~5.7 s at
 update the app's `MAX_EXCLUDE_POLYGONS_PERIMETER_M` to match. The test that
 compares the two keeps passing while the tuned value silently goes stale.
 
-Follow-up issues are filed for R0, R1, M2 and the re-timing above; M3 and R2/R3
-continue in their existing issues.
+Follow-up issues are filed: R0 is #266, R1 is #267, M2 is #268 and the re-timing
+above is #269. M3 and R2/R3 continue in their existing issues.
