@@ -47,7 +47,7 @@ interface RouteState {
 export /**
  *
  */
-const useRouteStore = create<RouteState>((set) => ({
+const useRouteStore = create<RouteState>((set, get) => ({
   activeRoute: null,
   status: "idle",
   currentManeuverIndex: 0,
@@ -69,10 +69,24 @@ const useRouteStore = create<RouteState>((set) => ({
   setStatus: (status) => {
     set({ status });
   },
+  /*
+   * These two are written on every GPS tick — NavigationController calls
+   * `setCurrentManeuverIndex` once per position update, and `setDeviated` on
+   * every tick it finds the driver off route. Most ticks carry the same value
+   * as the last, but `set` replaces the state object regardless, so every
+   * subscriber that is not reading through a selector is woken up and
+   * re-rendered for a change that did not happen (#189, "Stop is slow to
+   * respond"; taps elsewhere lagged the same way just after navigation).
+   *
+   * So they return early when nothing changed. That is a store-level fix for
+   * everything subscribed, not only the navigation screen.
+   */
   setCurrentManeuverIndex: (index) => {
+    if (get().currentManeuverIndex === index) return;
     set({ currentManeuverIndex: index });
   },
   setDeviated: (deviated) => {
+    if (get().hasDeviated === deviated) return;
     set({ hasDeviated: deviated });
   },
   setDestination: (dest) => {

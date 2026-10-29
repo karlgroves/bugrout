@@ -17,6 +17,9 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+# Google Play upload key for `eas submit` (eas.json serviceAccountKeyPath).
+# A credential, never committed; see security/tests/play-service-account.security.test.ts
+play-service-account.json
 
 # Metro
 .metro-health-check*
