@@ -89,6 +89,32 @@ function stagedPaths() {
 }
 
 /**
+ * The repository's main work tree, which is what `trufflehog git` is pointed at.
+ *
+ * Not `file://.`: in a linked `git worktree` the top-level `.git` is a pointer
+ * file, and trufflehog fails with "failed to read index file ... not a
+ * directory" — so the gate, which pre-push runs, could not pass from any
+ * worktree. The common git dir is shared by every worktree of the repository,
+ * and its parent is the main work tree, which trufflehog can open. It scans
+ * every ref either way, so the scan is the same from both places; in the main
+ * checkout this is exactly the directory `.` was.
+ *
+ * Falls back to ROOT when git cannot answer — not a repository, or no git on
+ * PATH — so trufflehog reports that failure itself, as it always has.
+ *
+ * @returns Absolute path of the main work tree.
+ */
+function repositoryRoot() {
+  const out = spawnSync(
+    "git",
+    ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+    { cwd: ROOT, encoding: "utf8" },
+  );
+  if (out.status !== 0) return ROOT;
+  return dirname(out.stdout.trim());
+}
+
+/**
  * Write the staged version of each path into a throwaway directory.
  *
  * The staged blob, not the working-tree file: a secret can be staged and then
@@ -148,7 +174,7 @@ try {
   if (process.argv.includes("--print")) {
     const shape = staged
       ? ["filesystem", "<staged-copy>", ...COMMON]
-      : ["git", "file://.", ...COMMON];
+      : ["git", `file://${repositoryRoot()}`, ...COMMON];
     console.log(["trufflehog", ...shape].join(" "));
     process.exit(0);
   }
@@ -163,7 +189,7 @@ try {
     scanDir = materialiseStaged(paths);
     args = ["filesystem", scanDir, ...COMMON];
   } else {
-    args = ["git", "file://.", ...COMMON];
+    args = ["git", `file://${repositoryRoot()}`, ...COMMON];
   }
 
   const result = spawnSync("trufflehog", args, {
