@@ -152,20 +152,13 @@ export function classifyBody(body, { requirePolicy = false } = {}) {
 /**
  * Fetch one submitted URL and judge what came back.
  *
- * `fetchImpl` defaults to the global fetch; the tests drive this path through
- * the command line against a local server instead.
- *
- * @param options - The URL, whether policy wording is required, and the fetch to use.
+ * @param options - The URL, and whether policy wording is required.
  * @returns The verdict, with `unreachable` set when the host could not answer.
  */
-export async function checkUrl({
-  url,
-  requirePolicy = false,
-  fetchImpl = globalThis.fetch,
-}) {
+export async function checkUrl({ url, requirePolicy = false }) {
   let response;
   try {
-    response = await fetchImpl(url, {
+    response = await fetch(url, {
       redirect: "follow",
       signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: {
