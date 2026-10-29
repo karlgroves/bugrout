@@ -21,6 +21,9 @@
     "MD053": true,
   },
   "ignores": [
+    // Claude Code session worktrees: full checkouts of this repo living inside
+    // it, so their Markdown duplicates files already linted here.
+    "**/.claude/**",
     "**/node_modules/**",
     "**/dist/**",
     "**/build/**",

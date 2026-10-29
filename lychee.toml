@@ -20,4 +20,6 @@ exclude = [
   "sentry\\.io/your-project",
 ]
 
-exclude_path = ["node_modules", "apps/mobile/.expo", "reports"]
+# `.claude` holds Claude Code session worktrees: full checkouts of this repo
+# living inside it, so their Markdown is a duplicate of files already checked here.
+exclude_path = ["node_modules", "apps/mobile/.expo", "reports", ".claude"]
