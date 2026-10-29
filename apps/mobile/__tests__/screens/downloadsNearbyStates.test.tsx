@@ -87,6 +87,25 @@ describe("Downloads — nearby states", () => {
     expect(screen.getAllByText("Delaware")).toHaveLength(1);
   });
 
+  it("offers a neighbour shared by two downloaded regions once", async () => {
+    // Delaware borders both Maryland and Pennsylvania.
+    const downloadedPennsylvania = {
+      ...downloadedMaryland,
+      id: "pa",
+      name: "Pennsylvania",
+    };
+    mockState = {
+      available: [maryland, delaware],
+      downloaded: [downloadedMaryland, downloadedPennsylvania],
+    };
+    const screen = await render(<DownloadsScreen />);
+
+    expect(screen.getAllByLabelText(/Download Delaware,/)).toHaveLength(1);
+    // New Jersey is unpublished and borders Pennsylvania only; DC borders
+    // Maryland only; West Virginia borders both and is named once.
+    expect(screen.getAllByText("West Virginia")).toHaveLength(1);
+  });
+
   it("omits the Available section when everything left is offered nearby", async () => {
     mockState = {
       available: [maryland, delaware],

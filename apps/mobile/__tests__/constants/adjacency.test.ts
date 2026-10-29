@@ -12,6 +12,8 @@
 import { REGION_NEIGHBORS } from "@/constants/adjacency";
 import { DEFAULT_REGIONS } from "@/constants/regions";
 
+import definitions from "../../../../data-pipeline/regions/region-definitions.json";
+
 describe("the region adjacency table", () => {
   it("covers every downloadable region", () => {
     const covered = Object.keys(REGION_NEIGHBORS).sort();
@@ -66,5 +68,19 @@ describe("the region adjacency table", () => {
   it("leaves the two states with no land border empty", () => {
     expect(REGION_NEIGHBORS.ak).toEqual([]);
     expect(REGION_NEIGHBORS.hi).toEqual([]);
+  });
+
+  it("agrees with the pipeline's region-definitions.json", () => {
+    // The manifest's `neighbors` wins over this table, so a pipeline copy that
+    // drifted would silently override it on every device.
+    const drift = definitions.regions
+      .filter(
+        (r) =>
+          JSON.stringify([...r.neighbors].sort()) !==
+          JSON.stringify([...(REGION_NEIGHBORS[r.id] ?? [])].sort()),
+      )
+      .map((r) => r.id);
+
+    expect(drift).toEqual([]);
   });
 });

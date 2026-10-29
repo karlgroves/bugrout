@@ -30,6 +30,7 @@ import { isRegionStale } from "@/services/tiles/TileVersions";
 import { useMapStore } from "@/stores/useMapStore";
 import { formatBytes } from "@/utils/bytes";
 
+import type { NeighborOffers } from "@/services/tiles/Neighbors";
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
 /** Props for {@link DownloadedRegionRow}. */
@@ -129,14 +130,25 @@ function DownloadsScreen(): React.JSX.Element {
    * under "Available" otherwise. Two download buttons for one region on one
    * screen is redundancy a stressed user has to resolve, and the neighbour row
    * strictly dominates — same size, plus the fact that it adjoins their map.
+   * A neighbour shared by two downloaded regions (DC, with Maryland and
+   * Virginia both on the device) goes to the first one only, for the same
+   * reason.
    */
+  const nearbyByRegion = new Map<string, NeighborOffers>();
+  const mentionedNearbyIds = new Set<string>();
+  for (const r of downloadedRegions) {
+    const all = neighborOffers(r.id, availableRegions, [...downloadedIds]);
+    const fresh: NeighborOffers = {
+      offers: all.offers.filter((o) => !mentionedNearbyIds.has(o.region.id)),
+      unpublished: all.unpublished.filter((u) => !mentionedNearbyIds.has(u.id)),
+    };
+    for (const o of fresh.offers) mentionedNearbyIds.add(o.region.id);
+    for (const u of fresh.unpublished) mentionedNearbyIds.add(u.id);
+    nearbyByRegion.set(r.id, fresh);
+  }
   const offeredNearbyIds = new Set(
-    downloadedRegions.flatMap((r) =>
-      neighborOffers(
-        r.id,
-        availableRegions,
-        downloadedRegions.map((d) => d.id),
-      ).offers.map((o) => o.region.id),
+    [...nearbyByRegion.values()].flatMap((n) =>
+      n.offers.map((o) => o.region.id),
     ),
   );
 
@@ -298,11 +310,10 @@ function DownloadsScreen(): React.JSX.Element {
         if (item._type === "downloaded") {
           const region = item as DownloadedRegion & { _type: string };
           const stale = isRegionStale(region, publishedVersions);
-          const nearby = neighborOffers(
-            region.id,
-            availableRegions,
-            downloadedRegions.map((r) => r.id),
-          );
+          const nearby = nearbyByRegion.get(region.id) ?? {
+            offers: [],
+            unpublished: [],
+          };
           return (
             <View>
               <DownloadedRegionRow
