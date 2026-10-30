@@ -56,9 +56,9 @@ supplies real KV namespace ids; `fail-fast: false` means they no longer cancel
 | Set it       | `flyctl tokens create deploy -a bugrout-route-tracker` then `gh secret set FLY_API_TOKEN --repo karlgroves/bugrout`                                             |
 | Scope needed | Deploy on `bugrout-route-tracker`, the only Fly app Backend Deploy deploys. A deploy token covers one app; `bugrout-valhalla` is not deployed by this workflow. |
 
-Verifiable once set: Backend Deploy's `route-tracker` job reaches
-`flyctl deploy` instead of exiting on _"no access token available"_.
-`bugrout-route-tracker` has never been deployed (#144).
+Verifiable once set: Backend Deploy's `deploy-services` job (_Deploy Fly.io
+Services_) reaches `flyctl deploy` instead of exiting on _"no access token
+available"_. `bugrout-route-tracker` has never been deployed (#144).
 
 ## 3. App keys — EAS environment variables, not `eas.json`
 
