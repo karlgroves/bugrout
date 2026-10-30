@@ -18,15 +18,19 @@ import {
 } from "react-native";
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
+import { NearbyStates } from "@/components/downloads/NearbyStates";
 import { getCountyGroups } from "@/constants/counties";
 import { DEFAULT_REGIONS } from "@/constants/regions";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { useTileManager } from "@/hooks/useTileManager";
+import { neighborOffers } from "@/services/tiles/Neighbors";
+import { downloadSizeBytes } from "@/services/tiles/regionSize";
 import { isExpoGo } from "@/services/tiles/TileManager";
 import { isRegionStale } from "@/services/tiles/TileVersions";
 import { useMapStore } from "@/stores/useMapStore";
 import { formatBytes } from "@/utils/bytes";
 
+import type { NeighborOffers } from "@/services/tiles/Neighbors";
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
 /** Props for {@link DownloadedRegionRow}. */
@@ -117,9 +121,54 @@ function DownloadsScreen(): React.JSX.Element {
 
   const publishedVersions = useMapStore((s) => s.publishedVersions);
   const downloadedIds = new Set(downloadedRegions.map((r) => r.id));
-  const notDownloaded = availableRegions.filter(
-    (r) => !downloadedIds.has(r.id),
+
+  /**
+   * Neighbours already offered under a downloaded region (#268).
+   *
+   * Every published region the user does not have appears exactly once on this
+   * screen: under "Nearby states" when it borders a map they already have,
+   * under "Available" otherwise. Two download buttons for one region on one
+   * screen is redundancy a stressed user has to resolve, and the neighbour row
+   * strictly dominates — same size, plus the fact that it adjoins their map.
+   * A neighbour shared by two downloaded regions (DC, with Maryland and
+   * Virginia both on the device) goes to the first one only, for the same
+   * reason.
+   */
+  const nearbyByRegion = new Map<string, NeighborOffers>();
+  const mentionedNearbyIds = new Set<string>();
+  for (const r of downloadedRegions) {
+    const all = neighborOffers(r.id, availableRegions, [...downloadedIds]);
+    const fresh: NeighborOffers = {
+      offers: all.offers.filter((o) => !mentionedNearbyIds.has(o.region.id)),
+      unpublished: all.unpublished.filter((u) => !mentionedNearbyIds.has(u.id)),
+    };
+    for (const o of fresh.offers) mentionedNearbyIds.add(o.region.id);
+    for (const u of fresh.unpublished) mentionedNearbyIds.add(u.id);
+    nearbyByRegion.set(r.id, fresh);
+  }
+  const offeredNearbyIds = new Set(
+    [...nearbyByRegion.values()].flatMap((n) =>
+      n.offers.map((o) => o.region.id),
+    ),
   );
+
+  const notDownloaded = availableRegions.filter(
+    (r) => !downloadedIds.has(r.id) && !offeredNearbyIds.has(r.id),
+  );
+
+  /**
+   * Whether to draw the Available section at all.
+   *
+   * #173: with only Maryland published, downloading it emptied the section and
+   * took its heading with it, so the screen looked broken — hence the heading
+   * plus an explanation when nothing is left. That explanation must not claim
+   * "you've downloaded every map" while regions are sitting in Nearby states
+   * waiting to be downloaded, so when everything left is offered there, the
+   * section is omitted rather than shown empty or shown lying.
+   */
+  const showAvailableSection =
+    availableRegions.length > 0 &&
+    (notDownloaded.length > 0 || offeredNearbyIds.size === 0);
   const [expandedState, setExpandedState] = useState<string | null>(null);
 
   const handleDownload = async (region: Region) => {
@@ -223,12 +272,12 @@ function DownloadsScreen(): React.JSX.Element {
           _type: "downloaded" as const,
         })),
         // Nothing is listed until the region list has loaded.
-        ...(availableRegions.length > 0
+        ...(showAvailableSection
           ? [{ _type: "header" as const, id: "__header__" }]
           : []),
         // Everything published is already downloaded: say so, rather than
         // let the section vanish and look broken (#173).
-        ...(availableRegions.length > 0 && notDownloaded.length === 0
+        ...(showAvailableSection && notDownloaded.length === 0
           ? [{ _type: "allDownloaded" as const, id: "__all_downloaded__" }]
           : []),
         ...notDownloaded.map((r) => ({ ...r, _type: "available" as const })),
@@ -261,28 +310,43 @@ function DownloadsScreen(): React.JSX.Element {
         if (item._type === "downloaded") {
           const region = item as DownloadedRegion & { _type: string };
           const stale = isRegionStale(region, publishedVersions);
+          const nearby = nearbyByRegion.get(region.id) ?? {
+            offers: [],
+            unpublished: [],
+          };
           return (
-            <DownloadedRegionRow
-              region={region}
-              stale={stale}
-              // Only a real manifest can be updated from — not the offline
-              // fallback list, whose entries carry no published version.
-              update={
-                stale && publishedVersions
-                  ? availableRegions.find((r) => r.id === region.id)
-                  : undefined
-              }
-              isUpdating={activeDownload?.regionId === region.id}
-              onUpdate={(update) => {
-                void handleDownload(update);
-              }}
-              onDelete={handleDelete}
-            />
+            <View>
+              <DownloadedRegionRow
+                region={region}
+                stale={stale}
+                // Only a real manifest can be updated from — not the
+                // offline fallback list, whose entries carry no published
+                // version.
+                update={
+                  stale && publishedVersions
+                    ? availableRegions.find((r) => r.id === region.id)
+                    : undefined
+                }
+                isUpdating={activeDownload?.regionId === region.id}
+                onUpdate={(update) => {
+                  void handleDownload(update);
+                }}
+                onDelete={handleDelete}
+              />
+              <NearbyStates
+                regionName={region.name}
+                offers={nearby}
+                busy={activeDownload !== null}
+                onDownload={(neighbour) => {
+                  void handleDownload(neighbour);
+                }}
+              />
+            </View>
           );
         }
 
         const region = item as Region & { _type: string };
-        const totalSize = region.pmtilesSize + region.valhallaSize;
+        const totalSize = downloadSizeBytes(region);
         const isDownloading = activeDownload?.regionId === region.id;
         const countyGroups = getCountyGroups(region.id);
         const isExpanded = expandedState === region.id;
