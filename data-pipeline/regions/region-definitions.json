@@ -9,7 +9,8 @@
         "east": -75.048939,
         "north": 39.723043
       },
-      "geofabrikSlug": "maryland"
+      "geofabrikSlug": "maryland",
+      "neighbors": ["dc", "de", "pa", "va", "wv"]
     },
     {
       "id": "ca",
@@ -20,7 +21,8 @@
         "east": -114.131211,
         "north": 42.009517
       },
-      "geofabrikSlug": "california"
+      "geofabrikSlug": "california",
+      "neighbors": ["az", "nv", "or"]
     },
     {
       "id": "tx",
@@ -31,7 +33,8 @@
         "east": -93.508292,
         "north": 36.500704
       },
-      "geofabrikSlug": "texas"
+      "geofabrikSlug": "texas",
+      "neighbors": ["ar", "la", "nm", "ok"]
     },
     {
       "id": "fl",
@@ -42,7 +45,8 @@
         "east": -79.974306,
         "north": 31.000968
       },
-      "geofabrikSlug": "florida"
+      "geofabrikSlug": "florida",
+      "neighbors": ["al", "ga"]
     }
   ]
 }

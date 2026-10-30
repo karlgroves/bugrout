@@ -7,7 +7,9 @@ set -euo pipefail
 # Usage: ./build-manifest.sh [--upload]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="$SCRIPT_DIR/output"
+# Overridable so regions/test-neighbors.sh can point it at a fixture tree;
+# the default is the real output directory build-region.sh writes to.
+OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR/output}"
 UPLOAD="${1:-}"
 
 echo "=== Building global tile manifest ==="
@@ -34,6 +36,14 @@ region = {
 if m.get('sha256', {}).get('fuel'):
     region['fuelSize'] = m['sizes']['fuel']
     region['fuelSha256'] = m['sha256']['fuel']
+# Land-border neighbours, offered after this region is downloaded (#268).
+# Carried from region-definitions.json, which build-region.sh embeds whole as
+# the package manifest's \`region\`. Omitted when absent rather than written as
+# an empty list, so the app can tell \"no adjacency published\" (fall back to its
+# own table) from \"published, and this region has none\" — Alaska and Hawaii.
+neighbors = m.get('region', {}).get('neighbors')
+if neighbors is not None:
+    region['neighbors'] = neighbors
 print(json.dumps(region))
 ")
     REGIONS=$(echo "$REGIONS" | python3 -c "
