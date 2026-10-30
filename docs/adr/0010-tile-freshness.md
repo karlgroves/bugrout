@@ -57,9 +57,10 @@ not say how many of them are road closures, and nothing here measures that.
 which for a user on cellular during the month before an evacuation is a real
 cost, not a rounding error.
 
-**C2. Quarterly.** Matches `STALE_THRESHOLD_DAYS = 90`, the constant the app
-already ships, so the two notions of "stale" agree instead of contradicting each
-other. Four re-downloads a year.
+**C2. Quarterly.** Matches `STALE_THRESHOLD_DAYS = 90`, the age at which the app
+already calls a download stale when it cannot reach the manifest, so an offline
+device and the publish schedule agree on when a region is out of date. Four
+re-downloads a year.
 
 **C3. On significant OSM change.** Rebuild when the extract's road network moves
 by more than some threshold. The most defensible per byte, and the only option
@@ -72,9 +73,12 @@ diff metric the pipeline does not have.
 
 **C2 as the floor, plus C4 before each region's season.**
 
-Quarterly because the app already defines 90 days as the age at which a download
-stops being trustworthy; picking any other cadence means the server's idea of
-fresh and the client's disagree. Plus a manual pre-season rebuild because
+Quarterly because the app already treats a 90-day-old download as stale when it
+cannot fetch the manifest. Online, any new version flags every download at once,
+whatever the cadence; offline, the 90-day fallback is all the device has, and a
+quarterly publish is what keeps that fallback honest. Any other cadence leaves
+an offline device showing "current" for a region that has been superseded, or
+"stale" for one that has not. Plus a manual pre-season rebuild because
 evacuation risk is seasonal and a calendar quarter does not know that — a June
 rebuild matters more in Florida than a January one. Avoid C1 until delta updates
 exist; twelve full re-downloads a year is a cost the product gets nothing for.
