@@ -34,9 +34,11 @@ node security/scripts/check-headers.js --production \
 ```
 
 Run **Backend Deploy** on `main` (`workflow_dispatch`), then re-run the above:
-it should report **0 warnings**. `packages/worker-utils/src/http.ts` sets six
-headers that the deployed worker does not currently send, which is the measure
-of how far behind the live worker is (#157).
+it should report **0 warnings**. `packages/worker-utils/src/http.ts` sets five
+headers that the deployed worker does not send at all, and a
+`Strict-Transport-Security` with `includeSubDomains` where the live one omits
+it. Those six warnings are the measure of how far behind the live worker is
+(#157).
 
 Then unblocked: the first credentialed pipeline run against `md`, which is the
 sole remaining item on **#241**, **#146** (`valhallaSize` is `0` in the live
@@ -48,15 +50,15 @@ supplies real KV namespace ids; `fail-fast: false` means they no longer cancel
 
 ## 2. `FLY_API_TOKEN` — GitHub repository secret
 
-|              |                                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------ |
-| Where        | GitHub repository secret, read by `backend-deploy.yml`.                                    |
-| Set it       | `flyctl tokens create deploy` then `gh secret set FLY_API_TOKEN --repo karlgroves/bugrout` |
-| Scope needed | Deploy on the org owning `bugrout-valhalla` and `route-tracker`.                           |
+|              |                                                                                                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where        | GitHub repository secret, read by `backend-deploy.yml`.                                                                                                         |
+| Set it       | `flyctl tokens create deploy -a bugrout-route-tracker` then `gh secret set FLY_API_TOKEN --repo karlgroves/bugrout`                                             |
+| Scope needed | Deploy on `bugrout-route-tracker`, the only Fly app Backend Deploy deploys. A deploy token covers one app; `bugrout-valhalla` is not deployed by this workflow. |
 
 Verifiable once set: Backend Deploy's `route-tracker` job reaches
 `flyctl deploy` instead of exiting on _"no access token available"_.
-`route-tracker` has never been deployed (#144).
+`bugrout-route-tracker` has never been deployed (#144).
 
 ## 3. App keys — EAS environment variables, not `eas.json`
 
