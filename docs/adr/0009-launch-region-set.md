@@ -93,8 +93,8 @@ source, ~1,434 MB, about 9 h of builds. Addresses §11.1. But MD users still
 cannot cross a border, and CA/FL users get a state whose neighbours are all
 unpublished.
 
-**L4. L2 and L3 together.** Eight regions, ~3,235 MB of source, about 24 h of
-builds.
+**L4. L2 and L3 together.** Eight regions, 2,912 MB of source, ~2,053 MB of map,
+about 24 h of builds.
 
 ### Recommendation
 
@@ -147,11 +147,11 @@ MB, which the manifest already carries the data to enforce.
 ### Recommendation
 
 **F1 now, F3 if large states make it necessary.** F1 makes the stated model
-match the shipped product, which is the thing §2.3.1 and `docs/store-listing.md`
-care about; keeping an unimplemented limit in the spec costs re-triage every
-sweep. F3 is the cheap fallback if California-sized regions turn out to need
-gating, and it needs no pipeline work. F2 only earns its cost if free-tier
-storage is shown to drive abandonment.
+match the shipped product, which is the thing App Store Guideline 2.3.1 and
+`docs/store-listing.md` care about; keeping an unimplemented limit in the spec
+costs re-triage every sweep. F3 is the cheap fallback if California-sized
+regions turn out to need gating, and it needs no pipeline work. F2 only earns
+its cost if free-tier storage is shown to drive abandonment.
 
 Whichever is chosen, the spec §9.1 row and `constants/counties.ts` should stop
 disagreeing with each other.
