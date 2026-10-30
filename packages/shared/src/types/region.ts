@@ -18,6 +18,12 @@ export interface Region {
    */
   fuelSize?: number;
   fuelSha256?: string;
+  /**
+   * Region ids sharing a land border with this one, offered after it is
+   * downloaded (#268). Absent on a manifest published before the field
+   * existed; the app then falls back to its own adjacency table.
+   */
+  neighbors?: readonly string[];
   version: string;
   updatedAt: number;
 }
