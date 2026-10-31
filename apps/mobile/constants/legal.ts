@@ -113,7 +113,7 @@ export /**
  */
 const TERMS_OF_SERVICE = `
 BugRout Terms of Service
-Last Updated: April 2026
+Last Updated: October 2026
 
 1. ACCEPTANCE OF TERMS
 
@@ -129,7 +129,7 @@ YOU MUST NOT rely solely on this app for life-safety decisions. Always:
 - Monitor official emergency channels (radio, TV, IPAWS alerts)
 - Have backup navigation methods (paper maps, compass)
 
-BugRout's predictive congestion model is statistical. It CANNOT account for:
+BugRout's routes come from map data and cached threat information. They do not predict congestion, and they CANNOT account for:
 - Roads that have just been closed or damaged
 - Real-time traffic conditions (when offline)
 - Bridges, tunnels, or roads destroyed by the event
@@ -141,7 +141,6 @@ BugRout is a mobile navigation application that provides:
 - Offline routing using pre-downloaded map data
 - Threat zone overlays (fire, flood, weather) from government data sources
 - Resource location markers (fuel, water, shelter)
-- Predictive congestion routing using statistical models
 
 4. OFFLINE FUNCTIONALITY
 
