@@ -7,8 +7,9 @@ code in this repository.
 
 BugRout is a survival-focused mobile navigation app for emergency evacuation
 scenarios. It optimizes for mission completion (safe arrival at destination)
-rather than speed, using predictive congestion modeling and full offline
-capability. See `spec.md` for the full product specification.
+rather than speed, using predictive congestion modeling (designed for; not yet
+applied to routes, #195) and full offline capability. See `spec.md` for the full
+product specification.
 
 ## Monorepo Structure
 
@@ -151,9 +152,12 @@ bash scripts/bootstrap.sh
 
 - **Offline-first:** App must be fully functional with zero connectivity after
   tile download. Every service has an offline fallback or cached mode.
-- **Evacuation Load Factor (ELF):** Per-road-segment multiplier (1.0–10.0) baked
-  into Valhalla routing tiles at build time. Defined in `packages/elf-model/`.
-  Higher ELF = more congestion expected = route avoids that segment.
+- **Evacuation Load Factor (ELF):** Per-road-segment multiplier (1.0–10.0) meant
+  to be baked into Valhalla routing tiles at build time. Defined in
+  `packages/elf-model/`. Higher ELF = more congestion expected = route would
+  avoid that segment. **Not yet applied (#195):** `bake-elf-weights.sh` writes
+  the weight table but copies the tiles unchanged, and nothing reads the table,
+  so every route today is plain fastest-path.
 - **Threat avoidance:** Active fire/flood/weather polygons are converted to
   Valhalla `exclude_polygons` to route around danger zones. Logic in
   `services/routing/ThreatAvoidance.ts`.

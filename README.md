@@ -2,9 +2,9 @@
 
 Survival-focused mobile navigation for emergency evacuation. BugRout optimizes
 for **mission completion** (safe arrival) rather than speed, using predictive
-congestion modeling (Evacuation Load Factor) and full offline capability. See
-[`spec.md`](spec.md) for the product specification and [`CLAUDE.md`](CLAUDE.md)
-for the architecture map.
+congestion modeling (Evacuation Load Factor; designed for, not yet applied to
+routes, #195) and full offline capability. See [`spec.md`](spec.md) for the
+product specification and [`CLAUDE.md`](CLAUDE.md) for the architecture map.
 
 > **Advisory only.** BugRout supplements — never replaces — official emergency
 > guidance.

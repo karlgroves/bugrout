@@ -6,7 +6,7 @@ set -euo pipefail
 # End-to-end pipeline:
 # 1. Download OSM PBF extract from Geofabrik
 # 2. Build Valhalla routing tiles
-# 3. Bake ELF weights into tiles
+# 3. Write the ELF weight table (not applied to tiles yet -- #195)
 # 4. Build PMTiles for map rendering
 # 5. Extract fuel stations from OSM; pre-fetch water sources
 # 6. Extract FEMA flood zone data
@@ -62,8 +62,8 @@ echo "=== Step 2/7: Build Valhalla routing tiles ==="
 "$SCRIPT_DIR/osm/build-routing-tiles.sh" "$REGION_ID"
 echo ""
 
-# --- Step 3: Bake ELF weights ---
-echo "=== Step 3/7: Bake ELF weights ==="
+# --- Step 3: Write the ELF weight table ---
+echo "=== Step 3/7: Write ELF weight table (not applied, #195) ==="
 "$SCRIPT_DIR/elf/bake-elf-weights.sh" "$REGION_ID"
 echo ""
 
