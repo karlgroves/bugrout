@@ -69,3 +69,6 @@ reports/
 .usecase-dist/
 e2e/generated/
 screenshots/
+
+# Claude Code session worktrees (machine-local; sibling sessions check out here)
+.claude/

@@ -288,6 +288,24 @@ USGS NWIS (water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
 
 Whenever I ask to review a PR (pull request), use the `pr-review` skill.
 
+## Issues a PR lands only part of
+
+When a PR satisfies some of an issue's acceptance items but not all, it says
+`Part of #n` (never `Closes`, and never "does not close #n" — GitHub auto-closes
+on the negated keyword too). **When it merges, edit the issue's body**, not just
+its comments: add a short "Landed / Still left" section at the top naming the PR
+and listing what remains, and strike or tick the acceptance items it satisfied.
+The original report can stay below it.
+
+A body that still describes fixed behaviour costs more to re-triage than it
+costs to update once. Sweeps that worked from issue bodies alone have nearly
+re-written code that was already correct, and an issue's comment thread is not
+authoritative either — a triage comment on #189 called landed work untouched
+(#250). Before working an open issue, read its comments **and the code**; an
+open issue is not evidence that nothing landed.
+
+`.github/PULL_REQUEST_TEMPLATE.md` carries the checklist item.
+
 ## CI policy: no scheduled GitHub Actions
 
 **No GitHub Actions workflow in this repository may use a `schedule:` (cron)

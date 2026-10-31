@@ -19,7 +19,7 @@ for the architecture map.
 | `backend/workers/`    | Cloudflare Workers (tile-server, alert-aggregator, crowd-signal) |
 | `backend/services/`   | Fly.io services (route-tracker + Redis, Valhalla)                |
 | `data-pipeline/`      | OSM → Valhalla tiles and PMTiles build scripts                   |
-| `docs/adr/`           | Architecture decision records                                    |
+| `docs/`               | ADRs, tech debt, store listing, deployment credentials           |
 
 ## Prerequisites
 

@@ -34,6 +34,10 @@ export default tseslint.config(
   // ── Global ignores ────────────────────────────────────────────────────
   {
     ignores: [
+      // Claude Code session worktrees: full checkouts of this repo living
+      // inside it. Flat config ignores only node_modules and .git by default,
+      // so without this `eslint .` lints another session's tree as our own.
+      "**/.claude/**",
       "**/node_modules/**",
       "**/dist/**",
       "**/build/**",

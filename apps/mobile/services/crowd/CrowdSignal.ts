@@ -30,7 +30,25 @@ import { isLowBatteryLevel } from "@/utils/battery";
 
 import type { LatLng } from "@bugrout/shared";
 
-const SIGNAL_ENDPOINT = "https://signal.bugrout.app/v1/signal";
+/**
+ * Where signals are POSTed.
+ *
+ * Read from the environment, with the current host as the fallback, for the
+ * same reason the tile server and the Valhalla service are
+ * (`EXPO_PUBLIC_TILE_SERVER_URL`, `EXPO_PUBLIC_VALHALLA_URL`): the origin is a
+ * deployment detail, and this was the only backend origin in the app that
+ * could not be set at build time.
+ *
+ * It matters here because `signal.bugrout.app` has never resolved — NXDOMAIN
+ * on 2026-09-30, 2026-10-22 and again on 2026-10-28 — so Crowd Signal reaches
+ * nothing even once the worker is deployed (#144). Which host it should name
+ * is not settled: a custom domain routed to the worker, or the `workers.dev`
+ * origin the tile server uses (#160). This does not decide that; it makes
+ * either one an `eas.json` edit instead of a code change and a release.
+ */
+const SIGNAL_BASE =
+  process.env.EXPO_PUBLIC_SIGNAL_URL ?? "https://signal.bugrout.app";
+const SIGNAL_ENDPOINT = `${SIGNAL_BASE}/v1/signal`;
 const MIN_INTERVAL_MS = 10000; // Max 1 signal per 10 seconds
 const TOKEN_ROTATION_MS = 86400000; // 24 hours
 
