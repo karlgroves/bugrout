@@ -5,9 +5,9 @@ set -euo pipefail
 #
 # NOT YET APPLIED (#195): this script writes the weight table and then copies
 # the Valhalla tiles UNCHANGED. Nothing modifies edge speeds, and no code reads
-# elf-weights.json at query time, so every route is plain fastest-path. The
-# intended step 3 below is unimplemented; where ELF is applied (rebuilt tiles
-# or query-time costing) is still an open design decision on #195.
+# elf-weights.json at query time, so every route is plain fastest-path. Item 3
+# of the pipeline list below is unimplemented; where ELF is applied (rebuilt
+# tiles or query-time costing) is still an open design decision on #195.
 #
 # Pipeline:
 # 1. Extract road segment features from OSM PBF
@@ -114,7 +114,7 @@ fi
 
 echo "  Weight table written to: ${WEIGHT_TABLE}"
 
-# Step 2: Modify Valhalla tiles
+# Step 2: Copy Valhalla tiles (unmodified; ELF is not applied, #195)
 echo ""
 echo "Step 2: Copying Valhalla tiles (ELF weights are NOT applied, #195)..."
 echo "  The tiles are copied unchanged and nothing reads the weight table yet,"
