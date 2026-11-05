@@ -15,7 +15,7 @@
  *   1. A bounded `pnpm.overrides` entry pins `decode-uri-component` to the
  *      first release patched against both advisories, 0.5.1.
  *   2. A `pnpm` patch on `query-string@7.1.3` unwraps the interop, because
- *      0.5.0 is ESM-only and `query-string` is CommonJS.
+ *      0.5.x is ESM-only and `query-string` is CommonJS.
  *
  * Removing (1) is caught by `pnpm audit` and `osv-scanner`. Removing (2) is
  * **not** — those stay green while every deep link throws
@@ -171,8 +171,11 @@ describe("deep-link decoding — the denial of service is closed", () => {
   // actually holds this closed. The 2 s bound is unfalsifiable in both
   // directions, measured rather than guessed — reverting the override put this
   // at 63-76 s (>30,000x over), while the patched version takes 1-2 ms (~1000x
-  // under), so no machine load can make it flaky and no vulnerable version can
-  // sneak past it.
+  // under), so no machine load can make it flaky and no version vulnerable to
+  // GHSA-vcc3-ghjq-m6fr can sneak past it. It does not cover GHSA-qr28-fpjm-wq7f:
+  // 0.5.0 decodes this input in ~1 ms too, and its quadratic case is a few
+  // hundred milliseconds even on 40,000 sequences, too small a gap to time
+  // without flaking. Against 0.5.0 the version check is the only detector.
   test("a long malformed value decodes promptly", () => {
     const hostile = "?x=" + "%FF".repeat(2000);
 
