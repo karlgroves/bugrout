@@ -662,6 +662,11 @@ first deep link. This reproduces under both Node and Metro; the bundle shows
 Metro taking the `.default` branch, so the shim is load-bearing there, not only
 in tests.
 
+The floor has since moved to `0.5.1`. `GHSA-qr28-fpjm-wq7f` found that `0.5.0`
+still replaces runs of percent-encoded sequences in quadratic time, so the
+override now reads `"decode-uri-component@<0.5.1": ">=0.5.1 <0.6"`. `0.5.1` has
+the same ESM-only shape, so the patch carries over unchanged in behaviour.
+
 Nor can the version be lifted out of the problem. `query-string` first depends
 on a patched `decode-uri-component` at `9.5.0`, but `@react-navigation/core`
 (through `7.21.13`) and `expo-router@6.0.24` all pin `^7.1.3`, and the 9.x line

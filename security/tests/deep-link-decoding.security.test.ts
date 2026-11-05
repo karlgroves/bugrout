@@ -7,12 +7,15 @@
  * both use to parse deep links and route parameters, so the input is
  * attacker-supplied on a path that ships.
  *
+ * GHSA-qr28-fpjm-wq7f: 0.5.0, the release that fixed the above, still replaces
+ * runs of percent-encoded sequences in quadratic time. 0.5.1 fixes that.
+ *
  * Two controls hold it closed, and each fails differently:
  *
  *   1. A bounded `pnpm.overrides` entry pins `decode-uri-component` to the
- *      first patched release, 0.5.0.
+ *      first release patched against both advisories, 0.5.1.
  *   2. A `pnpm` patch on `query-string@7.1.3` unwraps the interop, because
- *      0.5.0 is ESM-only and `query-string` is CommonJS.
+ *      0.5.x is ESM-only and `query-string` is CommonJS.
  *
  * Removing (1) is caught by `pnpm audit` and `osv-scanner`. Removing (2) is
  * **not** — those stay green while every deep link throws
@@ -91,16 +94,17 @@ describe("deep-link decoding — the patched dependency is the one that ships", 
       version,
       "could not read a decode-uri-component version from its resolved path",
     );
-    const [major = 0, minor = 0] = version
+    const [major = 0, minor = 0, patch = 0] = version
       .split(".")
       .map((n) => Number.parseInt(n, 10));
 
-    // 0.5.0 is the fix, and the package has never left 0.x — so on this line
-    // "patched" is minor >= 5, and any 1.x would be patched by definition.
+    // 0.5.0 fixed GHSA-vcc3-ghjq-m6fr and 0.5.1 fixed GHSA-qr28-fpjm-wq7f. The
+    // package has never left 0.x, so on this line "patched" is 0.5.1 or any
+    // later minor, and any 1.x would be patched by definition.
     assert.ok(
-      major > 0 || minor >= 5,
-      `decode-uri-component is ${version}; GHSA-vcc3-ghjq-m6fr needs >= 0.5.0. ` +
-        `Check pnpm.overrides in package.json.`,
+      major > 0 || minor > 5 || (minor === 5 && patch >= 1),
+      `decode-uri-component is ${version}; GHSA-vcc3-ghjq-m6fr and ` +
+        `GHSA-qr28-fpjm-wq7f need >= 0.5.1. Check pnpm.overrides in package.json.`,
     );
   });
 
@@ -167,8 +171,11 @@ describe("deep-link decoding — the denial of service is closed", () => {
   // actually holds this closed. The 2 s bound is unfalsifiable in both
   // directions, measured rather than guessed — reverting the override put this
   // at 63-76 s (>30,000x over), while the patched version takes 1-2 ms (~1000x
-  // under), so no machine load can make it flaky and no vulnerable version can
-  // sneak past it.
+  // under), so no machine load can make it flaky and no version vulnerable to
+  // GHSA-vcc3-ghjq-m6fr can sneak past it. It does not cover GHSA-qr28-fpjm-wq7f:
+  // 0.5.0 decodes this input in ~1 ms too, and its quadratic case is a few
+  // hundred milliseconds even on 40,000 sequences, too small a gap to time
+  // without flaking. Against 0.5.0 the version check is the only detector.
   test("a long malformed value decodes promptly", () => {
     const hostile = "?x=" + "%FF".repeat(2000);
 
