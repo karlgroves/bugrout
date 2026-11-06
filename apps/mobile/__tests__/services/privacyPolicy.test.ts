@@ -139,9 +139,16 @@ describe("privacy policy — third-party disclosure", () => {
   });
 
   it("has been re-dated", () => {
-    // October 2026: shelters moved from Red Cross/Open211 to FEMA ESF6-SS (#201).
-    expect(PRIVACY_POLICY).not.toContain("Last Updated: August 2026");
-    expect(PRIVACY_POLICY).toContain("Last Updated: October 2026");
+    // November 2026: saved destinations in Settings (#187).
+    expect(PRIVACY_POLICY).not.toContain("Last Updated: October 2026");
+    expect(PRIVACY_POLICY).toContain("Last Updated: November 2026");
+  });
+
+  it("says saved destinations stay on the device", () => {
+    // #187: a relative's house is more sensitive than an ad-hoc search.
+    expect(PRIVACY_POLICY).toMatch(
+      /On-Device Only[\s\S]*?saved destinations[\s\S]*?stored locally/,
+    );
   });
 });
 

@@ -2,7 +2,7 @@
  * Destination Picker
  *
  * Three input modes:
- * 1. Saved scenarios (quick-select)
+ * 1. Saved plans, then destinations saved in Settings (quick-select, #187)
  * 2. Address search via Nominatim (online only, debounced) — see
  *    services/geocoding/Geocoder.ts, which owns the request and refuses to
  *    make it before the disclaimer is accepted
@@ -37,6 +37,11 @@ import {
   addRecentDestination,
   type RecentDestinationRow,
 } from "@/db/queries/preferences";
+import {
+  getSavedDestinations,
+  MAX_SAVED_DESTINATIONS,
+  type SavedDestination,
+} from "@/db/queries/savedDestinations";
 import { useLocation } from "@/hooks/useLocation";
 import { useRoute } from "@/hooks/useRoute";
 import {
@@ -62,9 +67,10 @@ const RECENTS_SHOWN = 5;
 
 /**
  * How many to load: enough to still list {@link RECENTS_SHOWN} after dropping
- * the ones that are saved scenarios (at most 3, the scenario store's cap).
+ * the ones that are saved plans (at most 3, the scenario store's cap) or saved
+ * destinations.
  */
-const RECENTS_FETCHED = 10;
+const RECENTS_FETCHED = RECENTS_SHOWN + 3 + MAX_SAVED_DESTINATIONS;
 
 /** Destination picker offering scenarios, address search, and recent destinations. */
 function DestinationScreen(): React.JSX.Element {
@@ -78,6 +84,7 @@ function DestinationScreen(): React.JSX.Element {
   const [searching, setSearching] = useState(false);
   const [noResults, setNoResults] = useState(false);
   const [recents, setRecents] = useState<RecentDestinationRow[]>([]);
+  const [saved, setSaved] = useState<SavedDestination[]>([]);
   const [selectedDest, setSelectedDest] = useState<LatLng | null>(null);
   const [calculating, setCalculating] = useState(false);
   // Why the last Route & Go produced no route, until the selection changes.
@@ -105,6 +112,11 @@ function DestinationScreen(): React.JSX.Element {
       .then(setRecents)
       .catch((err: unknown) => {
         console.error("Failed to load recent destinations", err);
+      });
+    getSavedDestinations()
+      .then(setSaved)
+      .catch((err: unknown) => {
+        console.error("Failed to load saved destinations", err);
       });
 
     // Auto-select pin dropped from map
@@ -290,7 +302,7 @@ function DestinationScreen(): React.JSX.Element {
       <FlatList
         style={styles.list}
         keyboardShouldPersistTaps="handled"
-        data={buildListData(results, scenarios, recents)}
+        data={buildListData(results, scenarios, saved, recents)}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           if (item._type === "header") {
@@ -396,7 +408,8 @@ function DestinationScreen(): React.JSX.Element {
             );
           }
 
-          // Recent
+          // A saved destination or a recent one: a place with no stops.
+          const isSaved = item._type === "saved";
           return (
             <Pressable
               style={[
@@ -412,16 +425,20 @@ function DestinationScreen(): React.JSX.Element {
               }}
               disabled={calculating}
               accessibilityRole="button"
-              accessibilityLabel={`Use recent destination: ${item.label}`}
-              accessibilityHint="Routes to this previously used destination and shows the route preview"
+              accessibilityLabel={`Use ${isSaved ? "saved" : "recent"} destination: ${item.label}`}
+              accessibilityHint={
+                isSaved
+                  ? "Routes to this destination you saved in Settings and shows the route preview"
+                  : "Routes to this previously used destination and shows the route preview"
+              }
               accessibilityState={{ selected: isSelected(item.lat, item.lng) }}
             >
               <View style={styles.resultContent}>
                 <Text style={styles.resultText}>
                   <FontAwesome
-                    name="clock-o"
+                    name={isSaved ? "map-marker" : "clock-o"}
                     size={13}
-                    color={colors.textMuted}
+                    color={isSaved ? colors.accent : colors.textMuted}
                   />{" "}
                   {item.label}
                 </Text>
@@ -495,12 +512,17 @@ function DestinationScreen(): React.JSX.Element {
 function buildListData(
   results: GeocodingResult[],
   scenarios: Scenario[],
+  saved: SavedDestination[],
   recents: RecentDestinationRow[],
 ) {
-  // A place that is already a saved scenario isn't listed again as a recent.
-  const scenarioPlaces = new Set(scenarios.map((s) => placeKey(s.destination)));
+  // A place that is already a saved plan or saved destination isn't listed
+  // again as a recent.
+  const savedPlaces = new Set([
+    ...scenarios.map((s) => placeKey(s.destination)),
+    ...saved.map((d) => placeKey(d.point)),
+  ]);
   const shownRecents = recents
-    .filter((r) => !scenarioPlaces.has(placeKey(r)))
+    .filter((r) => !savedPlaces.has(placeKey(r)))
     .slice(0, RECENTS_SHOWN);
 
   return [
@@ -526,6 +548,25 @@ function buildListData(
       name: s.name,
       lat: s.destination.lat,
       lng: s.destination.lng,
+    })),
+    // Ahead of recents: entered calmly in advance, so one tap away (#187).
+    ...(saved.length > 0
+      ? [
+          {
+            _type: "header" as const,
+            id: "__saved__",
+            label: "Saved Destinations",
+            lat: 0,
+            lng: 0,
+          },
+        ]
+      : []),
+    ...saved.map((d) => ({
+      _type: "saved" as const,
+      id: `saved-${d.id}`,
+      label: d.name,
+      lat: d.point.lat,
+      lng: d.point.lng,
     })),
     ...(shownRecents.length > 0
       ? [

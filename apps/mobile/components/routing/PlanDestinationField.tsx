@@ -90,7 +90,7 @@ export function PlanDestinationField({
                 onPickMatch(match);
               }}
               accessibilityLabel={`Use ${match.displayName}`}
-              accessibilityHint="Sets this plan's destination to this place"
+              accessibilityHint="Uses this place as the destination"
               accessibilityRole="button"
             >
               <Text style={styles.matchText}>{match.displayName}</Text>
@@ -111,7 +111,7 @@ export function PlanDestinationField({
       </Pressable>
 
       <Text style={styles.hint}>
-        An address is looked up when you save, so set plans up while you have a
+        An address is looked up when you save, so set this up while you have a
         connection. Dropping a pin needs neither.
       </Text>
     </View>
