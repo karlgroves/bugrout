@@ -24,9 +24,11 @@ EXPOSE 8002
 # image's unprivileged `valhalla` user (setpriv) before exec'ing the service, so
 # nothing that answers a request runs as root.
 # checkov:skip=CKV_DOCKER_8:root only until entrypoint.sh drops privileges, as above.
-# (File-scoped because hadolint and Semgrep each need the line above USER.)
+# Suppressed for hadolint, checkov, Semgrep and Trivy (DS-0002). Semgrep and
+# Trivy both read only the line directly above USER, so they share it, and
+# hadolint's is file-scoped; this file has no other USER.
 # hadolint global ignore=DL3002
-# nosemgrep: dockerfile.security.last-user-is-root.last-user-is-root -- entrypoint.sh only writes the root-owned Fly volume as root, then execs valhalla_service through setpriv as `valhalla`
+# nosemgrep: dockerfile.security.last-user-is-root.last-user-is-root -- entrypoint.sh only writes the root-owned Fly volume as root, then execs valhalla_service through setpriv as `valhalla` trivy:ignore:DS-0002
 USER root
 
 # checkov:skip=CKV_DOCKER_2:Health checking is done by the platform. fly.toml
