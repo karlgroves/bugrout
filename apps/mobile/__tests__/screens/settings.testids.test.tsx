@@ -28,6 +28,7 @@ jest.mock("expo-router", () => ({
 const EXPECTED_IDS = [
   "settings-row-offline-maps",
   "settings-row-emergency-contacts",
+  "settings-row-saved-destinations",
   "settings-row-legal",
   "settings-toggle-units",
   "settings-toggle-voice-navigation",
