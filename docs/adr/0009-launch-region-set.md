@@ -35,8 +35,8 @@ region:
 
 `apps/mobile/constants/regions.ts` offers 51 region ids (50 states plus DC) as
 an offline fallback list; one of them is real.
-`data-pipeline/regions/region-definitions.json` defines four — `md`, `ca`, `tx`,
-`fl` — so three of those four have never been built.
+`data-pipeline/regions/region-definitions.json` defined four when this was
+written — `md`, `ca`, `tx`, `fl` — so three of those four had never been built.
 
 **`valhallaSize` is 0 for the only published region.** No routing graph has ever
 been published for any region (#146). Every on-device figure below is therefore
