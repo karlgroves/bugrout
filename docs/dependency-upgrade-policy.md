@@ -543,14 +543,15 @@ That is two distinct situations, and the entry has to say which one it is,
 because they retire on different signals:
 
 1. **No fixed version is published.** Retires when upstream ships a fix.
-   `braces` (GHSA-vfj7-8cjw-p6xm) and `node-forge` (GHSA-86w9-cpqp-85rv) are in
-   this case: both advisories name the latest release as affected, and both are
-   build-time Expo toolchain packages that never reach the app bundle. They are
-   also listed in `pnpm.auditConfig.ignoreGhsas`, because `pnpm audit --prod`
-   counts the Expo toolchain as production. `sprintf-js` (GHSA-hp3w-g68c-fv3c)
-   is in this case too, reached through `argparse` in Jest's coverage config
-   loading; it is moderate, below the `pnpm audit` gate, so it needs no
-   `ignoreGhsas` entry. See
+   `braces` (GHSA-vfj7-8cjw-p6xm) and `node-forge` (GHSA-86w9-cpqp-85rv) were in
+   this case, and both entries have retired: the `braces` advisory was withdrawn
+   upstream, and `node-forge` shipped a fix in 1.4.1 that the
+   `node-forge@<1.4.3` override now reaches inside `@expo/cli`. Their
+   `pnpm.auditConfig.ignoreGhsas` entries went with them, so that list no longer
+   exists; `osv-scanner.toml` records how each one left. `sprintf-js`
+   (GHSA-hp3w-g68c-fv3c) is in this case too, reached through `argparse` in
+   Jest's coverage config loading; it is moderate, below the `pnpm audit` gate,
+   so it needs no `ignoreGhsas` entry. See
    [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how an
    entry in this case retires.
 2. **A fixed version exists but is structurally unreachable** — pinning it
