@@ -104,7 +104,7 @@ meta = dict(db.execute("SELECT key, value FROM meta"))
 check("meta", meta, {"version": "1", "regionId": "fixture", "osmTimestamp": "2026-09-28T20:23:05Z"})
 
 rows = {
-    (r[0], r[1] or r[3]): r
+    (r[0], r[1] or r[3] or ""): r
     for r in db.execute("SELECT kind, name, housenumber, street, city, postcode, lat, lon FROM places")
 }
 check(
