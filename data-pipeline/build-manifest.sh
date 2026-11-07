@@ -36,6 +36,11 @@ region = {
 if m.get('sha256', {}).get('fuel'):
     region['fuelSize'] = m['sizes']['fuel']
     region['fuelSha256'] = m['sha256']['fuel']
+# Likewise the destination search index (#208); without it the app searches
+# online only.
+if m.get('sha256', {}).get('geocode'):
+    region['geocodeSize'] = m['sizes']['geocode']
+    region['geocodeSha256'] = m['sha256']['geocode']
 # Land-border neighbours, offered after this region is downloaded (#268).
 # Carried from region-definitions.json, which build-region.sh embeds whole as
 # the package manifest's \`region\`. Omitted when absent rather than written as
