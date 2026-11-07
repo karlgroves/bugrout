@@ -139,7 +139,11 @@ function ScenarioEditScreen(): React.JSX.Element {
   const save = useCallback(
     async (point: LatLng, savedAddress: string | null) => {
       // Warn now, while there's time to download, not when it's needed (#190).
-      if (!(await confirmCoverage(point))) return;
+      // Downloading leaves this editor on the stack, so the unsaved plan is
+      // still here to save when the user comes back (#196).
+      const choice = await confirmCoverage(point);
+      if (choice === "download") router.push("/downloads");
+      if (choice !== "save") return;
 
       const resourceStops: ResourceStopPreference[] = [
         { type: "fuel", maxDetour: 16000, enabled: fuelStop }, // 10 miles
