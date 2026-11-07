@@ -48,8 +48,9 @@ pnpm run lint:actions
 
 # Test the data pipeline's scripts against small fixtures (needs osmium-tool:
 # brew install osmium-tool). CI runs it on PRs touching data-pipeline/
-# Two suites: the fuel extractor, and the region id -> Geofabrik slug lookup
-# that keeps pipeline ids and app ids the same set of things (#241).
+# Suites: the fuel extractor, the destination search index extractor (#208),
+# the region id -> Geofabrik slug lookup that keeps pipeline ids and app ids
+# the same set of things (#241), and the region neighbours.
 pnpm run test:pipeline
 
 # Lint all workspaces / autofix

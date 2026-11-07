@@ -49,7 +49,7 @@ export default {
 
     // GET /v1/tiles/:regionId/:type — key-protected
     const tileMatch =
-      /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|fuel)$/.exec(
+      /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|fuel|geocode)$/.exec(
         url.pathname,
       );
     if (tileMatch) {
@@ -173,6 +173,8 @@ async function getTilePackage(
     flood: `${regionId}.flood.geojson`,
     // OSM fuel stations, verified by the app against the manifest (#200).
     fuel: `${regionId}.fuel.json`,
+    // On-device destination search index, verified the same way (#208).
+    geocode: `${regionId}.geocode.sqlite`,
   };
 
   const filename = fileMap[type];
@@ -246,6 +248,7 @@ async function getTilePackage(
 function contentTypeForTile(type: string): string {
   if (type === "flood") return "application/geo+json";
   if (type === "fuel") return "application/json";
+  if (type === "geocode") return "application/vnd.sqlite3";
   return "application/octet-stream";
 }
 
