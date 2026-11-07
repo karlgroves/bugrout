@@ -18,7 +18,9 @@ namespace bugrout {
 
 class ValhallaCore {
  public:
-  ValhallaCore() = default;
+  // Both defined in the .cpp, where Impl is complete: an inline defaulted
+  // constructor would need ~unique_ptr<Impl> in every caller's translation unit.
+  ValhallaCore();
   ~ValhallaCore();
 
   ValhallaCore(const ValhallaCore&) = delete;

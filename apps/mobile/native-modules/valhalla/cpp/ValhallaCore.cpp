@@ -87,6 +87,7 @@ struct ValhallaCore::Impl {
   valhalla::tyr::actor_t actor;
 };
 
+ValhallaCore::ValhallaCore() = default;
 ValhallaCore::~ValhallaCore() = default;
 
 bool ValhallaCore::init(const std::string& tilePath, std::string& outError) {
