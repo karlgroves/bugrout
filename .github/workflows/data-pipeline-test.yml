@@ -39,3 +39,6 @@ jobs:
 
       - name: Test extract-fuel.sh
         run: bash data-pipeline/osm/test-extract-fuel.sh
+
+      - name: Test extract-geocode.sh
+        run: bash data-pipeline/osm/test-extract-geocode.sh
