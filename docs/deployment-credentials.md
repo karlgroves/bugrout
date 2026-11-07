@@ -60,6 +60,30 @@ Verifiable once set: Backend Deploy's `deploy-services` job (_Deploy Fly.io
 Services_) reaches `flyctl deploy` instead of exiting on _"no access token
 available"_. `bugrout-route-tracker` has never been deployed (#144).
 
+## 2b. R2 S3 credentials — the routing graph (#266)
+
+The Valhalla service's graph lives in R2 under
+`bugrout-tiles/server/<extract>/<build-date>/` and is read and written through
+R2's S3 API, not wrangler (`wrangler r2 object put` refuses objects over 300
+MiB). Create two R2 API tokens on the account owning `bugrout-tiles`, both
+scoped to that bucket only. `R2_ENDPOINT` is
+`https://<account-id>.r2.cloudflarestorage.com`.
+
+| Where                                      | Names                                                     | Token permission    |
+| ------------------------------------------ | --------------------------------------------------------- | ------------------- |
+| Fly secrets on `bugrout-valhalla`          | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Object Read only    |
+| GitHub repository secrets (Valhalla Graph) | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Object Read & Write |
+
+```bash
+flyctl secrets set -a bugrout-valhalla R2_ENDPOINT=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
+gh secret set R2_ENDPOINT --repo karlgroves/bugrout   # and the other two
+```
+
+Verifiable once set: **Valhalla Graph** with `upload` ticked publishes a
+version, and after setting `GRAPH_VERSION` to it,
+`flyctl logs -a bugrout-valhalla` shows `graph: fetching <version>` then the
+service starting, instead of `the Fly secret R2_ENDPOINT is not set`.
+
 ## 3. App keys — EAS environment variables, not `eas.json`
 
 All three are read from `process.env` at build time, so they belong in EAS
