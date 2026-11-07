@@ -1,6 +1,7 @@
 # ADR 0009: Which regions ship at launch, and what the free tier covers
 
-- Status: **Proposed** — needs a decision from the product owner
+- Status: **Decision 1 accepted** (L2) by the product owner 2026-11-06; Decision
+  2 still **Proposed**
 - Date: 2026-10-28
 - Context: Issue #196 (coverage beyond one state, spec open question #2);
   related #147 (publish more regions), #146 (routing tarball), #195 (ELF), #157
@@ -173,4 +174,15 @@ disagreeing with each other.
 
 ## Decision
 
-Not yet made. Needs one answer to Decision 1 and one to Decision 2.
+**Decision 1: L2 now, L3 after #195** — accepted 2026-11-06 by the product
+owner. The launch set is Maryland plus its land neighbours: DC, DE, PA, VA and
+WV. California and Florida (L3) follow once #195 makes ELF apply to routes, as
+the recommendation above argues.
+
+The five L2 regions are defined in
+`data-pipeline/regions/region-definitions.json` (#147), so the pipeline can
+build each by its id. Building them and publishing to R2 is owner-only work,
+blocked on the credential in #157; a definition is not a published region, and
+the live manifest still lists Maryland alone until that publish happens.
+
+**Decision 2: not yet made.**

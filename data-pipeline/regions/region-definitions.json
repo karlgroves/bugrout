@@ -13,6 +13,66 @@
       "neighbors": ["dc", "de", "pa", "va", "wv"]
     },
     {
+      "id": "dc",
+      "name": "District of Columbia",
+      "bbox": {
+        "west": -77.119759,
+        "south": 38.791645,
+        "east": -76.909395,
+        "north": 38.995548
+      },
+      "geofabrikSlug": "district-of-columbia",
+      "neighbors": ["md", "va"]
+    },
+    {
+      "id": "de",
+      "name": "Delaware",
+      "bbox": {
+        "west": -75.788658,
+        "south": 38.451013,
+        "east": -75.048939,
+        "north": 39.839007
+      },
+      "geofabrikSlug": "delaware",
+      "neighbors": ["md", "nj", "pa"]
+    },
+    {
+      "id": "pa",
+      "name": "Pennsylvania",
+      "bbox": {
+        "west": -80.519891,
+        "south": 39.7198,
+        "east": -74.689516,
+        "north": 42.516072
+      },
+      "geofabrikSlug": "pennsylvania",
+      "neighbors": ["de", "md", "nj", "ny", "oh", "wv"]
+    },
+    {
+      "id": "va",
+      "name": "Virginia",
+      "bbox": {
+        "west": -83.675395,
+        "south": 36.540738,
+        "east": -75.242266,
+        "north": 39.466012
+      },
+      "geofabrikSlug": "virginia",
+      "neighbors": ["dc", "ky", "md", "nc", "tn", "wv"]
+    },
+    {
+      "id": "wv",
+      "name": "West Virginia",
+      "bbox": {
+        "west": -82.644739,
+        "south": 37.201483,
+        "east": -77.719519,
+        "north": 40.638801
+      },
+      "geofabrikSlug": "west-virginia",
+      "neighbors": ["ky", "md", "oh", "pa", "va"]
+    },
+    {
       "id": "ca",
       "name": "California",
       "bbox": {
