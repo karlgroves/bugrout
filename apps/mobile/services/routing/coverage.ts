@@ -6,7 +6,7 @@
  * them looks fine when it's saved and fails when it's needed, during an
  * evacuation, possibly without signal. So the warning comes at save time,
  * while there is still time and signal to download the region or pick
- * another destination.
+ * another destination, and it offers the download there and then (#196).
  */
 
 import { Alert } from "react-native";
@@ -42,23 +42,33 @@ export function coverageWarning(
 }
 
 /**
+ * What the user chose at the coverage warning: save the plan as it is, go back
+ * and change the destination, or go and download maps before saving.
+ */
+export type CoverageChoice = "save" | "change" | "download";
+
+/**
  * Warn before saving a destination outside every downloaded region, and let
- * the user save anyway or go back and change it.
+ * the user save anyway, go back and change it, or go to the downloads.
  *
  * @param destination - The destination about to be saved.
- * @returns True to save, false to go back to editing.
+ * @returns "save" when the destination is covered or the user saves anyway,
+ *   "change" when they choose to change it or dismiss the warning, and
+ *   "download" when they choose to download maps first.
  */
-export async function confirmCoverage(destination: LatLng): Promise<boolean> {
+export async function confirmCoverage(
+  destination: LatLng,
+): Promise<CoverageChoice> {
   let regions: Awaited<ReturnType<typeof getDownloadedRegions>>;
   try {
     regions = await getDownloadedRegions();
   } catch {
     // The check is advice. If the regions can't be read, save the plan rather
     // than fail the save with nothing on screen.
-    return true;
+    return "save";
   }
   const warning = coverageWarning(destination, regions);
-  if (warning === null) return true;
+  if (warning === null) return "save";
   return new Promise((resolve) => {
     Alert.alert(
       "Outside your offline maps",
@@ -68,20 +78,26 @@ export async function confirmCoverage(destination: LatLng): Promise<boolean> {
           text: "Change destination",
           style: "cancel",
           onPress: () => {
-            resolve(false);
+            resolve("change");
+          },
+        },
+        {
+          text: "Download maps",
+          onPress: () => {
+            resolve("download");
           },
         },
         {
           text: "Save anyway",
           onPress: () => {
-            resolve(true);
+            resolve("save");
           },
         },
       ],
       {
         cancelable: true,
         onDismiss: () => {
-          resolve(false);
+          resolve("change");
         },
       },
     );

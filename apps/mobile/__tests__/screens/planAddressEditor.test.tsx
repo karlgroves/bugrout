@@ -26,7 +26,7 @@ jest.mock("@/db/queries/scenarios", () => ({
 // Coverage warnings are #190's concern and have their own suite; let every
 // destination through so these cases are about the lookup alone.
 jest.mock("@/services/routing/coverage", () => ({
-  confirmCoverage: () => Promise.resolve(true),
+  confirmCoverage: () => Promise.resolve("save"),
 }));
 
 const mockPush = jest.fn();
