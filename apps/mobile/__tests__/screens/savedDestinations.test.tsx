@@ -35,8 +35,9 @@ jest.mock("@/db/queries/savedDestinations", () => ({
   },
 }));
 
+const mockConfirmCoverage = jest.fn(() => Promise.resolve(true));
 jest.mock("@/services/routing/coverage", () => ({
-  confirmCoverage: () => Promise.resolve(true),
+  confirmCoverage: () => mockConfirmCoverage(),
 }));
 
 const mockPush = jest.fn();
@@ -166,6 +167,52 @@ describe("Saved Destinations screen", () => {
     await fireEvent.press(screen.getByTestId("plan-pick-on-map-btn"));
 
     expect(mockPush).toHaveBeenCalledWith("/scenarios/pick-location");
+  });
+
+  it("saves a dropped pin with no address lookup", async () => {
+    const screen = await fillNew("Trailhead", "");
+
+    useScenarioStore.setState({ pickedDestination: { lat: 39.5, lng: -77.1 } });
+    await waitFor(() => {
+      expect(useScenarioStore.getState().pickedDestination).toBeNull();
+    });
+    await fireEvent.press(screen.getByTestId("save-saved-destination-btn"));
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledTimes(1);
+    });
+    expect(mockLookupAddress).not.toHaveBeenCalled();
+    expect(mockUpsert.mock.calls[0]?.[0]).toMatchObject({
+      name: "Trailhead",
+      point: { lat: 39.5, lng: -77.1 },
+      address: null,
+    });
+  });
+
+  it("adds one entry, not two, when Save is pressed twice", async () => {
+    // Hold the coverage check open so the second press lands mid-save.
+    let release: (ok: boolean) => void = () => undefined;
+    mockConfirmCoverage.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const screen = await fillNew("Shelter", "");
+    useScenarioStore.setState({ pickedDestination: { lat: 39.5, lng: -77.1 } });
+    await waitFor(() => {
+      expect(useScenarioStore.getState().pickedDestination).toBeNull();
+    });
+
+    const save = screen.getByTestId("save-saved-destination-btn");
+    await fireEvent.press(save);
+    await fireEvent.press(save);
+    release(true);
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledTimes(2);
+    });
+    expect(mockStored).toHaveLength(1);
   });
 
   it("renames an entry without looking its address up again", async () => {

@@ -82,6 +82,9 @@ export function SavedDestinationForm({
   onDone,
 }: SavedDestinationFormProps): React.JSX.Element {
   const router = useRouter();
+  // Fixed once per form, so a second press of Save mid-save replaces the
+  // same row instead of adding a duplicate.
+  const [id] = useState(() => existing?.id ?? uuidv4());
   const [name, setName] = useState(existing?.name ?? "");
   const destination = useDestinationEntry(
     existing ? { point: existing.point, address: existing.address } : null,
@@ -99,7 +102,7 @@ export function SavedDestinationForm({
     if (!(await confirmCoverage(dest.point))) return;
 
     await upsertSavedDestination({
-      id: existing?.id ?? uuidv4(),
+      id,
       name: name.trim(),
       point: dest.point,
       address: dest.address,
@@ -107,7 +110,7 @@ export function SavedDestinationForm({
       updatedAt: Date.now(),
     });
     onDone();
-  }, [name, resolve, existing, onDone]);
+  }, [id, name, resolve, existing, onDone]);
 
   return (
     <View style={styles.form}>
