@@ -29,8 +29,10 @@ jobs:
   build:
     name: Build and publish graph
     runs-on: ubuntu-latest
-    # Single-threaded (#178); a multi-state extract needs far longer than this.
-    timeout-minutes: 300
+    # The GitHub-hosted maximum. The build is single-threaded (#178), so a
+    # multi-state extract may not finish inside it; build that one locally
+    # (backend/services/valhalla/README.md).
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

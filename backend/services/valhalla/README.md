@@ -30,6 +30,10 @@ flyctl deploy
 The secrets are a **read-only** R2 token; see `docs/deployment-credentials.md`.
 `flyctl deploy` creates the volume from `[mounts]` the first time.
 
+Do not deploy this image until a graph is published and `GRAPH_VERSION` names
+it: the entrypoint refuses to start on the placeholder, so the deploy would
+replace the running service with one that serves nothing.
+
 Health check: `curl https://bugrout-valhalla.fly.dev/status`
 
 `fly.toml` uses a TLS-only `[[services]]` block, not `[http_service]`. Fly's
@@ -51,8 +55,10 @@ A larger extract needs a larger volume (`flyctl volumes extend`) and more
 memory, and a wider graph needs the exclude-polygon limit in `build-graph.sh`
 re-timed (#269).
 
-To build locally instead, run `build-graph.sh` in the image named by the
-Dockerfile's `FROM` line:
+The workflow stops at GitHub's 6-hour job limit, and the build is
+single-threaded (#178), so a multi-state extract may not finish there. To build
+locally instead, run `build-graph.sh` in the image named by the Dockerfile's
+`FROM` line, then copy the five files to the same R2 prefix, `SHA256SUMS` last:
 
 ```bash
 docker run --rm -v "$PWD:/work" -w /work --entrypoint bash <image> \
