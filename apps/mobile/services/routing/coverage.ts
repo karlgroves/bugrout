@@ -52,7 +52,9 @@ export type CoverageChoice = "save" | "change" | "download";
  * the user save anyway, go back and change it, or go to the downloads.
  *
  * @param destination - The destination about to be saved.
- * @returns "save" when the destination is covered or the user saves anyway.
+ * @returns "save" when the destination is covered or the user saves anyway,
+ *   "change" when they choose to change it or dismiss the warning, and
+ *   "download" when they choose to download maps first.
  */
 export async function confirmCoverage(
   destination: LatLng,

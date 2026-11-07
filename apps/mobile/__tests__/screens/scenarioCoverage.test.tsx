@@ -159,6 +159,7 @@ describe("saving a scenario", () => {
     await pressing;
     expect(mockUpsertScenario).toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("goes back to editing when the user chooses to change it", async () => {
@@ -172,6 +173,7 @@ describe("saving a scenario", () => {
     await pressing;
     expect(mockUpsertScenario).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("offers the download, keeping the plan unsaved to finish later", async () => {
