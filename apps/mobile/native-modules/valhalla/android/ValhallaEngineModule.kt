@@ -26,8 +26,9 @@ class ValhallaEngineModule(reactContext: ReactApplicationContext) :
 
   override fun getName(): String = "ValhallaEngine"
 
-  // A reload builds a new module; stop this one's thread so two executors never
-  // call into the process-global native core at once.
+  // A reload builds a new module with its own executor. Stop this one's thread
+  // instead of leaking it; calls already queued still finish, so ValhallaCore's
+  // mutex stays the backstop for any overlap with the new module.
   override fun invalidate() {
     executor.shutdown()
     super.invalidate()
