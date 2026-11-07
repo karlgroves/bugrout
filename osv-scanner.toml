@@ -11,8 +11,8 @@
 #   1. **No fixed version is published.** Nothing to pin. No entry is in this
 #      category today. `image-size` was until 2.0.3 shipped, and is closed by
 #      an override plus a Metro patch (docs/dependency-upgrade-policy.md);
-#      `braces` and `node-forge` were too (the retirement note below the
-#      stream-json entries says how each one left).
+#      `braces` and `node-forge` were too (the retirement note at the end of
+#      this file says how each one left).
 #   2. **A fixed version exists but is structurally unreachable** — pinning it
 #      would break the consumer that pulls the package in, no upstream bump
 #      gets there, *and* no patch can bridge the gap. This case needs evidence
@@ -94,24 +94,6 @@ calls — pinning it breaks `detox --version` outright, and detox@latest is \
 ignore / filter / replace filters, and neither Detox nor bunyamin imports \
 one. devDependency, local self-produced JSONL input, AV:L availability-only."""
 
-# Retired category-1 entries, and how each one left.
-#
-# `braces` (GHSA-vfj7-8cjw-p6xm) left on 2026-10-24 because the advisory was
-# **withdrawn upstream** on 2026-10-23 — not because it was fixed and not
-# because the exposure argument changed. OSV-Scanner then reported the entry
-# under "unused ignores" and exited 1, which is the signal this file's header
-# describes, and is what removing it answers. The matching
-# `pnpm.auditConfig.ignoreGhsas` entry went with it; `pnpm audit --prod
-# --audit-level=high` was measured passing both with and without it, so nothing
-# was holding that gate shut either.
-#
-# `node-forge` (GHSA-86w9-cpqp-85rv, CVE-2026-85393) left on 2026-11-07 because
-# upstream shipped the fix: 1.4.1 (2026-10-27) closes it along with ten other
-# advisories against <=1.4.0, and 1.4.3 (2026-11-03) closes five more. The
-# bounded override `node-forge@<1.4.3` → `>=1.4.3 <2` in package.json now
-# reaches it inside @expo/cli and @expo/code-signing-certificates, and the
-# matching `pnpm.auditConfig.ignoreGhsas` entry — the only one — went with it.
-
 [[IgnoredVulns]]
 id = "GHSA-hqr4-qq8f-hg3x"
 ignoreUntil = 2026-12-05
@@ -141,3 +123,21 @@ declares ^0.16.0, and 0.18 is a breaking 0.x line. Unreachable: katex is \
 imported only by the extension's lib/html.js (mathHtml), which markdownlint \
 never calls; it uses the syntax extension alone, and no Markdown in this \
 repository contains math. Lint-time devDependency only."""
+
+# Retired category-1 entries, and how each one left.
+#
+# `braces` (GHSA-vfj7-8cjw-p6xm) left on 2026-10-24 because the advisory was
+# **withdrawn upstream** on 2026-10-23 — not because it was fixed and not
+# because the exposure argument changed. OSV-Scanner then reported the entry
+# under "unused ignores" and exited 1, which is the signal this file's header
+# describes, and is what removing it answers. The matching
+# `pnpm.auditConfig.ignoreGhsas` entry went with it; `pnpm audit --prod
+# --audit-level=high` was measured passing both with and without it, so nothing
+# was holding that gate shut either.
+#
+# `node-forge` (GHSA-86w9-cpqp-85rv, CVE-2026-85393) left on 2026-11-07 because
+# upstream shipped the fix: 1.4.1 (2026-10-27) closes it along with ten other
+# advisories against <=1.4.0, and 1.4.3 (2026-11-03) closes five more. The
+# bounded override `node-forge@<1.4.3` → `>=1.4.3 <2` in package.json now
+# reaches it inside @expo/cli and @expo/code-signing-certificates, and the
+# matching `pnpm.auditConfig.ignoreGhsas` entry — the only one — went with it.
