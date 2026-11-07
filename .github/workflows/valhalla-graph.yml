@@ -1,0 +1,98 @@
+name: Valhalla Graph
+
+# Builds the server's routing graph outside `docker build` and publishes it to
+# R2 under server/<extract>/<build-date>/ (#266). The Fly service pulls the
+# version named in fly.toml at boot; see backend/services/valhalla/README.md.
+#
+# Manual only. A scheduled trigger is not allowed here (CLAUDE.md): a graph is
+# published when someone means to deploy it, not on a timer.
+on:
+  # checkov:skip=CKV_GHA_7:The extract name and Geofabrik URL are the whole point of a manual graph build; both are validated before use.
+  workflow_dispatch:
+    inputs:
+      extract:
+        description: "Extract name, used in the R2 path and GRAPH_VERSION (e.g. maryland, us-south)"
+        default: "maryland"
+      pbf_url:
+        description: "Geofabrik .osm.pbf URL for that extract"
+        default: "https://download.geofabrik.de/north-america/us/maryland-latest.osm.pbf"
+      upload:
+        description: "Publish to R2 after building"
+        type: boolean
+        default: false
+
+# Least privilege: only checking the code out.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and publish graph
+    runs-on: ubuntu-latest
+    # The GitHub-hosted maximum. The build is single-threaded (#178), so a
+    # multi-state extract may not finish inside it; build that one locally
+    # (backend/services/valhalla/README.md).
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Operator-supplied text goes through env:, and is checked before it
+      # becomes a path, an R2 key or a download.
+      - name: Check inputs
+        id: inputs
+        env:
+          EXTRACT: ${{ inputs.extract }}
+          PBF_URL: ${{ inputs.pbf_url }}
+        run: |
+          set -euo pipefail
+          [[ $EXTRACT =~ ^[a-z0-9-]+$ ]] || { echo "::error::extract must be [a-z0-9-]+"; exit 1; }
+          [[ $PBF_URL =~ ^https://download\.geofabrik\.de/[a-z0-9/_-]+\.osm\.pbf$ ]] \
+            || { echo "::error::pbf_url must be a Geofabrik .osm.pbf URL"; exit 1; }
+          echo "version=$EXTRACT/$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Download extract
+        env:
+          PBF_URL: ${{ inputs.pbf_url }}
+        run: curl -fL --retry 3 "$PBF_URL" -o extract.osm.pbf
+
+      # The same pinned image the service runs, so the graph matches the engine.
+      - name: Build graph
+        run: |
+          set -euo pipefail
+          image=$(sed -n 's/^FROM \([^ ]*\).*/\1/p' backend/services/valhalla/Dockerfile | head -n 1)
+          mkdir -p graph && chmod 777 graph
+          docker run --rm -v "$PWD:/work" -w /work --entrypoint bash "$image" \
+            backend/services/valhalla/build-graph.sh extract.osm.pbf graph
+          ls -l graph
+
+      # Not wrangler: `wrangler r2 object put` refuses objects over 300 MiB, and
+      # a tile extract passes that well before US South. The S3 API does
+      # multipart uploads.
+      - name: Publish to R2
+        if: ${{ inputs.upload }}
+        env:
+          VERSION: ${{ steps.inputs.outputs.version }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          AWS_DEFAULT_REGION: auto
+          # R2 rejects the CLI's newer default integrity checksums.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          set -euo pipefail
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$R2_ENDPOINT" ]; then
+            echo "::error::R2_ENDPOINT, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY must be set as repository secrets."
+            exit 1
+          fi
+          prefix="s3://bugrout-tiles/server/$VERSION"
+          # A published version is immutable: rollback depends on it.
+          if aws s3 ls --endpoint-url "$R2_ENDPOINT" "$prefix/SHA256SUMS" > /dev/null; then
+            echo "::error::$VERSION is already published; versions are never overwritten."
+            exit 1
+          fi
+          # SHA256SUMS last, so a version with it is a complete one.
+          for file in valhalla.json valhalla_tiles.tar timezones.sqlite admins.sqlite SHA256SUMS; do
+            aws s3 cp --endpoint-url "$R2_ENDPOINT" "graph/$file" "$prefix/$file"
+          done
+          echo "Published. Set GRAPH_VERSION = '$VERSION' in backend/services/valhalla/fly.toml and deploy." >> "$GITHUB_STEP_SUMMARY"
