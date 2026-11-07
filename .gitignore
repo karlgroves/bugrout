@@ -20,6 +20,13 @@ android/
 *.ipa
 *.apk
 *.aab
+# ...but not the Valhalla native module's own ios/ and android/ binding
+# sources, which are hand-written and must be committed (#145). Its fetched
+# dependencies and built libraries are outputs of build-scripts/.
+!apps/mobile/native-modules/valhalla/ios/
+!apps/mobile/native-modules/valhalla/android/
+apps/mobile/native-modules/valhalla/deps/
+apps/mobile/native-modules/valhalla/bin/
 
 # Environment
 .env
