@@ -26,6 +26,13 @@ class ValhallaEngineModule(reactContext: ReactApplicationContext) :
 
   override fun getName(): String = "ValhallaEngine"
 
+  // A reload builds a new module; stop this one's thread so two executors never
+  // call into the process-global native core at once.
+  override fun invalidate() {
+    executor.shutdown()
+    super.invalidate()
+  }
+
   @ReactMethod
   fun init(tileDir: String, promise: Promise) {
     executor.execute {

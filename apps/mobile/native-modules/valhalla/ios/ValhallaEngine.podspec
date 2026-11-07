@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.version      = '0.1.0'
   s.summary      = 'In-process Valhalla routing (BugRout Approach A spike)'
   s.homepage     = 'https://github.com/karlgroves/bugrout'
-  s.license      = { :type => 'MIT' }
+  s.license      = { :type => 'Proprietary' }
   s.author       = 'BugRout'
   s.platforms    = { :ios => '15.0' }
   s.source       = { :path => '.' }
