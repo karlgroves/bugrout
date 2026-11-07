@@ -99,7 +99,11 @@ export function SavedDestinationForm({
     const dest = await resolve();
     if (!dest) return;
     // Warn now, while there's time to download, not when it's needed (#190).
-    if (!(await confirmCoverage(dest.point))) return;
+    // Downloading leaves this form on the stack, so what was typed is still
+    // here to save when the user comes back (#196).
+    const choice = await confirmCoverage(dest.point);
+    if (choice === "download") router.push("/downloads");
+    if (choice !== "save") return;
 
     await upsertSavedDestination({
       id,
@@ -110,7 +114,7 @@ export function SavedDestinationForm({
       updatedAt: Date.now(),
     });
     onDone();
-  }, [id, name, resolve, existing, onDone]);
+  }, [id, name, resolve, existing, onDone, router]);
 
   return (
     <View style={styles.form}>
