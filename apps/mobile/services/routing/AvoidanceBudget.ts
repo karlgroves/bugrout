@@ -40,8 +40,9 @@ export /**
  * Total exclude-polygon perimeter the routing engine accepts, in meters.
  *
  * Must match `--service-limits-max-exclude-polygons-length` in
- * `backend/services/valhalla/Dockerfile`; `ExcludePolygonLimitSync.test.ts`
- * fails when they differ. Valhalla's own default is 10 000 m.
+ * `backend/services/valhalla/build-graph.sh`, which writes it into the graph
+ * artifact's valhalla.json; `ExcludePolygonLimitSync.test.ts` fails when they
+ * differ. Valhalla's own default is 10 000 m.
  */
 const MAX_EXCLUDE_POLYGONS_PERIMETER_M = 250_000;
 
