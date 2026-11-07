@@ -150,4 +150,8 @@ W3.**
 
 The refresh itself lands with #266; #151 is blocked on it. Until then,
 `data-pipeline.yml` stays `workflow_dispatch`-only and rebuilds are manual. A
-failed refresh must alert someone, and #266's builder carries that requirement.
+failed refresh must alert someone. #266 does not cover any of this yet: its
+acceptance criteria are the routing graph alone, and the builder #279 landed
+(`valhalla-graph.yml`) is a manual job that publishes only that graph. Tile
+publishing, the quarterly trigger and the failure alert still have to be added
+to that builder's scope.
