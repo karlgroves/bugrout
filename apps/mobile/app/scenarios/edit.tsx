@@ -19,7 +19,7 @@
 
 /* eslint-disable max-lines-per-function, complexity -- pre-existing oversized scenario editor with inline form fields and validation; tracked in docs/tech-debt.md (decompose scenario editor) */
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -38,18 +38,12 @@ import {
   upsertScenario,
   deleteScenario as dbDeleteScenario,
 } from "@/db/queries/scenarios";
+import { useDestinationEntry } from "@/hooks/useDestinationEntry";
 import { track, Events } from "@/platform/analytics";
-import {
-  lookupAddress,
-  lookupMessage,
-  type AddressLookup,
-} from "@/services/geocoding/AddressLookup";
-import { reverseGeocode } from "@/services/geocoding/Geocoder";
 import { confirmCoverage } from "@/services/routing/coverage";
 import { useScenarioStore } from "@/stores/useScenarioStore";
 import { pointFromStrings } from "@/utils/geo";
 
-import type { GeocodeResult } from "@/services/geocoding/Geocoder";
 import type { LatLng, Scenario, ResourceStopPreference } from "@bugrout/shared";
 
 /** Editor for creating or updating an evacuation plan and its resource stops. */
@@ -70,39 +64,16 @@ function ScenarioEditScreen(): React.JSX.Element {
     useScenarioStore();
 
   const existing = id ? scenarios.find((s) => s.id === id) : null;
-  const pickedDestination = useScenarioStore((s) => s.pickedDestination);
-  const setPickedDestination = useScenarioStore((s) => s.setPickedDestination);
-
   const [name, setName] = useState(existing?.name ?? "");
 
-  /** What is in the address field. Empty for a plan set by a pin. */
-  const [address, setAddress] = useState(existing?.address ?? "");
-
-  /**
-   * The destination ready to save, and the address to save with it.
-   *
-   * Non-null means no lookup is needed: it came from a pin, from a match the
-   * user chose, or from the plan as it was already saved. That last case is
-   * why editing a plan's name still works with no signal — nothing re-resolves
-   * a destination that is already resolved.
-   *
-   * Typing in the address field clears it, because the text no longer
-   * describes the point.
-   */
-  const [resolved, setResolved] = useState<{
-    point: LatLng;
-    address: string | null;
-  } | null>(
+  const destination = useDestinationEntry(
     existing
       ? { point: existing.destination, address: existing.address }
       : handedDestination
         ? { point: handedDestination, address: null }
         : null,
   );
-
-  /** Matches awaiting the user's choice; never resolved by taking the first. */
-  const [matches, setMatches] = useState<GeocodeResult[] | null>(null);
-  const [lookingUp, setLookingUp] = useState(false);
+  const { lookingUp, resolve: resolveDestination } = destination;
 
   const [fuelStop, setFuelStop] = useState(
     existing?.resourceStops.find((r) => r.type === "fuel")?.enabled ?? false,
@@ -110,30 +81,6 @@ function ScenarioEditScreen(): React.JSX.Element {
   const [waterStop, setWaterStop] = useState(
     existing?.resourceStops.find((r) => r.type === "water")?.enabled ?? false,
   );
-
-  // A point chosen on the map arrives through the store. Reverse-geocode it
-  // once, here, where the user has just asked for it — rather than filling in
-  // addresses for plans in the background, which would send where someone is
-  // going to a third party nobody invited.
-  useEffect(() => {
-    if (!pickedDestination) return;
-    const point = pickedDestination;
-    setPickedDestination(null);
-    setResolved({ point, address: null });
-    setMatches(null);
-    setAddress("");
-
-    void reverseGeocode(point)
-      .then((found) => {
-        if (!found) return;
-        setAddress(found);
-        setResolved({ point, address: found });
-      })
-      .catch(() => {
-        // A pin is allowed to have no address: a rally point in a field has
-        // none, and offline there is no way to ask. The plan saves either way.
-      });
-  }, [pickedDestination, setPickedDestination]);
 
   /** Save with a destination already resolved; the only path that writes. */
   const save = useCallback(
@@ -169,65 +116,15 @@ function ScenarioEditScreen(): React.JSX.Element {
     [name, fuelStop, waterStop, existing, addScenario, updateScenario, router],
   );
 
-  /** A match the user chose from an ambiguous address. */
-  const handlePickMatch = useCallback((match: GeocodeResult) => {
-    setResolved({
-      point: { lat: match.lat, lng: match.lng },
-      address: match.displayName,
-    });
-    setAddress(match.displayName);
-    setMatches(null);
-  }, []);
-
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert("Name Required", "Enter a name for this plan.");
       return;
     }
 
-    // Already resolved — a pin, a chosen match, or the plan as saved. Nothing
-    // to look up, so this works with no connection.
-    if (resolved) {
-      await save(resolved.point, resolved.address);
-      return;
-    }
-
-    if (!address.trim()) {
-      Alert.alert(
-        "Destination Required",
-        "Enter an address, or drop a pin on the map.",
-      );
-      return;
-    }
-
-    setLookingUp(true);
-    let lookup: AddressLookup;
-    try {
-      lookup = await lookupAddress(address);
-    } finally {
-      setLookingUp(false);
-    }
-
-    if (lookup.kind === "one") {
-      await save(
-        { lat: lookup.match.lat, lng: lookup.match.lng },
-        lookup.match.displayName,
-      );
-      return;
-    }
-
-    if (lookup.kind === "many") {
-      // Several places match. Offer them; never pick one silently.
-      setMatches(lookup.matches);
-      return;
-    }
-
-    if (lookup.kind === "superseded") return;
-
-    // Nothing is saved, and what was typed is left alone to be corrected.
-    const message = lookupMessage(lookup);
-    if (message) Alert.alert(message.title, message.body);
-  }, [name, address, resolved, save]);
+    const dest = await resolveDestination();
+    if (dest) await save(dest.point, dest.address);
+  }, [name, resolveDestination, save]);
 
   const handleDelete = useCallback(() => {
     if (!existing) return;
@@ -263,17 +160,11 @@ function ScenarioEditScreen(): React.JSX.Element {
       />
 
       <PlanDestinationField
-        address={address}
-        onChangeAddress={(text) => {
-          setAddress(text);
-          // The text no longer describes the resolved point, so it has to be
-          // looked up again before this can be saved.
-          setResolved(null);
-          setMatches(null);
-        }}
-        resolved={resolved}
-        matches={matches}
-        onPickMatch={handlePickMatch}
+        address={destination.address}
+        onChangeAddress={destination.changeAddress}
+        resolved={destination.resolved}
+        matches={destination.matches}
+        onPickMatch={destination.pickMatch}
         onChooseOnMap={() => {
           router.push("/scenarios/pick-location");
         }}

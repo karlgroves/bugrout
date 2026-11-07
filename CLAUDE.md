@@ -189,6 +189,8 @@ Screens (`app/` directory — Expo Router file-based routing):
 - `app/scenarios/edit.tsx` — Scenario editor (name, destination, fuel/water stop
   preferences)
 - `app/contacts/index.tsx` — Emergency contacts manager (up to 5 contacts)
+- `app/saved-destinations/index.tsx` — Saved destinations set up ahead of time
+  in Settings (up to 10; name + address or pin), listed first in the picker
 - `app/onboarding/index.tsx` — First-launch disclaimer with privacy policy and
   ToS links
 - `app/legal/privacy.tsx` — Bundled privacy policy (accessible offline)
@@ -227,8 +229,8 @@ Database (`db/` directory):
 
 - `database.ts` — SQLite init with WAL mode via expo-sqlite (mock fallback on
   web)
-- `schema.ts` — 8 tables: regions, destinations, threats, resources, scenarios,
-  contacts, preferences, downloads
+- `schema.ts` — 9 tables: regions, destinations, threats, resources, scenarios,
+  saved destinations, contacts, preferences, downloads
 - `queries/` — Type-safe query functions for each table
 - `migrations.ts` — Idempotent data fixes run after the schema on every start
   (the schema is `CREATE TABLE IF NOT EXISTS`, so it never changes old rows)

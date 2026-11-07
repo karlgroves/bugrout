@@ -21,10 +21,10 @@ const DROPPED_PIN_LABEL = "Dropped pin";
  * reverse-geocoded at the moment it is dropped instead, which is one request
  * the user just asked for.
  *
- * @param plan - The plan to describe.
+ * @param plan - The plan, or saved destination, to describe.
  * @returns The saved address, or the dropped-pin label.
  */
-export function planDestinationLabel(plan: Scenario): string {
+export function planDestinationLabel(plan: Pick<Scenario, "address">): string {
   // Truthiness, not `??`: a plan whose address is an empty string needs the
   // label just as much as one whose address is null.
   const address = plan.address?.trim();

@@ -102,7 +102,7 @@ function PickLocationScreen(): React.JSX.Element {
               router.back();
             }}
             accessibilityLabel="Cancel"
-            accessibilityHint="Returns to the plan without changing its destination"
+            accessibilityHint="Goes back without changing the destination"
             accessibilityRole="button"
           >
             <Text style={styles.cancelText}>Cancel</Text>
@@ -114,7 +114,7 @@ function PickLocationScreen(): React.JSX.Element {
             onPress={handleConfirm}
             disabled={!picked}
             accessibilityLabel="Use this point"
-            accessibilityHint="Sets the plan's destination to the point you tapped"
+            accessibilityHint="Sets the destination to the point you tapped"
             accessibilityRole="button"
             accessibilityState={{ disabled: !picked }}
           >

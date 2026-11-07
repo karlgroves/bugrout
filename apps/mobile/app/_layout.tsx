@@ -161,6 +161,13 @@ export default function RootLayout(): React.JSX.Element | null {
           }}
         />
         <Stack.Screen
+          name="saved-destinations/index"
+          options={{
+            title: "Saved Destinations",
+            presentation: "modal",
+          }}
+        />
+        <Stack.Screen
           name="legal/privacy"
           options={{ title: "Privacy Policy" }}
         />
