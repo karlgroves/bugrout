@@ -9,9 +9,22 @@ primary_region = 'iad'
 [build]
   dockerfile = 'Dockerfile'
 
-  [build.args]
-    PBF_URL = 'https://download.geofabrik.de/north-america/us/maryland-latest.osm.pbf'
-    REGION_NAME = 'maryland'
+# The routing graph this machine serves (#266): <extract>/<build-date>, the
+# R2 prefix server/<extract>/<build-date>/ the valhalla-graph workflow published.
+# Changing it and redeploying swaps the extract or rolls back; no rebuild. The
+# value below is a placeholder until the first graph is published, and the
+# entrypoint refuses to start on it. R2_ENDPOINT, R2_ACCESS_KEY_ID and
+# R2_SECRET_ACCESS_KEY are Fly secrets (docs/deployment-credentials.md).
+[env]
+  GRAPH_VERSION = 'maryland/UNPUBLISHED'
+  GRAPH_BUCKET = 'bugrout-tiles'
+
+# Cache for the graph. The first boot of a version downloads it here; every
+# start after that reads it from disk. Old versions stay for instant rollback.
+[mounts]
+  source = 'valhalla_graph'
+  destination = '/graph'
+  initial_size = '5gb'
 
 # A TLS-only service, not `[http_service]` (#141). Fly's HTTP handler adds
 # `Fly-Tracestate:` with an EMPTY value to every request it forwards, and
@@ -44,7 +57,9 @@ primary_region = 'iad'
   [[services.http_checks]]
     interval = '30s'
     timeout = '5s'
-    grace_period = '10s'
+    # Long enough for a first boot to download and verify the graph. A cached
+    # start is serving within seconds; this only delays reporting a failure.
+    grace_period = '5m'
     method = 'get'
     path = '/status'
     protocol = 'http'
