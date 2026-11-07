@@ -1,6 +1,6 @@
 # ADR 0010: How published tiles stay current, and where the refresh runs
 
-- Status: **Proposed** — needs a decision from the product owner
+- Status: **Accepted** — decided by the product owner 2026-11-06
 - Date: 2026-10-28
 - Context: Issue #151 (keep published tiles current); related #147 (publish more
   regions), #179 (staleness keyed off version), #266 (R0, graph out of the
@@ -137,4 +137,21 @@ configured, which is a worse position than rebuilding by hand.
 
 ## Decision
 
-Not yet made. Needs one answer to Decision 1 and one to Decision 2.
+Accepted 2026-11-06 by the product owner, as recommended: **C2 + C4, run by
+W3.**
+
+1. **Cadence: quarterly floor plus a manual pre-season rebuild.** Quarterly
+   matches the client's `STALE_THRESHOLD_DAYS = 90`, so the server's idea of
+   fresh and an offline device's agree. Each region also gets a hand-triggered
+   rebuild before its hazard season.
+2. **Where it runs: inside R0's builder (#266)** — R2 as the source of truth
+   plus the Fly volume as cache. Not a scheduled GitHub Action, and not a
+   separate freshness job.
+
+The refresh itself lands with #266; #151 is blocked on it. Until then,
+`data-pipeline.yml` stays `workflow_dispatch`-only and rebuilds are manual. A
+failed refresh must alert someone. #266 does not cover any of this yet: its
+acceptance criteria are the routing graph alone, and the builder #279 landed
+(`valhalla-graph.yml`) is a manual job that publishes only that graph. Tile
+publishing, the quarterly trigger and the failure alert still have to be added
+to that builder's scope.
