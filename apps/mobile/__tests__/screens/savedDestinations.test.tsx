@@ -14,6 +14,7 @@ import { useScenarioStore } from "@/stores/useScenarioStore";
 import type { SavedDestination } from "@/db/queries/savedDestinations";
 import type * as AddressLookupModule from "@/services/geocoding/AddressLookup";
 import type { GeocodeResult } from "@/services/geocoding/Geocoder";
+import type { CoverageChoice } from "@/services/routing/coverage";
 
 const mockStored: SavedDestination[] = [];
 const mockUpsert = jest.fn((d: SavedDestination) => {
@@ -35,7 +36,9 @@ jest.mock("@/db/queries/savedDestinations", () => ({
   },
 }));
 
-const mockConfirmCoverage = jest.fn(() => Promise.resolve(true));
+const mockConfirmCoverage = jest.fn((): Promise<CoverageChoice> =>
+  Promise.resolve("save"),
+);
 jest.mock("@/services/routing/coverage", () => ({
   confirmCoverage: () => mockConfirmCoverage(),
 }));
@@ -191,10 +194,10 @@ describe("Saved Destinations screen", () => {
 
   it("adds one entry, not two, when Save is pressed twice", async () => {
     // Hold the coverage check open so the second press lands mid-save.
-    let release: (ok: boolean) => void = () => undefined;
+    let release: (choice: CoverageChoice) => void = () => undefined;
     mockConfirmCoverage.mockImplementationOnce(
       () =>
-        new Promise<boolean>((resolve) => {
+        new Promise<CoverageChoice>((resolve) => {
           release = resolve;
         }),
     );
@@ -207,12 +210,67 @@ describe("Saved Destinations screen", () => {
     const save = screen.getByTestId("save-saved-destination-btn");
     await fireEvent.press(save);
     await fireEvent.press(save);
-    release(true);
+    release("save");
 
     await waitFor(() => {
       expect(mockUpsert).toHaveBeenCalledTimes(2);
     });
     expect(mockStored).toHaveLength(1);
+  });
+
+  describe("at the coverage warning", () => {
+    /** Fill in a dropped pin and press Save, with the given choice made. */
+    async function saveWithChoice(choice: CoverageChoice) {
+      mockConfirmCoverage.mockResolvedValueOnce(choice);
+      const screen = await fillNew("Far away", "");
+      useScenarioStore.setState({
+        pickedDestination: { lat: 38.25, lng: -85.76 },
+      });
+      await waitFor(() => {
+        expect(useScenarioStore.getState().pickedDestination).toBeNull();
+      });
+      await fireEvent.press(screen.getByTestId("save-saved-destination-btn"));
+      await waitFor(() => {
+        expect(mockConfirmCoverage).toHaveBeenCalled();
+      });
+      return screen;
+    }
+
+    beforeEach(() => {
+      mockConfirmCoverage.mockClear();
+    });
+
+    it("saves when the user saves anyway", async () => {
+      await saveWithChoice("save");
+
+      await waitFor(() => {
+        expect(mockUpsert).toHaveBeenCalledTimes(1);
+      });
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("saves nothing when the user goes back to change it", async () => {
+      const screen = await saveWithChoice("change");
+
+      expect(mockUpsert).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(
+        screen.getByTestId("saved-destination-name-input").props.value,
+      ).toBe("Far away");
+    });
+
+    it("opens the downloads, and saves nothing, when the user downloads first", async () => {
+      const screen = await saveWithChoice("download");
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/downloads");
+      });
+      expect(mockUpsert).not.toHaveBeenCalled();
+      // The form stays mounted under the downloads, so the entry survives.
+      expect(
+        screen.getByTestId("saved-destination-name-input").props.value,
+      ).toBe("Far away");
+    });
   });
 
   it("renames an entry without looking its address up again", async () => {
