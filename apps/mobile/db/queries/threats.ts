@@ -2,6 +2,8 @@
  * SQLite queries for cached threat zones.
  */
 
+import { sanitizeThreatGeometry } from "@/utils/geo";
+
 import { getDatabase } from "../database";
 
 import type { ThreatZone, ThreatType, ThreatSource } from "@bugrout/shared";
@@ -58,17 +60,34 @@ export async function getCachedThreats(
     expires_at: number | null;
   }>(query, ...params);
 
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type as ThreatType,
-    severity: row.severity as ThreatZone["severity"],
-    geometry: JSON.parse(row.geometry) as ThreatZone["geometry"],
-    headline: row.headline,
-    description: row.description ?? "",
-    source: row.source as ThreatSource,
-    fetchedAt: row.fetched_at,
-    expiresAt: row.expires_at,
-  }));
+  // A row written by an older build, before geometry was validated at ingest,
+  // must not poison routing or the map: re-check it on the way out (#287).
+  return rows.flatMap((row) => {
+    const geometry = sanitizeThreatGeometry(parseJson(row.geometry));
+    if (geometry === null) return [];
+    return [
+      {
+        id: row.id,
+        type: row.type as ThreatType,
+        severity: row.severity as ThreatZone["severity"],
+        geometry,
+        headline: row.headline,
+        description: row.description ?? "",
+        source: row.source as ThreatSource,
+        fetchedAt: row.fetched_at,
+        expiresAt: row.expires_at,
+      },
+    ];
+  });
+}
+
+/** Parse stored JSON, reading unparseable text as `null`. */
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 /**

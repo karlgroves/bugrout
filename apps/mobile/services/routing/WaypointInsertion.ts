@@ -14,7 +14,14 @@
 import { getResourcesNearPoint } from "@/db/queries/resources";
 import { haversineDistance } from "@/utils/geo";
 
-import type { LatLng, ResourceType, ResourcePoint } from "@bugrout/shared";
+import { routeIntersectsThreat } from "./ThreatAvoidance";
+
+import type {
+  LatLng,
+  ResourceType,
+  ResourcePoint,
+  ThreatZone,
+} from "@bugrout/shared";
 
 /** Default max detour: ~10 miles */
 const DEFAULT_MAX_DETOUR_METERS = 16000;
@@ -39,12 +46,15 @@ interface WaypointCandidate {
  * @param routeCoordinates - The route polyline
  * @param type - Resource type to search for (fuel, water)
  * @param maxDetour - Maximum acceptable detour in meters
+ * @param threats - Active threat zones; a resource inside any of them is
+ *   never a candidate
  * @returns Best candidate, or null if none found within tolerance
  */
 async function findBestResourceStop(
   routeCoordinates: LatLng[],
   type: ResourceType,
   maxDetour: number = DEFAULT_MAX_DETOUR_METERS,
+  threats: ThreatZone[] = [],
 ): Promise<WaypointCandidate | null> {
   if (routeCoordinates.length === 0) return null;
 
@@ -64,7 +74,9 @@ async function findBestResourceStop(
       type,
     );
 
-    for (const resource of nearby) {
+    const usable = nearby.filter((r) => !insideAnyThreat(r, threats));
+
+    for (const resource of usable) {
       if (allCandidates.has(resource.id)) continue;
 
       const distFromRoute = getMinDistanceToPolyline(
@@ -96,11 +108,26 @@ async function findBestResourceStop(
 }
 
 /**
+ * A stop inside an active threat zone is not a stop (#295).
+ *
+ * Every threat type counts, not only the ones that become Valhalla exclude
+ * polygons: a wildfire or flood stop makes the waypoint request unroutable,
+ * and a weather stop would pull the route into the hazard.
+ */
+function insideAnyThreat(resource: ResourcePoint, threats: ThreatZone[]) {
+  const point = [{ lat: resource.lat, lng: resource.lng }];
+  return threats.some((threat) => routeIntersectsThreat(point, threat));
+}
+
+/**
  * Find resource stops and return them as waypoints for the route engine.
+ *
+ * @param threats - Active threat zones; resources inside them are skipped
  */
 export async function getResourceWaypoints(
   routeCoordinates: LatLng[],
   preferences: { type: ResourceType; maxDetour: number; enabled: boolean }[],
+  threats: ThreatZone[] = [],
 ): Promise<LatLng[]> {
   const waypoints: LatLng[] = [];
 
@@ -111,6 +138,7 @@ export async function getResourceWaypoints(
       routeCoordinates,
       pref.type,
       pref.maxDetour,
+      threats,
     );
 
     if (candidate) {

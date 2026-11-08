@@ -71,7 +71,8 @@ blockExoticSubdeps: true
 # THIS LIST GOES STALE ON EVERY UPGRADE, silently. The versions are pinned, so
 # bumping the Expo SDK invalidates the five expo entries and adds five new ones,
 # and nothing tells you: unlike an osv-scanner ignore (reported as unused once
-# the advisory leaves the tree) or patchedDependencies (ERR_PNPM_UNUSED_PATCH),
+# the advisory leaves the tree), patchedDependencies (ERR_PNPM_UNUSED_PATCH) or
+# pnpm.overrides (security/scripts/check-overrides.mjs, in `pnpm run check`),
 # pnpm says nothing about a trustPolicyExclude entry matching nothing. Verified
 # — an entry for a package absent from the tree installs silently. Re-run the
 # scan above after any upgrade that moves these packages, and delete the entries
