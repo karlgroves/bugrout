@@ -27,6 +27,7 @@ import {
   assertNoLeakage,
   emptyR2,
   fakeKv,
+  fakeRateLimiter,
   fakeRedis,
   invokeNodeHandler,
 } from "./helpers";
@@ -74,23 +75,27 @@ function assertWorkerHeaders(res: Response, label: string): void {
 }
 
 describe("tile-server — every response path", () => {
-  const env = { TILES_BUCKET: emptyR2(), API_KEY: "a-key" };
-
-  test("health, manifest, 401, 404 and preflight all carry the full set", async () => {
-    const cases: [string, Request][] = [
-      ["health", new Request("https://t.example/health")],
-      ["manifest", new Request("https://t.example/v1/tiles/manifest")],
-      ["401", new Request("https://t.example/v1/tiles/bay-area/pmtiles")],
-      ["404", new Request("https://t.example/nope")],
+  test("health, manifest, 404, 429 and preflight all carry the full set", async () => {
+    const cases: [string, Request, number][] = [
+      ["health", new Request("https://t.example/health"), 1],
+      ["manifest", new Request("https://t.example/v1/tiles/manifest"), 1],
+      ["404", new Request("https://t.example/nope"), 1],
+      ["429", new Request("https://t.example/v1/tiles/bay-area/pmtiles"), 0],
       [
         "preflight",
         new Request("https://t.example/v1/tiles/manifest", {
           method: "OPTIONS",
         }),
+        1,
       ],
     ];
-    for (const [label, request] of cases) {
+    for (const [label, request, allowance] of cases) {
+      const env = {
+        TILES_BUCKET: emptyR2(),
+        RATE_LIMITER: fakeRateLimiter(allowance),
+      };
       const res = await tileServer.fetch(request, env);
+      if (label === "429") assert.equal(res.status, 429);
       assertWorkerHeaders(res, `tile-server ${label}`);
       assertNoLeakage(await res.text(), `tile-server ${label}`);
     }
