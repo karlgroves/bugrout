@@ -53,22 +53,12 @@ primary_region = 'iad'
     [services.ports.tls_options]
       alpn = ['http/1.1']
 
-  # A ceiling on concurrent connections (#289). The endpoint is public and
-  # unauthenticated, and valhalla_service runs ONE worker thread on one shared
-  # vCPU, so without a ceiling the queue behind it grows without bound and every
-  # request in it outlives the app's 10 s timeout. The type is `connections`
-  # because the `tls` handler passes bytes through and Fly Proxy never sees an
-  # HTTP request to count. hard_limit: a worst-case route (exclude_polygons at
-  # the 250 km limit) takes ~1.7 s (build-graph.sh), so about six can queue and
-  # still finish inside the app's 10 s; anything past that would time out
-  # anyway. Fly holds traffic over hard_limit at the edge instead of piling it
-  # onto the machine. This bounds the damage; it is not access control. A
-  # client's idle keep-alive connection counts too, so revisit both numbers
-  # with load measurements before raising capacity.
-  [services.concurrency]
-    type = 'connections'
-    soft_limit = 3
-    hard_limit = 6
+  # Deliberately no [services.concurrency] cap (#289). The `tls` handler only
+  # lets Fly count connections, and valhalla_service never closes an idle
+  # HTTP/1.1 keep-alive connection, so a handful of devices holding pooled
+  # connections would fill a small cap while the worker sits idle and lock
+  # everyone else out at low load. Bounding load per client is left to the
+  # proxy decision in the README's Exposure section.
 
   # Checked on the machine's own address, not through the edge proxy.
   [[services.http_checks]]

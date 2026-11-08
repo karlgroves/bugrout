@@ -47,17 +47,22 @@ The service is public and unauthenticated: the app sends no credential, and one
 embedded in the app could be extracted from it anyway. What bounds abuse today
 (issue #289):
 
-- `fly.toml` `[services.concurrency]` caps concurrent connections at the edge,
-  so a flood waits at Fly Proxy instead of queueing without bound behind the
-  single worker thread.
 - `build-graph.sh` ships `loki.actions` as `route,status` only, so the expensive
   endpoints (isochrone, matrix, map matching, expansion) are refused. It takes
   effect with the next graph built and deployed.
 - `max_exclude_polygons_length` caps the costliest part of a route request.
 
-None of these stops one client from taking every slot. Per-client rate limiting
-needs a proxy that can see client addresses in front of `valhalla_service`,
-which is a deployment change still to be decided.
+There is no connection cap in `fly.toml`. The `tls` handler passes bytes
+through, so Fly can only count connections, and `valhalla_service` never closes
+an idle HTTP/1.1 keep-alive connection (it also ignores `Connection: close` on
+HTTP/1.1). The app's HTTP clients pool connections for minutes, so a small cap
+fills with idle connections from a few devices and refuses everyone else while
+the worker is idle. A cap was considered for #289 and dropped for that reason.
+
+Nothing here stops one client from flooding the single worker thread. Per-client
+rate limiting, and any concurrency cap, need a proxy in front of
+`valhalla_service` that sees client addresses and closes idle connections. That
+is a deployment change still to be decided.
 
 ## Rebuild the graph, or swap the extract
 

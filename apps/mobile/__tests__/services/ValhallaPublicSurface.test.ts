@@ -1,10 +1,12 @@
 /**
- * The public routing service exposes only what the app uses, behind a cap.
+ * The public routing service exposes only what the app uses.
  *
  * bugrout-valhalla is reachable by anyone and runs one worker thread (#289).
- * The shipped config must refuse Valhalla actions the app never calls, and
- * fly.toml must cap concurrent connections so a flood cannot queue without
- * bound behind that thread.
+ * The shipped config must refuse Valhalla actions the app never calls.
+ *
+ * fly.toml must NOT cap concurrent connections: valhalla_service never closes
+ * an idle keep-alive connection, so pooled connections from a few devices
+ * would fill the cap and lock everyone else out at low load.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -39,18 +41,12 @@ describe("public Valhalla service", () => {
     expect(new Set(actions)).toEqual(new Set(["route"]));
   });
 
-  it("caps concurrent connections to the machine", () => {
+  it("does not cap connections while idle keep-alive connections count", () => {
     const toml = read(join(SERVICE_DIR, "fly.toml"));
-    const block = /\[services\.concurrency\]([\s\S]*?)(?=\n\s*\[|$)/.exec(toml);
 
-    expect(block).not.toBeNull();
-    const body = block?.[1] ?? "";
-    // The tls handler passes bytes through; Fly can only count connections.
-    expect(body).toMatch(/type\s*=\s*'connections'/);
-    const hard = Number(/hard_limit\s*=\s*(\d+)/.exec(body)?.[1]);
-    const soft = Number(/soft_limit\s*=\s*(\d+)/.exec(body)?.[1]);
-    expect(hard).toBeGreaterThan(0);
-    expect(soft).toBeGreaterThan(0);
-    expect(soft).toBeLessThanOrEqual(hard);
+    // Strip comments so the explanation in fly.toml does not count.
+    const config = toml.replace(/#.*$/gm, "");
+    expect(config).not.toMatch(/\[services\.concurrency\]/);
+    expect(config).not.toMatch(/hard_limit|soft_limit/);
   });
 });
