@@ -69,6 +69,109 @@ export function extractRingCoordinates(
 }
 
 /**
+ * Whether a value is a usable `[lng, lat]` position: two finite numbers in
+ * range. Upstream JSON can carry `null`, strings or out-of-range values, and
+ * any one of them silently breaks the polygon maths downstream.
+ */
+function isValidPosition(p: unknown): boolean {
+  if (!Array.isArray(p) || p.length < 2) return false;
+  const [lng, lat]: unknown[] = p;
+  return (
+    typeof lng === "number" &&
+    typeof lat === "number" &&
+    Number.isFinite(lng) &&
+    Number.isFinite(lat) &&
+    Math.abs(lng) <= 180 &&
+    Math.abs(lat) <= 90
+  );
+}
+
+/**
+ * Whether a value is a usable GeoJSON linear ring: at least four positions
+ * (RFC 7946 section 3.1.6), each a finite, in-range `[lng, lat]`.
+ *
+ * @param ring - The value to check.
+ * @returns `true` when the ring can be used for avoidance and display.
+ */
+export function isValidRing(ring: unknown): ring is number[][] {
+  return Array.isArray(ring) && ring.length >= 4 && ring.every(isValidPosition);
+}
+
+/**
+ * The usable rings of one polygon: its outer ring and whichever holes are
+ * valid. A bad hole is dropped rather than the whole polygon, because only the
+ * outer ring is avoided or tested against the route, and losing a hole only
+ * enlarges the drawn area. Returns `null` when the outer ring is unusable, and
+ * the input array itself when every ring is usable.
+ */
+function usablePolygonRings(rings: unknown): number[][][] | null {
+  if (!Array.isArray(rings) || !isValidRing(rings[0])) return null;
+  const kept = rings.filter(isValidRing);
+  return kept.length === rings.length ? (rings as number[][][]) : kept;
+}
+
+/**
+ * Validate a threat geometry from an untrusted source (#287).
+ *
+ * Upstream GeoJSON is the trust boundary: one `null` or non-numeric coordinate
+ * either reshapes an avoidance zone into a band across the route or removes it,
+ * and a `null` geometry throws wherever it is dereferenced. This keeps only
+ * what can be used:
+ *
+ * - a Polygon is rejected when its outer ring is unusable, and otherwise
+ *   keeps its outer ring and its usable holes;
+ * - a MultiPolygon keeps its usable parts, each sanitized the same way, since
+ *   each part is avoided on its own.
+ *
+ * When nothing had to be removed the input object itself is returned, so
+ * `sanitizeThreatGeometry(g) !== g` means part or all of `g` was unusable.
+ *
+ * @param geometry - A geometry as received, or as read back from storage.
+ * @returns The usable geometry, or `null` when none of it is usable.
+ */
+export function sanitizeThreatGeometry(
+  geometry: unknown,
+): ThreatZone["geometry"] | null {
+  if (typeof geometry !== "object" || geometry === null) return null;
+  const { type, coordinates } = geometry as {
+    type?: unknown;
+    coordinates?: unknown;
+  };
+
+  if (type === "Polygon") {
+    const rings = usablePolygonRings(coordinates);
+    if (rings === null) return null;
+    return rings === coordinates
+      ? (geometry as ThreatZone["geometry"])
+      : { type: "Polygon", coordinates: rings };
+  }
+  if (type !== "MultiPolygon" || !Array.isArray(coordinates)) return null;
+
+  const parts = coordinates.map(usablePolygonRings);
+  const usable = parts.filter((rings) => rings !== null);
+  if (usable.length === 0) return null;
+  if (parts.every((rings, i) => rings === coordinates[i])) {
+    return geometry as ThreatZone["geometry"];
+  }
+  return { type: "MultiPolygon", coordinates: usable };
+}
+
+/**
+ * The threat zones whose geometry is usable, each carrying only its usable
+ * parts. A zone with no usable geometry is left out.
+ *
+ * @param threats - Zones as received or as read back from storage.
+ * @returns The zones that can be displayed and avoided.
+ */
+export function withUsableGeometry(threats: ThreatZone[]): ThreatZone[] {
+  return threats.flatMap((t) => {
+    const geometry = sanitizeThreatGeometry(t.geometry);
+    if (geometry === null) return [];
+    return [geometry === t.geometry ? t : { ...t, geometry }];
+  });
+}
+
+/**
  * Ray-casting point-in-polygon test.
  *
  * @param point - The test point as `[lng, lat]`.
