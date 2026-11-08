@@ -1,12 +1,19 @@
 /**
  * Tile Server — Cloudflare Worker + R2
  *
- * Serves offline map tile packages (PMTiles + Valhalla tiles) from R2 storage.
- * Supports HTTP Range requests for resumable downloads.
+ * Serves offline map tile packages (PMTiles, Valhalla, flood, fuel, geocode)
+ * from R2 storage. Supports HTTP Range requests for resumable downloads.
  *
- * Security:
- * - API key validation via Authorization header for downloads (manifest is public)
- * - Constant-time key comparison
+ * Access model — public by design (#293, see README.md):
+ * - The manifest and every tile package are public. They are derived from
+ *   open data (OpenStreetMap, FEMA), and the mobile app sends no credential.
+ *   There is deliberately no API-key check: the one that used to be here was
+ *   skipped whenever its key was unset, which is every deployment, so it only
+ *   made the worker look protected.
+ * - Abuse is bounded instead by a per-IP rate limit (Workers Rate Limiting
+ *   binding, configured in wrangler.toml) on every route except /health.
+ *
+ * Also:
  * - ETag/If-None-Match caching
  * - Content-Range headers for proper resume support
  * - Configurable CORS origins
@@ -19,9 +26,13 @@ import { initWorkerRequest } from "@bugrout/worker-utils";
  */
 interface Env {
   TILES_BUCKET: R2Bucket;
-  API_KEY?: string; // If set, downloads require Authorization: Bearer <key>
+  /** Per-IP limiter; limit and period live in wrangler.toml `[[ratelimits]]`. */
+  RATE_LIMITER: RateLimit;
   ALLOWED_ORIGINS?: string; // Comma-separated allowed origins
 }
+
+/** Seconds a rate-limited client is told to wait; matches the 60 s period. */
+const RATE_LIMIT_RETRY_AFTER = "60";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -30,111 +41,48 @@ export default {
       env.ALLOWED_ORIGINS,
       {
         methods: "GET, HEAD, OPTIONS",
-        allowHeaders: "Range, If-None-Match, Authorization",
+        allowHeaders: "Range, If-None-Match",
         exposeHeaders: "Content-Range, Accept-Ranges, Content-Length, ETag",
       },
     );
 
     if (isPreflight) return new Response(null, { headers });
 
-    // Health check
+    // Health check — exempt so uptime probes never trip the limiter.
     if (url.pathname === "/health") {
       return new Response("ok", { headers });
     }
 
-    // GET /v1/tiles/manifest — always public
+    const clientIp = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    const { success } = await env.RATE_LIMITER.limit({ key: clientIp });
+    if (!success) {
+      return Response.json(
+        { error: "Rate limited" },
+        {
+          status: 429,
+          headers: { ...headers, "Retry-After": RATE_LIMIT_RETRY_AFTER },
+        },
+      );
+    }
+
+    // GET /v1/tiles/manifest
     if (url.pathname === "/v1/tiles/manifest") {
       return getManifest(env, headers);
     }
 
-    // GET /v1/tiles/:regionId/:type — key-protected
+    // GET /v1/tiles/:regionId/:type — public, like the manifest
     const tileMatch =
       /^\/v1\/tiles\/([a-z-]+)\/(pmtiles|valhalla|flood|fuel|geocode)$/.exec(
         url.pathname,
       );
-    if (tileMatch) {
-      return handleTileRequest(request, env, tileMatch, headers);
+    const [, regionId, type] = tileMatch ?? [];
+    if (regionId && type) {
+      return getTilePackage(request, env, { regionId, type }, headers);
     }
 
     return new Response("Not Found", { status: 404, headers });
   },
 };
-
-/**
- * Validate the API key (if configured) and dispatch to the tile-package handler.
- */
-async function handleTileRequest(
-  request: Request,
-  env: Env,
-  tileMatch: RegExpExecArray,
-  headers: Record<string, string>,
-): Promise<Response> {
-  // Validate API key if configured
-  if (env.API_KEY) {
-    const authHeader = request.headers.get("Authorization") ?? "";
-    const providedKey = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : "";
-    const isValid = await timingSafeEqual(providedKey, env.API_KEY);
-    if (!isValid) {
-      return Response.json(
-        { error: "Invalid or missing API key" },
-        { status: 401, headers },
-      );
-    }
-  }
-
-  const [, regionId, type] = tileMatch;
-  if (!regionId || !type) {
-    return new Response("Not Found", { status: 404, headers });
-  }
-  return getTilePackage(request, env, { regionId, type }, headers);
-}
-
-/**
- * Constant-time string comparison using crypto.subtle.
- */
-async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-  const encoder = new TextEncoder();
-  const aBuf = encoder.encode(a);
-  const bBuf = encoder.encode(b);
-
-  // Pad to same length to avoid leaking length via timing
-  const maxLen = Math.max(aBuf.length, bBuf.length, 1);
-  const aPadded = new Uint8Array(maxLen);
-  const bPadded = new Uint8Array(maxLen);
-  aPadded.set(aBuf);
-  bPadded.set(bBuf);
-
-  const aKey = await crypto.subtle.importKey(
-    "raw",
-    aPadded,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const bKey = await crypto.subtle.importKey(
-    "raw",
-    bPadded,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-
-  const aSign = await crypto.subtle.sign("HMAC", aKey, new Uint8Array(0));
-  const bSign = await crypto.subtle.sign("HMAC", bKey, new Uint8Array(0));
-
-  // Lengths must also match for a true comparison
-  if (aBuf.length !== bBuf.length) return false;
-
-  const aArr = new Uint8Array(aSign);
-  const bArr = new Uint8Array(bSign);
-  let result = 0;
-  for (let i = 0; i < aArr.length; i++) {
-    result |= (aArr[i] ?? 0) ^ (bArr[i] ?? 0);
-  }
-  return result === 0;
-}
 
 /**
  * Serve the public tile-package manifest from R2 with caching headers.

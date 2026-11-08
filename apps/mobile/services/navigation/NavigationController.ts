@@ -32,7 +32,7 @@ import {
 import { hasDeviated } from "@/services/routing/RouteEngine";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { haversineDistance } from "@/utils/geo";
+import { haversineDistance, projectOntoPolyline } from "@/utils/geo";
 
 import type { LatLng, Route, RouteManeuver } from "@bugrout/shared";
 
@@ -75,6 +75,13 @@ interface NavigationState {
   lastAnnouncedDistance: number;
   isHighFreqGps: boolean;
   running: boolean;
+  /**
+   * The maneuver index has not yet been checked against where the driver
+   * actually is. True after {@link start} and {@link updateRoute}; cleared by
+   * the first on-route GPS fix, which moves the index to the next maneuver
+   * ahead of the driver (#294).
+   */
+  needsResync: boolean;
 }
 
 let state: NavigationState | null = null;
@@ -88,6 +95,17 @@ export async function start(
   route: Route,
   onEvent: NavigationEventHandler,
 ): Promise<void> {
+  if (state?.running && state.route.id === route.id) {
+    // Already driving this route: hand events to the new caller and keep the
+    // trip where it is. Restarting would reset guidance to the departure
+    // maneuver mid-drive (#294).
+    eventHandler = onEvent;
+    const index = state.currentManeuverIndex;
+    const maneuver = getAllManeuvers(route).at(index);
+    if (index > 0 && maneuver)
+      emit({ type: "maneuver_advance", index, maneuver });
+    return;
+  }
   if (state?.running) {
     await stop();
   }
@@ -99,6 +117,7 @@ export async function start(
     lastAnnouncedDistance: Infinity,
     isHighFreqGps: true,
     running: true,
+    needsResync: true,
   };
   eventHandler = onEvent;
 
@@ -186,6 +205,7 @@ export function updateRoute(newRoute: Route): void {
   state.currentManeuverIndex = 0;
   state.lastSpokenManeuverIndex = -1;
   state.lastAnnouncedDistance = Infinity;
+  state.needsResync = true;
 
   announceVoice("Route updated");
 }
@@ -206,14 +226,14 @@ function onLocationUpdate(update: LocationUpdate): void {
 async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
   if (!state?.running) return;
 
-  const { route, currentManeuverIndex } = state;
+  const { route } = state;
   const position = update.position;
 
   // 1. Emit position event
   emit({ type: "position", update });
 
   // 2. Update Zustand store
-  useRouteStore.getState().setCurrentManeuverIndex(currentManeuverIndex);
+  useRouteStore.getState().setCurrentManeuverIndex(state.currentManeuverIndex);
 
   // 3. Check deviation (>500m from route)
   if (hasDeviated(position, route.coordinates)) {
@@ -226,6 +246,7 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
 
   // 4. Advance maneuver if we've passed the current one
   const maneuvers = getAllManeuvers(route);
+  const currentManeuverIndex = resyncManeuverIndex(position, maneuvers);
   const currentManeuver = maneuvers[currentManeuverIndex];
   if (currentManeuverIndex < maneuvers.length && currentManeuver) {
     const distToManeuver = haversineDistance(
@@ -268,6 +289,58 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
 
   // 7. Crowd signal (anonymous, rate-limited, opt-in)
   void sendSignal(position, update.speed, update.heading);
+}
+
+/**
+ * On the first on-route fix after a start or a route change, move the maneuver
+ * index to the next maneuver ahead of the driver.
+ *
+ * The index otherwise only advances when the driver comes within
+ * {@link MANEUVER_PASSED_THRESHOLD} of the current maneuver. If navigation
+ * (re)starts mid-trip — Resume on the trip banner after backing out of the
+ * navigation screen, which stopped the controller — the index begins at the
+ * departure maneuver, kilometres behind, and would never advance again (#294).
+ * On a fresh start at the origin this leaves the index at 0.
+ *
+ * @returns The index to use for this fix.
+ */
+function resyncManeuverIndex(
+  position: LatLng,
+  maneuvers: RouteManeuver[],
+): number {
+  if (!state) return 0;
+  if (!state.needsResync) return state.currentManeuverIndex;
+  state.needsResync = false;
+
+  const index = maneuverIndexAhead(position, state.route, maneuvers);
+  if (index > state.currentManeuverIndex) {
+    const maneuver = maneuvers.at(index);
+    state.currentManeuverIndex = index;
+    if (maneuver) emit({ type: "maneuver_advance", index, maneuver });
+  }
+  return state.currentManeuverIndex;
+}
+
+/**
+ * The first maneuver the driver has not yet passed: the first one no more
+ * than {@link MANEUVER_PASSED_THRESHOLD} behind their position along the
+ * route line.
+ */
+function maneuverIndexAhead(
+  position: LatLng,
+  route: Route,
+  maneuvers: RouteManeuver[],
+): number {
+  const here = projectOntoPolyline(position, route.coordinates);
+  if (!here) return 0;
+
+  for (const [i, maneuver] of maneuvers.entries()) {
+    const at = projectOntoPolyline(maneuver.position, route.coordinates);
+    if (at && at.alongMeters > here.alongMeters - MANEUVER_PASSED_THRESHOLD) {
+      return i;
+    }
+  }
+  return Math.max(0, maneuvers.length - 1);
 }
 
 /**
