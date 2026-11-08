@@ -13,6 +13,9 @@ import type { LatLng, Route } from "@bugrout/shared";
 
 const mockActivate = jest.fn<Promise<void>, [string]>();
 const mockDeactivate = jest.fn<Promise<void>, [string]>();
+const mockStartTracking = jest.fn<Promise<void>, []>();
+const mockStartBatterySaving = jest.fn<Promise<void>, []>();
+const mockStopTracking = jest.fn<Promise<void>, []>();
 let mockOnLocation: LocationCallback | null = null;
 
 jest.mock("@/platform/keepAwake", () => ({
@@ -22,11 +25,12 @@ jest.mock("@/platform/keepAwake", () => ({
 jest.mock("@/services/location/LocationTracker", () => ({
   startTracking: (cb: LocationCallback) => {
     mockOnLocation = cb;
-    return Promise.resolve();
+    return mockStartTracking();
   },
-  startBatterySavingTracking: () => Promise.resolve(),
-  stopTracking: () => Promise.resolve(),
+  startBatterySavingTracking: () => mockStartBatterySaving(),
+  stopTracking: () => mockStopTracking(),
 }));
+jest.mock("@/services/CrashReporting", () => ({ captureError: jest.fn() }));
 jest.mock("@/platform/speech", () => ({ speak: jest.fn(), stop: jest.fn() }));
 jest.mock("@/platform/haptics", () => ({
   selection: jest.fn(),
@@ -94,6 +98,9 @@ async function fixAt(position: LatLng): Promise<void> {
 beforeEach(() => {
   mockActivate.mockReset().mockResolvedValue(undefined);
   mockDeactivate.mockReset().mockResolvedValue(undefined);
+  mockStartTracking.mockReset().mockResolvedValue(undefined);
+  mockStartBatterySaving.mockReset().mockResolvedValue(undefined);
+  mockStopTracking.mockReset().mockResolvedValue(undefined);
   mockOnLocation = null;
 });
 
@@ -129,6 +136,74 @@ describe("NavigationController keep-awake", () => {
 
     expect(onEvent).toHaveBeenCalledWith({ type: "arrival" });
     expect(mockDeactivate).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends the trip on arrival, so a later fix does not arrive again (#300)", async () => {
+    const onEvent = jest.fn();
+    await NavController.start(route, onEvent);
+
+    await fixAt(START);
+    await fixAt(END);
+    await fixAt(END); // GPS delivers another fix before teardown is observed
+
+    const arrivals = onEvent.mock.calls.filter(
+      ([event]) => (event as { type: string }).type === "arrival",
+    );
+    expect(arrivals).toHaveLength(1);
+    expect(mockDeactivate).toHaveBeenCalledTimes(1);
+    expect(mockStopTracking).toHaveBeenCalled();
+    expect(NavController.isActive()).toBe(false);
+  });
+
+  it("releases it and rejects when GPS will not start (#300)", async () => {
+    mockStartTracking.mockRejectedValue(
+      new Error("Location permission not granted"),
+    );
+
+    await expect(NavController.start(route, jest.fn())).rejects.toThrow(
+      "Location permission not granted",
+    );
+    expect(mockDeactivate).toHaveBeenCalledTimes(1);
+    expect(NavController.isActive()).toBe(false);
+  });
+
+  it("keeps tracking in the old mode when a GPS mode switch fails (#300)", async () => {
+    const onEvent = jest.fn();
+    await NavController.start(route, onEvent);
+    await fixAt(START); // passes depart; next maneuver is ~1.4 km away
+    mockStartBatterySaving.mockRejectedValue(new Error("unavailable"));
+
+    await fixAt(START); // far from the next turn: switch to battery saving
+
+    expect(mockStartBatterySaving).toHaveBeenCalledTimes(1);
+    expect(mockStartTracking).toHaveBeenCalledTimes(2); // start + restore
+    expect(NavController.isActive()).toBe(true);
+    expect(mockDeactivate).not.toHaveBeenCalled();
+    expect(onEvent).not.toHaveBeenCalledWith({ type: "tracking_lost" });
+  });
+
+  it("ends the trip loudly when GPS cannot be restarted (#300)", async () => {
+    const onEvent = jest.fn();
+    await NavController.start(route, onEvent);
+    await fixAt(START);
+    mockStartBatterySaving.mockRejectedValue(new Error("unavailable"));
+    mockStartTracking.mockRejectedValue(new Error("unavailable"));
+
+    await fixAt(START);
+
+    expect(onEvent).toHaveBeenCalledWith({ type: "tracking_lost" });
+    expect(mockDeactivate).toHaveBeenCalledTimes(1);
+    expect(NavController.isActive()).toBe(false);
+  });
+
+  it("stops GPS even if releasing keep-awake fails (#300)", async () => {
+    await NavController.start(route, jest.fn());
+    mockDeactivate.mockRejectedValue(new Error("no wake lock"));
+
+    await NavController.stop();
+
+    expect(mockStopTracking).toHaveBeenCalled();
+    expect(NavController.isActive()).toBe(false);
   });
 
   it("does nothing when stop is called with no trip running", async () => {

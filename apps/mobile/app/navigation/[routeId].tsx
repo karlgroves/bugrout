@@ -40,6 +40,20 @@ import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 import type { NavigationEvent } from "@/services/navigation/NavigationController";
 import type { LatLng } from "@bugrout/shared";
 
+/**
+ * Tell the driver turn-by-turn guidance has stopped because location is
+ * unavailable, and where to turn instead.
+ *
+ * @param onDismiss - Called when the alert is dismissed.
+ */
+function alertLocationUnavailable(onDismiss: () => void): void {
+  Alert.alert(
+    "Location unavailable",
+    "BugRout cannot track your location, so navigation has stopped. Turn on location services and start again, and follow official evacuation routes.",
+    [{ text: "OK", onPress: onDismiss }],
+  );
+}
+
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
@@ -117,13 +131,19 @@ function NavigationScreen(): React.JSX.Element {
           ]);
           break;
 
+        case "tracking_lost":
+          alertLocationUnavailable(() => {
+            router.back();
+          });
+          break;
+
         case "voice":
           // Voice prompts are spoken by NavigationController; no view update needed.
           break;
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStop is declared after this callback and is stable; including it would create a declaration-order cycle, and it is only invoked from a one-shot arrival alert
-    [activeRoute],
+    [activeRoute, router],
   );
 
   // Start navigation when screen mounts
@@ -133,7 +153,13 @@ function NavigationScreen(): React.JSX.Element {
       return;
     }
 
-    void NavController.start(activeRoute, handleNavEvent);
+    NavController.start(activeRoute, handleNavEvent).catch(() => {
+      // No GPS: the controller has released keep-awake. Do not show guidance
+      // for a trip that is not being tracked (#300).
+      alertLocationUnavailable(() => {
+        router.back();
+      });
+    });
 
     // Initialize remaining from full route
     setRemaining({
