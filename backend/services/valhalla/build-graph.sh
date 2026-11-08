@@ -43,6 +43,14 @@ mkdir -p "$out"
 # MAX_EXCLUDE_POLYGONS_PERIMETER_M must match; a test compares the two. A wider
 # extract needs this re-timed (#269).
 #
+# --loki-actions route,status: the shipped service answers only what is used
+# (#289). The app calls /route and Fly's health check calls /status; Valhalla's
+# default also serves isochrone, sources_to_targets, optimized_route,
+# trace_route, trace_attributes, expansion and more, each able to cost far more
+# CPU than a route on a public, unauthenticated, single-threaded machine. An
+# action not listed is refused before any graph work. Add one here only
+# alongside the client code that calls it.
+#
 # --mjolnir-concurrency 1: the multi-threaded tile build intermittently aborts
 # with "double free or corruption" just after ReclassifyFerryEdges (#178) — 2 of
 # 3 builds on 2026-09-29, on native amd64 as well as under emulation, while an
@@ -51,6 +59,7 @@ mkdir -p "$out"
 common=(
   --mjolnir-concurrency 1
   --service-limits-max-exclude-polygons-length 250000
+  --loki-actions route,status
 )
 
 config() {

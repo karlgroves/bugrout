@@ -52,22 +52,39 @@ export async function calculateSmartRoute(
 
   // Find resource waypoints along the base route corridor
   let waypoints: LatLng[] = extraOptions?.waypoints ?? [];
+  let resourceWaypoints: LatLng[] = [];
 
   if (resourcePreferences?.some((p) => p.enabled)) {
-    const resourceWaypoints = await getResourceWaypoints(
+    resourceWaypoints = await getResourceWaypoints(
       baseRoute.coordinates,
       resourcePreferences,
+      threatZones,
     );
     waypoints = [...waypoints, ...resourceWaypoints];
   }
 
   // If we have waypoints, recalculate with them
   if (waypoints.length > 0) {
-    return Valhalla.calculateRoute(origin, destination, {
-      ...extraOptions,
-      avoidPolygons: [...(extraOptions?.avoidPolygons ?? []), ...avoidPolygons],
-      waypoints,
-    });
+    try {
+      return await Valhalla.calculateRoute(origin, destination, {
+        ...extraOptions,
+        avoidPolygons: [
+          ...(extraOptions?.avoidPolygons ?? []),
+          ...avoidPolygons,
+        ],
+        waypoints,
+      });
+    } catch (err) {
+      // An optional resource stop must never cost the user the route they
+      // already have (#295). The base route carries the caller's own
+      // waypoints, so only the resource stops are lost.
+      if (resourceWaypoints.length === 0) throw err;
+      console.warn(
+        "[BugRout] routing with resource stops failed; using the route without them:",
+        err,
+      );
+      return baseRoute;
+    }
   }
 
   return baseRoute;
