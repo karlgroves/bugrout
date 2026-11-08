@@ -162,9 +162,12 @@ function NavigationScreen(): React.JSX.Element {
     }
 
     syncedRouteId.current = activeRoute.id;
+    let unmounted = false;
     NavController.start(activeRoute, handleNavEvent).catch(() => {
       // No GPS: the controller has released keep-awake. Do not show guidance
-      // for a trip that is not being tracked (#300).
+      // for a trip that is not being tracked (#300). If the screen is already
+      // gone, going back would pop whatever screen replaced it.
+      if (unmounted) return;
       alertLocationUnavailable(() => {
         router.back();
       });
@@ -177,6 +180,7 @@ function NavigationScreen(): React.JSX.Element {
     });
 
     return () => {
+      unmounted = true;
       void NavController.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation must start exactly once on mount; re-running on activeRoute/handleNavEvent/router changes would restart GPS and voice. Route updates are handled by the separate activeRoute.id effect below.
