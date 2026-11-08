@@ -47,9 +47,10 @@ describe("startTracking with a rejecting location module", () => {
     expect(mockWatchPosition).not.toHaveBeenCalled();
   });
 
-  it("rejects when the position watch cannot start", async () => {
+  it("rejects when the position watch cannot start, and stops the compass", async () => {
+    const removeHeading = jest.fn();
     mockRequestForeground.mockResolvedValue({ status: "granted" });
-    mockWatchHeading.mockResolvedValue({ remove: jest.fn() });
+    mockWatchHeading.mockResolvedValue({ remove: removeHeading });
     mockWatchPosition.mockRejectedValue(
       new Error("Location provider is unavailable"),
     );
@@ -57,6 +58,8 @@ describe("startTracking with a rejecting location module", () => {
     await expect(startTracking(jest.fn())).rejects.toThrow(
       "Location provider is unavailable",
     );
+    // Removed by startTracking itself, not left for a later stopTracking().
+    expect(removeHeading).toHaveBeenCalledTimes(1);
   });
 
   it("still tracks position when the compass cannot start", async () => {

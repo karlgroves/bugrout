@@ -111,8 +111,24 @@ export async function startTracking(
     console.warn("[BugRout] Compass heading unavailable:", error);
   }
 
-  // Start position tracking
-  foregroundSubscription = await Location.watchPositionAsync(
+  // Start position tracking. If the watch cannot start (location services
+  // off, provider unavailable), stop the compass before rethrowing: a trip
+  // with no position must not leave the sensor running.
+  try {
+    foregroundSubscription = await watchPosition(onUpdate, options);
+  } catch (error) {
+    headingSubscription?.remove();
+    headingSubscription = null;
+    throw error;
+  }
+}
+
+/** Subscribes to GPS fixes and forwards each one as a LocationUpdate. */
+function watchPosition(
+  onUpdate: LocationCallback,
+  options: { intervalMs?: number; distanceFilter?: number } | undefined,
+): Promise<Location.LocationSubscription> {
+  return Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.BestForNavigation,
       timeInterval: options?.intervalMs ?? 1000,
