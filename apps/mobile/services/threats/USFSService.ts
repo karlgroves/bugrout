@@ -7,6 +7,7 @@
  */
 
 import { timeoutSignal } from "@/utils/abort";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
@@ -32,11 +33,14 @@ interface NIFCResponse {
  */
 export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
   const resp = await fetch(NIFC_URL, { signal: timeoutSignal(15000) });
-  if (!resp.ok) return [];
+  // A failed feed must not read as "no active fires" (#288): the caller keeps
+  // the cached perimeters, retries on the next sync, and says it failed.
+  if (!resp.ok) throw new Error(`NIFC perimeters: HTTP ${resp.status}`);
 
   const data = (await resp.json()) as NIFCResponse;
 
-  return data.features.map((f) => {
+  // Unusable perimeters are dropped here so they never reach the cache (#287).
+  const threats = data.features.map((f) => {
     const name = f.properties.poly_IncidentName ?? "Unnamed";
     return {
       id: `fire-${name}`,
@@ -53,6 +57,7 @@ export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
       expiresAt: null,
     };
   });
+  return withUsableGeometry(threats);
 }
 
 export { CACHE_TTL_MS };
