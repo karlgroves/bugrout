@@ -7,6 +7,7 @@
  */
 
 import { timeoutSignal } from "@/utils/abort";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
@@ -34,15 +35,18 @@ interface NIFCResponse {
  */
 export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
   const resp = await fetch(NIFC_URL, { signal: timeoutSignal(15000) });
-  if (!resp.ok) return [];
+  // A failed feed must not read as "no active fires" (#288): the caller keeps
+  // the cached perimeters, retries on the next sync, and says it failed.
+  if (!resp.ok) throw new Error(`NIFC perimeters: HTTP ${resp.status}`);
 
   const data = (await resp.json()) as NIFCResponse;
 
   // Key on the feature, never the incident name: one incident can publish
   // several perimeters and unnamed ones are common, and a shared id makes the
   // later perimeter silently replace the earlier one in the store and SQLite.
+  // Unusable perimeters are dropped below so they never reach the cache (#287).
   const seen = new Set<string>();
-  return data.features.map((f, i) => {
+  const threats = data.features.map((f, i) => {
     const name = f.properties.poly_IncidentName ?? "Unnamed";
     let id =
       f.id === undefined || f.id === null
@@ -65,6 +69,7 @@ export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
       expiresAt: null,
     };
   });
+  return withUsableGeometry(threats);
 }
 
 export { CACHE_TTL_MS };
