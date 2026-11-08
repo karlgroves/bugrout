@@ -123,6 +123,19 @@ describe("navigation screen mount (#294)", () => {
     expect(mockBack).toHaveBeenCalled();
   });
 
+  it("leaves a running trip alone on a link to some other route id", async () => {
+    mockActive = true; // the trip is running under another screen instance
+    mockRouteId = "x";
+
+    await render(<NavigationScreen />);
+
+    expect(mockStart).not.toHaveBeenCalled();
+    // Treating the running trip as rerouted would say "Route updated" and
+    // reset its guidance to the first maneuver.
+    expect(mockUpdateRoute).not.toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
+  });
+
   it("does not start a route that is only being previewed", async () => {
     useRouteStore.getState().setStatus("previewing");
 

@@ -158,6 +158,9 @@ function NavigationScreen(): React.JSX.Element {
 
   // Update controller if route changes (after reroute)
   useEffect(() => {
+    // An instance that refused to start (a link to some other route id) must
+    // not drive the trip another instance is running.
+    if (syncedRouteId.current === null) return;
     // Skip the route the mount effect just started: on a remount (Resume) this
     // would announce "Route updated" and reset guidance to the first maneuver.
     if (activeRoute?.id === syncedRouteId.current) return;
