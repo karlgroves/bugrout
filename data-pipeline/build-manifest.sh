@@ -14,13 +14,15 @@ UPLOAD="${1:-}"
 
 echo "=== Building global tile manifest ==="
 
-# Collect all regional manifests
+# Collect all regional manifests. Values reach Python as argv, never spliced
+# into its source: a path or a region name holding a quote would
+# otherwise end the string literal and run the rest as code.
 REGIONS="[]"
 for manifest in "$OUTPUT_DIR"/*/package/manifest.json; do
   if [[ -f "$manifest" ]]; then
     REGION=$(python3 -c "
-import json
-with open('$manifest') as f:
+import json, sys
+with open(sys.argv[1]) as f:
     m = json.load(f)
 region = {
     'id': m['regionId'],
@@ -50,13 +52,13 @@ neighbors = m.get('region', {}).get('neighbors')
 if neighbors is not None:
     region['neighbors'] = neighbors
 print(json.dumps(region))
-")
+" "$manifest")
     REGIONS=$(echo "$REGIONS" | python3 -c "
 import json, sys
 regions = json.load(sys.stdin)
-regions.append(json.loads('$REGION'))
+regions.append(json.loads(sys.argv[1]))
 print(json.dumps(regions))
-")
+" "$REGION")
   fi
 done
 
