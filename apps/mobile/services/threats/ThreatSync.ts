@@ -115,13 +115,18 @@ async function applyResult(
   }
 
   if (threats.length > 0) {
-    // Update SQLite cache
+    // The fresh set replaces the source's old one, in SQLite and in the store
+    // alike: ids are per feature (#291), so a feed reload can re-key a
+    // perimeter, and merging by id alone would show it twice.
     await clearThreatsBySource(source);
     await upsertThreatZones(threats);
+    store.setThreats([
+      ...useThreatStore
+        .getState()
+        .threatZones.filter((t) => t.source !== source),
+      ...threats,
+    ]);
   }
-
-  // Update store
-  store.addThreats(threats);
   store.setLastFetched(source, now);
   store.setSourceFailed(source, false);
 }
