@@ -172,7 +172,7 @@ export async function downloadRegion(
       downloaded = bytes;
       reportProgress("downloading");
     },
-    region.pmtilesSize,
+    { bytes: region.pmtilesSize, md5: region.pmtilesMd5 },
   );
 
   downloaded = region.pmtilesSize;
@@ -240,8 +240,8 @@ export async function downloadRegion(
  *
  * @returns `"none"` when the package has no routing archive, `"downloaded"`
  *   when it is in place at `valhallaPath`, or `"failed"` when it would not
- *   download or was not the manifest's size — reported, so a bad package is
- *   seen, and left to the caller to record as incomplete (#292).
+ *   download or did not match the manifest's size or MD5 — reported, so a bad
+ *   package is seen, and left to the caller to record as incomplete (#292).
  */
 async function downloadRoutingTiles(
   region: Region,
@@ -254,7 +254,7 @@ async function downloadRoutingTiles(
       `${TILE_SERVER_BASE}/v1/tiles/${region.id}/valhalla`,
       valhallaPath,
       onProgress,
-      region.valhallaSize,
+      { bytes: region.valhallaSize, md5: region.valhallaMd5 },
     );
     return "downloaded";
   } catch (error) {
@@ -304,19 +304,19 @@ async function downloadPackagedFuel(
  * `downloadAsync` overwrites rather than appends, which kept only the tail of
  * the file; a restart is the only correct option until real resume data is used.
  *
- * When the manifest gives the file's size, the downloaded file must be exactly
- * that size before it replaces anything, so a truncated or substituted file
- * never becomes the live copy (#292).
+ * When the manifest gives the file's size and MD5, the downloaded file must
+ * match both before it replaces anything, so a truncated, corrupted or
+ * substituted file never becomes the live copy (#292).
  *
  * @throws When the download fails, the server answers with anything but a
- *   2xx, or the file is not `expectedBytes` long (or its size can't be read);
- *   the `.part` file is removed and `destPath` is untouched.
+ *   2xx, or the file does not match `expected` (or its size or MD5 can't be
+ *   read); the `.part` file is removed and `destPath` is untouched.
  */
 async function downloadFileResumable(
   url: string,
   destPath: string,
   onProgress?: (bytesWritten: number) => void,
-  expectedBytes?: number,
+  expected: ExpectedFile = {},
 ): Promise<void> {
   const partPath = `${destPath}.part`;
   await FileSystem.deleteAsync(partPath, { idempotent: true });
@@ -344,17 +344,55 @@ async function downloadFileResumable(
     );
   }
 
-  if (expectedBytes !== undefined && expectedBytes > 0) {
-    const info = await FileSystem.getInfoAsync(partPath);
-    if (info.size !== expectedBytes) {
-      await FileSystem.deleteAsync(partPath, { idempotent: true });
-      throw new Error(
-        `Download for ${url} is ${String(info.size ?? "of unknown size")} bytes, expected ${String(expectedBytes)}`,
-      );
-    }
+  const mismatch = await checkDownloadedFile(partPath, expected);
+  if (mismatch) {
+    await FileSystem.deleteAsync(partPath, { idempotent: true });
+    throw new Error(`Download for ${url} ${mismatch}`);
   }
 
   await FileSystem.moveAsync({ from: partPath, to: destPath });
+}
+
+/** What the manifest says a downloaded file must be; unset parts go unchecked. */
+interface ExpectedFile {
+  /** Exact size in bytes; checked when above zero. */
+  bytes?: number | undefined;
+  /** MD5 as hex; checked when present. */
+  md5?: string | undefined;
+}
+
+/**
+ * Compare a downloaded file with what the manifest says it must be (#292).
+ * The MD5 is computed natively, so the file is never read into JS.
+ *
+ * @returns `null` when it matches, otherwise how it differs. A size or MD5
+ *   that can't be read counts as a mismatch: the check fails closed.
+ */
+async function checkDownloadedFile(
+  path: string,
+  expected: ExpectedFile,
+): Promise<string | null> {
+  const bytes = expected.bytes ?? 0;
+  const md5 = expected.md5 ?? "";
+  if (bytes <= 0 && md5 === "") return null;
+
+  const info = await FileSystem.getInfoAsync(
+    path,
+    md5 === "" ? undefined : { md5: true },
+  );
+  return sizeMismatch(info.size, bytes) ?? md5Mismatch(info.md5, md5);
+}
+
+/** How a file's size differs from `bytes`, or `null`; `bytes` 0 skips it. */
+function sizeMismatch(size: number | undefined, bytes: number): string | null {
+  if (bytes <= 0 || size === bytes) return null;
+  return `is ${String(size ?? "of unknown size")} bytes, expected ${String(bytes)}`;
+}
+
+/** How a file's MD5 differs from `md5` (any hex case), or `null`; "" skips it. */
+function md5Mismatch(actual: string | undefined, md5: string): string | null {
+  if (md5 === "" || actual?.toLowerCase() === md5.toLowerCase()) return null;
+  return `has MD5 ${actual ?? "unknown"}, expected ${md5}`;
 }
 
 /**

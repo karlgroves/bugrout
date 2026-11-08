@@ -14,8 +14,8 @@
  * And for the packaged fuel stations (#200): a file is loaded only once it
  * matches the manifest's SHA-256, and a fuel problem never costs the map.
  *
- * And for the map and routing archives (#292): each must be the size the
- * manifest gives before it replaces anything, and a package whose routing
+ * And for the map and routing archives (#292): each must be the size and MD5
+ * the manifest gives before it replaces anything, and a package whose routing
  * archive fails is recorded as incomplete, not as current with a path to a
  * file that does not exist.
  */
@@ -39,6 +39,15 @@ const mockMoveAsync = jest.fn((_options: { from: string; to: string }) =>
 
 /** Size each downloaded `.part` file reports, by path; absent means unknown. */
 const mockPartSizes = new Map<string, number>();
+/** MD5 each downloaded `.part` file reports when asked, by path. */
+const mockPartMd5s = new Map<string, string>();
+const mockGetInfoAsync = jest.fn((path: string, options?: { md5?: boolean }) =>
+  Promise.resolve({
+    exists: true,
+    size: mockPartSizes.get(path),
+    ...(options?.md5 ? { md5: mockPartMd5s.get(path) } : {}),
+  }),
+);
 
 const mockReadAsStringAsync = jest.fn((_path: string) => Promise.resolve(""));
 const mockLoadPackagedFuelStations = jest.fn(
@@ -48,8 +57,8 @@ const mockLoadPackagedFuelStations = jest.fn(
 jest.mock("@/platform/fileSystem", () => ({
   documentDirectory: "file:///docs/",
   readAsStringAsync: (path: string) => mockReadAsStringAsync(path),
-  getInfoAsync: (path: string) =>
-    Promise.resolve({ exists: true, size: mockPartSizes.get(path) }),
+  getInfoAsync: (path: string, options?: { md5?: boolean }) =>
+    mockGetInfoAsync(path, options),
   makeDirectoryAsync: jest.fn(() => Promise.resolve()),
   deleteAsync: (path: string, options?: { idempotent?: boolean }) =>
     mockDeleteAsync(path, options),
@@ -129,6 +138,7 @@ describe("downloadRegion", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPartSizes.clear();
+    mockPartMd5s.clear();
     mockPartSizes.set(PART_PATH, MARYLAND.pmtilesSize);
   });
 
@@ -351,6 +361,94 @@ describe("downloadRegion", () => {
         });
       },
     );
+
+    describe("with MD5s in the manifest", () => {
+      const PM_MD5 = "0123456789abcdef0123456789abcdef";
+      const VH_MD5 = "fedcba9876543210fedcba9876543210";
+      const WITH_DIGESTS: Region = {
+        ...WITH_ROUTING,
+        pmtilesMd5: PM_MD5,
+        valhallaMd5: VH_MD5,
+      };
+
+      beforeEach(() => {
+        respondWith(200);
+        mockPartSizes.set(VALHALLA_PART_PATH, WITH_ROUTING.valhallaSize);
+        mockPartMd5s.set(PART_PATH, PM_MD5);
+        mockPartMd5s.set(VALHALLA_PART_PATH, VH_MD5);
+      });
+
+      it("moves both archives into place when they match, hashing natively", async () => {
+        // Hex case differs between tools; it must not matter.
+        await downloadRegion({
+          ...WITH_DIGESTS,
+          pmtilesMd5: PM_MD5.toUpperCase(),
+        });
+
+        expect(mockGetInfoAsync).toHaveBeenCalledWith(PART_PATH, { md5: true });
+        expect(mockMoveAsync).toHaveBeenCalledWith({
+          from: PART_PATH,
+          to: PMTILES_PATH,
+        });
+        expect(insertDownloadedRegion).toHaveBeenCalledWith(
+          expect.objectContaining({
+            valhallaTilesPath: VALHALLA_PATH,
+            version: "2026.09.28",
+          }),
+        );
+      });
+
+      it("discards a right-sized map file whose MD5 doesn't match, keeping the old one", async () => {
+        mockPartMd5s.set(PART_PATH, "ffffffffffffffffffffffffffffffff");
+
+        await expect(downloadRegion(WITH_DIGESTS)).rejects.toThrow(
+          `expected ${PM_MD5}`,
+        );
+
+        expect(deletedPaths()).toContain(PART_PATH);
+        expect(deletedPaths()).not.toContain(PMTILES_PATH);
+        expect(mockMoveAsync).not.toHaveBeenCalled();
+        expect(insertDownloadedRegion).not.toHaveBeenCalled();
+      });
+
+      it("fails closed when the downloaded file's MD5 can't be read", async () => {
+        mockPartMd5s.delete(PART_PATH);
+
+        await expect(downloadRegion(WITH_DIGESTS)).rejects.toThrow(
+          "has MD5 unknown",
+        );
+
+        expect(mockMoveAsync).not.toHaveBeenCalled();
+        expect(insertDownloadedRegion).not.toHaveBeenCalled();
+      });
+
+      it("records the map as incomplete when the routing archive's MD5 doesn't match", async () => {
+        mockPartMd5s.set(
+          VALHALLA_PART_PATH,
+          "ffffffffffffffffffffffffffffffff",
+        );
+
+        await downloadRegion(WITH_DIGESTS);
+
+        expect(deletedPaths()).toContain(VALHALLA_PART_PATH);
+        expect(mockMoveAsync).not.toHaveBeenCalledWith(
+          expect.objectContaining({ to: VALHALLA_PATH }),
+        );
+        expect(insertDownloadedRegion).toHaveBeenCalledWith(
+          expect.objectContaining({
+            pmtilesPath: PMTILES_PATH,
+            valhallaTilesPath: "",
+            version: INCOMPLETE_VERSION,
+          }),
+        );
+        expect(mockCaptureError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: expect.stringContaining(`expected ${VH_MD5}`) as unknown,
+          }),
+          { regionId: "md", stage: "routing-tiles" },
+        );
+      });
+    });
 
     it("records no routing path for a package that has none", async () => {
       respondWith(200);
