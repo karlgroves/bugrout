@@ -29,7 +29,11 @@ import { timeoutSignal } from "@/utils/abort";
 import { fetchWithRetry } from "@/utils/retry";
 
 import { downloadSizeBytes, packagedFuelSize } from "./regionSize";
-import { isRegionStale, publishedVersionsFrom } from "./TileVersions";
+import {
+  INCOMPLETE_VERSION,
+  isRegionStale,
+  publishedVersionsFrom,
+} from "./TileVersions";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
@@ -168,26 +172,22 @@ export async function downloadRegion(
       downloaded = bytes;
       reportProgress("downloading");
     },
+    region.pmtilesSize,
   );
 
   downloaded = region.pmtilesSize;
 
-  // Download Valhalla tiles (optional — skip if size is 0 or server 404s,
-  // since we route via remote Valhalla on Fly.io)
-  if (region.valhallaSize > 0) {
-    try {
-      await downloadFileResumable(
-        `${TILE_SERVER_BASE}/v1/tiles/${region.id}/valhalla`,
-        valhallaPath,
-        (bytes) => {
-          downloaded = region.pmtilesSize + bytes;
-          reportProgress("downloading");
-        },
-      );
-    } catch {
-      // Valhalla tiles not available — routing will use remote service
-    }
-  }
+  // Routing tiles, when the package has them. A package that lists them but
+  // whose archive fails is recorded without a routing path and as incomplete
+  // (#292), so it is offered for update instead of passing as current.
+  const routingTiles = await downloadRoutingTiles(
+    region,
+    valhallaPath,
+    (bytes) => {
+      downloaded = region.pmtilesSize + bytes;
+      reportProgress("downloading");
+    },
+  );
 
   // Fuel stations (#200), so the fuel layer works with no network at all. A
   // package built before fuel was packaged has none; the layer is then
@@ -218,10 +218,10 @@ export async function downloadRegion(
     name: region.name,
     bbox: region.bbox,
     pmtilesPath,
-    valhallaTilesPath: valhallaPath,
+    valhallaTilesPath: routingTiles === "downloaded" ? valhallaPath : "",
     downloadedAt: Date.now(),
     sizeBytes: totalSize,
-    version: region.version,
+    version: routingTiles === "failed" ? INCOMPLETE_VERSION : region.version,
   };
 
   await insertDownloadedRegion(result);
@@ -232,6 +232,38 @@ export async function downloadRegion(
   });
 
   return result;
+}
+
+/**
+ * Download a region's routing tiles, when its package has them (none ships
+ * one yet; routing then uses the remote service).
+ *
+ * @returns `"none"` when the package has no routing archive, `"downloaded"`
+ *   when it is in place at `valhallaPath`, or `"failed"` when it would not
+ *   download or was not the manifest's size — reported, so a bad package is
+ *   seen, and left to the caller to record as incomplete (#292).
+ */
+async function downloadRoutingTiles(
+  region: Region,
+  valhallaPath: string,
+  onProgress: (bytesWritten: number) => void,
+): Promise<"none" | "downloaded" | "failed"> {
+  if (region.valhallaSize <= 0) return "none";
+  try {
+    await downloadFileResumable(
+      `${TILE_SERVER_BASE}/v1/tiles/${region.id}/valhalla`,
+      valhallaPath,
+      onProgress,
+      region.valhallaSize,
+    );
+    return "downloaded";
+  } catch (error) {
+    captureError(error instanceof Error ? error : new Error(String(error)), {
+      regionId: region.id,
+      stage: "routing-tiles",
+    });
+    return "failed";
+  }
 }
 
 /**
@@ -272,13 +304,19 @@ async function downloadPackagedFuel(
  * `downloadAsync` overwrites rather than appends, which kept only the tail of
  * the file; a restart is the only correct option until real resume data is used.
  *
- * @throws When the download fails or the server answers with anything but a
- *   2xx; the `.part` file is removed and `destPath` is untouched.
+ * When the manifest gives the file's size, the downloaded file must be exactly
+ * that size before it replaces anything, so a truncated or substituted file
+ * never becomes the live copy (#292).
+ *
+ * @throws When the download fails, the server answers with anything but a
+ *   2xx, or the file is not `expectedBytes` long (or its size can't be read);
+ *   the `.part` file is removed and `destPath` is untouched.
  */
 async function downloadFileResumable(
   url: string,
   destPath: string,
   onProgress?: (bytesWritten: number) => void,
+  expectedBytes?: number,
 ): Promise<void> {
   const partPath = `${destPath}.part`;
   await FileSystem.deleteAsync(partPath, { idempotent: true });
@@ -304,6 +342,16 @@ async function downloadFileResumable(
     throw new Error(
       `Download failed for ${url}${result ? `: HTTP ${result.status}` : ""}`,
     );
+  }
+
+  if (expectedBytes !== undefined && expectedBytes > 0) {
+    const info = await FileSystem.getInfoAsync(partPath);
+    if (info.size !== expectedBytes) {
+      await FileSystem.deleteAsync(partPath, { idempotent: true });
+      throw new Error(
+        `Download for ${url} is ${String(info.size ?? "of unknown size")} bytes, expected ${String(expectedBytes)}`,
+      );
+    }
   }
 
   await FileSystem.moveAsync({ from: partPath, to: destPath });
