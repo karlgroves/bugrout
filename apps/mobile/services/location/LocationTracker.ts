@@ -98,12 +98,18 @@ export async function startTracking(
     throw new Error("Location permission not granted");
   }
 
-  // Start heading tracking
-  headingSubscription = await Location.watchHeadingAsync((heading) => {
-    // trueHeading is -1 when true north is unavailable; fall back to magnetic.
-    currentHeading =
-      heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
-  });
+  // Start heading tracking. Heading only rotates the map, so a device whose
+  // compass cannot start (no magnetometer, sensor error) still navigates on
+  // its real position; it must not block position tracking.
+  try {
+    headingSubscription = await Location.watchHeadingAsync((heading) => {
+      // trueHeading is -1 when true north is unavailable; fall back to magnetic.
+      currentHeading =
+        heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
+    });
+  } catch (error) {
+    console.warn("[BugRout] Compass heading unavailable:", error);
+  }
 
   // Start position tracking
   foregroundSubscription = await Location.watchPositionAsync(
