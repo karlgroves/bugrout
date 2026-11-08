@@ -65,9 +65,8 @@ describe("fetchFirePerimeters ids", () => {
 
     await fetchFirePerimeters();
 
-    const [[requested]] = (global.fetch as jest.Mock<unknown, [string]>).mock
-      .calls;
-    const url = new URL(String(requested));
+    const fetchMock = global.fetch as jest.Mock<unknown, [string]>;
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(url.searchParams.get("outFields")?.split(",")).toContain("OBJECTID");
   });
 });
