@@ -8,11 +8,11 @@
 # Only ignore an advisory whose fix this repository cannot actually reach. That
 # is two cases, and the reason has to say which one applies:
 #
-#   1. **No fixed version is published.** Nothing to pin. No entry is in this
-#      category today. `image-size` was until 2.0.3 shipped, and is closed by
-#      an override plus a Metro patch (docs/dependency-upgrade-policy.md);
-#      `braces` and `node-forge` were too (the retirement note at the end of
-#      this file says how each one left).
+#   1. **No fixed version is published.** Nothing to pin. `deepmerge` is the
+#      one entry in this category today. `image-size` was until 2.0.3 shipped,
+#      and is closed by an override plus a Metro patch
+#      (docs/dependency-upgrade-policy.md); `braces` and `node-forge` were too
+#      (the retirement note at the end of this file says how each one left).
 #   2. **A fixed version exists but is structurally unreachable** — pinning it
 #      would break the consumer that pulls the package in, no upstream bump
 #      gets there, *and* no patch can bridge the gap. This case needs evidence
@@ -123,6 +123,87 @@ declares ^0.16.0, and 0.18 is a breaking 0.x line. Unreachable: katex is \
 imported only by the extension's lib/html.js (mathHtml), which markdownlint \
 never calls; it uses the syntax extension alone, and no Markdown in this \
 repository contains math. Lint-time devDependency only."""
+
+# minimatch: a fixed version exists (11.0.1) but is unreachable today —
+# category 2 above. Recorded in #302, with the evidence measured rather than
+# asserted.
+#
+# The pin breaks. Adding `"minimatch@>=7 <11.0.1": ">=11.0.1 <12"` to
+# pnpm.overrides resolves 11.0.3 and takes ESLint down in every workspace —
+# `pnpm run lint` fails in all eight packages before linting a file:
+#
+#   SyntaxError: The requested module 'minimatch' does not provide an export
+#   named 'makeRe'
+#
+# minimatch 11 removed `makeRe()`, and eslint-plugin-import-x@4.17.1 imports it
+# by name at module load (rules/no-internal-modules.js) and declares
+# `^9.0.3 || ^10.1.2`.
+#
+# No upstream bump reaches it yet. eslint-plugin-import-x@4.18.0 adds
+# `^11.0.1`, but it was published 2026-11-06 and is inside the seven-day
+# minimumReleaseAge until 2026-11-13. Every other consumer still declares a
+# pre-11 range at its latest release: @typescript-eslint/typescript-estree
+# 8.72.1 (`^10.2.2`), eslint-plugin-sonarjs 4.2.2 (`^10.2.6`),
+# @expo/fingerprint 0.21.9 (`^10.2.2`); @expo/cli on SDK 54 declares `^9.0.0`.
+# A patch could re-add `makeRe` to import-x, but minimatch@10.2.6 would stay in
+# the tree for those four consumers either way, so the finding — and this entry
+# — would remain.
+#
+# Exposure: the vulnerable code is not reached. The amplification is in
+# `firstPhasePreProcess()`, which runs only at `optimizationLevel >= 2`; the
+# default is 1. glob is the consumer that sets 2, and the `glob@>=9 <14.0.2`
+# override moves every glob onto 14.x, which carries its own minimatch 11. No
+# remaining consumer of minimatch 9.x or 10.x passes `optimizationLevel` (the
+# only hits in node_modules/.pnpm are copies bundled into expo-doctor, prettier
+# and wrangler, which are not these packages). The patterns are first-party
+# config — ESLint settings, Expo fingerprint sources, tsconfig globs — not
+# input from a user or the network. Build- and lint-time only; nothing here is
+# in the app bundle or a backend.
+#
+# Not recorded in pnpm.auditConfig.ignoreGhsas: it is moderate, below the
+# `security:audit` gate's `--audit-level=high`, as with stream-json above.
+#
+# Re-review trigger: 2026-11-13, when eslint-plugin-import-x@4.18.0 clears the
+# release-age quarantine — bump it, then retry the override against the other
+# four consumers. Whichever comes first with the expiry below.
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-12-05
+reason = """minimatch globparts amplification DoS. Fixed in 11.0.1, which \
+removed makeRe(); eslint-plugin-import-x@4.17.1 imports makeRe at load, so the \
+override breaks `pnpm run lint` in every workspace. import-x 4.18.0 accepts 11 \
+but is in release-age quarantine until 2026-11-13. Unreachable: the flaw runs \
+only at optimizationLevel >= 2; glob is the consumer that sets it and is on \
+14.x with minimatch 11, and no 9.x/10.x consumer sets it. First-party patterns, \
+build/lint-time only."""
+
+# deepmerge: no fixed version is published — category 1 above. Recorded in
+# #302.
+#
+# GHSA-gcqx-w48m-w2h4 covers `>= 4.2.0, <= 4.3.1`, and 4.3.1 (2023-03-16) is
+# the latest release, so there is nothing to pin.
+#
+# Exposure: the consumers are @expo/config (merging this repository's own app
+# config and plugin output) and jest-config (merging the Jest config); both
+# inputs are first-party files in the repository. Neither runs in the app or a
+# backend, and the exported iOS and Android bundles contain no deepmerge code.
+#
+# Not recorded in pnpm.auditConfig.ignoreGhsas: `pnpm audit` rates it low,
+# below the gate.
+#
+# Re-review trigger: a deepmerge release, or an @expo/config or jest-config
+# that drops it — whichever comes first with the expiry below. Neither shows
+# up as an "unused ignore" until the package version moves, so the expiry is
+# the retirement signal here.
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2026-12-05
+reason = """deepmerge mergeObject() prototype poisoning. No fixed version is \
+published (4.3.1 is the latest). Reached only through @expo/config and \
+jest-config, which merge this repository's own config files; not in the app \
+bundle or any backend. Build- and test-time only."""
 
 # Retired category-1 entries, and how each one left.
 #
