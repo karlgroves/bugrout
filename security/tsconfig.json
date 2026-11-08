@@ -1,17 +1,24 @@
 {
   // The security regression tests import handlers from four different
   // workspaces, so they cannot live under any one workspace's tsconfig. This
-  // exists so typescript-eslint's project service can resolve them — without
-  // it, `eslint security/` fails with "was not found by the project service"
-  // and the files go unlinted, which the pre-push hook catches but the
-  // per-workspace `turbo run lint` does not.
+  // exists so typescript-eslint's project service can resolve them for
+  // `security/`'s own `lint` script — security/ is a workspace (#306) only so
+  // that `turbo run lint` reaches it, and so that @types/node resolves.
   //
-  // Type-checking only. These files are executed by `node --import tsx`.
+  // `module` is inherited from tsconfig.base.json (ESNext). The NodeNext it
+  // replaced classified these files as CommonJS, since security/package.json
+  // has no "type", and rejected every `import.meta`.
+  //
+  // There is no `typecheck` script yet. `tsc -p security` checks the tests
+  // themselves cleanly, but the program also pulls in the Workers source the
+  // tests import, and that source only type-checks against
+  // @cloudflare/workers-types, whose globals (`declare const Buffer: any`,
+  // `process: any`, its own Response) collide with @types/node. Those files are
+  // type-checked in their own workspaces. These files are executed by
+  // `node --import tsx`.
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
     "verbatimModuleSyntax": false,
     "types": ["node"],
     "noEmit": true

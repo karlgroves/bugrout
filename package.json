@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "run-s lint:workspaces lint:root",
+    "lint:workspaces": "turbo run lint",
+    "lint:root": "eslint scripts \"*.mjs\"",
     "lint:fix": "eslint . --fix",
     "test:pipeline": "bash data-pipeline/osm/test-extract-fuel.sh && bash data-pipeline/osm/test-extract-geocode.sh && bash data-pipeline/regions/test-region-ids.sh && bash data-pipeline/regions/test-neighbors.sh",
     "lint:actions": "actionlint",

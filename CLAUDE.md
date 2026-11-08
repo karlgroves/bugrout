@@ -23,6 +23,9 @@ pnpm workspaces + Turborepo. Four workspace roots:
 - **`backend/workers/`** — Cloudflare Workers (tile-server, alert-aggregator,
   crowd-signal)
 - **`backend/services/`** — Fly.io services (route-tracker with Redis)
+- **`security/`** — security regression tests and scanner wrappers; a workspace
+  only so `turbo run lint` reaches it (#306). Root `scripts/` and root `*.mjs`
+  are linted by `pnpm run lint:root`
 - **`data-pipeline/`** — Shell scripts for OSM → Valhalla tiles and PMTiles
   builds
 

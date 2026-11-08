@@ -420,8 +420,38 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.config.{mjs,ts}", "eslint.config.mjs"],
+    // `.mjs` is ES module syntax by definition, wherever it lives. The block
+    // above sets `commonjs` for `scripts/**/*.{js,mjs}`, which made a valid
+    // `import` in scripts/check-licenses.mjs a parse error (#306).
+    files: ["**/*.config.{mjs,ts}", "eslint.config.mjs", "**/*.mjs"],
     languageOptions: { sourceType: "module" },
+  },
+
+  // ── Root-level Node scripts: outside every workspace ──────────────────
+  // `pnpm run lint:root` is the only gate that reaches these: the scanner
+  // wrappers and helper scripts that implement the secret, SAST and licence
+  // gates. Without rules here ESLint would parse them and report nothing, so
+  // they get the recommended base plus the same security and no-secrets
+  // checks the TypeScript code has (#306).
+  {
+    files: ["scripts/**/*.{js,mjs}", "security/scripts/**/*.{js,mjs}"],
+    extends: [js.configs.recommended],
+    plugins: { security, "no-secrets": noSecrets },
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+    rules: {
+      "security/detect-object-injection": "warn",
+      "security/detect-non-literal-regexp": "error",
+      "security/detect-unsafe-regex": "error",
+      "security/detect-buffer-noassert": "error",
+      "security/detect-eval-with-expression": "error",
+      "security/detect-pseudoRandomBytes": "error",
+      "no-secrets/no-secrets": [
+        "error",
+        { tolerance: 4.5, ignoreContent: ["https?://", "data:image/"] },
+      ],
+    },
   },
 
   // ── Tests (Jest) ───────────────────────────────────────────────────────

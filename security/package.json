@@ -1,0 +1,11 @@
+{
+  "name": "@bugrout/security",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17"
+  }
+}
