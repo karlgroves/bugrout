@@ -52,7 +52,7 @@ describe("FuelRangeField", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
-  it("ignores anything that is not a number", async () => {
+  it("keeps only the digits of mixed input", async () => {
     const onChange = jest.fn();
     const screen = await render(
       <FuelRangeField value={null} units="km" onChange={onChange} />,

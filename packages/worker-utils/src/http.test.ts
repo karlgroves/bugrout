@@ -260,6 +260,24 @@ describe("SECURITY_HEADERS — the required set", () => {
     ]);
   });
 
+  test("every value is the one the baseline requires", () => {
+    // Literal on purpose. assertAllSecurityHeaders compares responses against
+    // SECURITY_HEADERS itself, so without this the table only vouches for
+    // itself: X-Frame-Options: ALLOWALL or Referrer-Policy: unsafe-url would
+    // keep every other test here green.
+    assert.deepEqual(SECURITY_HEADERS, {
+      "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+      "Strict-Transport-Security":
+        "max-age=31536000; includeSubDomains; preload",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "no-referrer",
+      "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Resource-Policy": "same-origin",
+    });
+  });
+
   test("HSTS covers subdomains and is preload-eligible", () => {
     const hsts = SECURITY_HEADERS["Strict-Transport-Security"] ?? "";
     assert.match(hsts, /max-age=31536000/);
