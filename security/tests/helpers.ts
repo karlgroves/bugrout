@@ -56,6 +56,28 @@ export function emptyR2(): never {
 }
 
 /**
+ * Stand-in for a Workers Rate Limiting binding: allows `limit` calls per key,
+ * then refuses. There is no window — a test that needs a fresh allowance makes
+ * a fresh limiter.
+ *
+ * @param limit - Calls allowed per key before `success` turns false.
+ * @returns An object shaped like RateLimit, plus the keys it was called with.
+ */
+export function fakeRateLimiter(limit = Number.POSITIVE_INFINITY): never {
+  const counts = new Map<string, number>();
+  const keys: string[] = [];
+  return {
+    keys,
+    limit: ({ key }: { key: string }) => {
+      keys.push(key);
+      const next = (counts.get(key) ?? 0) + 1;
+      counts.set(key, next);
+      return Promise.resolve({ success: next <= limit });
+    },
+  } as unknown as never;
+}
+
+/**
  * Minimal stand-in for a KV namespace backed by a Map.
  *
  * @param seed - Initial contents.
