@@ -53,6 +53,13 @@ primary_region = 'iad'
     [services.ports.tls_options]
       alpn = ['http/1.1']
 
+  # Deliberately no [services.concurrency] cap (#289). The `tls` handler only
+  # lets Fly count connections, and valhalla_service never closes an idle
+  # HTTP/1.1 keep-alive connection, so a handful of devices holding pooled
+  # connections would fill a small cap while the worker sits idle and lock
+  # everyone else out at low load. Bounding load per client is left to the
+  # proxy decision in the README's Exposure section.
+
   # Checked on the machine's own address, not through the edge proxy.
   [[services.http_checks]]
     interval = '30s'
