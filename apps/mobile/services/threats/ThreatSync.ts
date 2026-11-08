@@ -68,7 +68,7 @@ export async function refreshThreats(
   if (now - usfsLastFetch > SOURCE_TTL.usfs) {
     sourcesToRefresh.push({
       source: "usfs",
-      fetcher: fetchFirePerimeters,
+      fetcher: () => fetchFirePerimeters(bbox),
     });
   }
 
