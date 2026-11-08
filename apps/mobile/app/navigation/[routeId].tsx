@@ -295,23 +295,22 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      {/* Low battery warning; renders nothing unless the level is known and low */}
-      {!hasDeviated ? <BatteryWarning battery={battery} /> : null}
+      {/* Low battery warning; renders nothing unless the level is known and
+          low. Shown off route too: a low battery matters more there (#298). */}
+      <BatteryWarning battery={battery} />
 
       {/* Fuel range; renders nothing unless a range was given and is running
           short of the next station on the route (#203) */}
-      {!hasDeviated ? (
-        <FuelRangeWarning
-          stop={fuel.stop}
-          rangeRemaining={fuel.rangeRemaining}
-          warn={fuel.warn}
-          stopAdded={fuelStopAdded}
-          units={units}
-          onAddFuelStop={() => {
-            void handleAddFuelStop();
-          }}
-        />
-      ) : null}
+      <FuelRangeWarning
+        stop={fuel.stop}
+        rangeRemaining={fuel.rangeRemaining}
+        warn={fuel.warn}
+        stopAdded={fuelStopAdded}
+        units={units}
+        onAddFuelStop={() => {
+          void handleAddFuelStop();
+        }}
+      />
 
       {/* The essentials stay outside the switch: the advisory badge and
           status above, the ETA and Stop below (#192, #189). */}

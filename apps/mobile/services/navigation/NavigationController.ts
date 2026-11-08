@@ -173,9 +173,12 @@ async function handleLocationUpdate(update: LocationUpdate): Promise<void> {
   // 2. Update Zustand store
   useRouteStore.getState().setCurrentManeuverIndex(currentManeuverIndex);
 
-  // 3. Check deviation (>500m from route)
-  if (hasDeviated(position, route.coordinates)) {
-    useRouteStore.getState().setDeviated(true);
+  // 3. Check deviation (>500m from route). The store flag tracks the
+  // condition on every fix, so it clears once the driver is back on route
+  // (#298); setDeviated is a no-op when the value has not changed.
+  const deviated = hasDeviated(position, route.coordinates);
+  useRouteStore.getState().setDeviated(deviated);
+  if (deviated) {
     void Haptics.notification("warning");
     track(Events.DEVIATION_DETECTED);
     emit({ type: "deviation", position });
