@@ -7,6 +7,7 @@
  */
 
 import { timeoutSignal } from "@/utils/abort";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
@@ -36,7 +37,8 @@ export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
 
   const data = (await resp.json()) as NIFCResponse;
 
-  return data.features.map((f) => {
+  // Unusable perimeters are dropped here so they never reach the cache (#287).
+  const threats = data.features.map((f) => {
     const name = f.properties.poly_IncidentName ?? "Unnamed";
     return {
       id: `fire-${name}`,
@@ -53,6 +55,7 @@ export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
       expiresAt: null,
     };
   });
+  return withUsableGeometry(threats);
 }
 
 export { CACHE_TTL_MS };

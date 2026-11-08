@@ -14,6 +14,7 @@ import { MapDetailSheet } from "@/components/map/MapDetailSheet";
 import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useThreatStore } from "@/stores/useThreatStore";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
@@ -150,11 +151,14 @@ function groupThreats(threats: ThreatZone[]): Record<string, ThreatZone[]> {
 /**
  * Converts a list of threat zones into a GeoJSON FeatureCollection for use
  * as a MapLibre ShapeSource.
+ *
+ * Each threat is validated on its own, so one malformed polygon cannot blank
+ * every other threat of its type that shares the source (#287).
  */
 function threatsToFeatureCollection(threats: ThreatZone[]) {
   return {
     type: "FeatureCollection" as const,
-    features: threats.map((t) => ({
+    features: withUsableGeometry(threats).map((t) => ({
       type: "Feature" as const,
       geometry: t.geometry,
       properties: { threatId: t.id, type: t.type, severity: t.severity },

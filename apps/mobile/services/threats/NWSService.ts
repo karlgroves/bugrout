@@ -10,7 +10,7 @@
 
 import { upsertThreatZones } from "@/db/queries/threats";
 import { timeoutSignal } from "@/utils/abort";
-import { extractRingCoordinates } from "@/utils/geo";
+import { extractRingCoordinates, sanitizeThreatGeometry } from "@/utils/geo";
 
 import type { ThreatZone, BBox } from "@bugrout/shared";
 
@@ -116,7 +116,8 @@ async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
  */
 function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
   return data.features.flatMap((f) => {
-    const geometry = f.geometry;
+    // Zone-based alerts have no geometry; malformed ones are dropped too (#287).
+    const geometry = sanitizeThreatGeometry(f.geometry);
     if (geometry === null) return [];
     return [
       {
