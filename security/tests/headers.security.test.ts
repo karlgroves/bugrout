@@ -103,22 +103,23 @@ describe("tile-server — every response path", () => {
 });
 
 describe("crowd-signal — every response path", () => {
-  const env = { SIGNALS_KV: fakeKv() };
+  const env = { SIGNALS_KV: fakeKv(), RATE_LIMITER: fakeRateLimiter() };
+  const token = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
-  test("204, 400 and 413 all carry the full set", async () => {
+  test("204, 400, 413 and 429 all carry the full set", async () => {
     const cases: [string, Request][] = [
       [
         "204",
         new Request("https://s.example/v1/signal", {
           method: "POST",
-          body: JSON.stringify({ lat: 1, lng: 1, token: "abc" }),
+          body: JSON.stringify({ lat: 1, lng: 1, token }),
         }),
       ],
       [
         "400",
         new Request("https://s.example/v1/signal", {
           method: "POST",
-          body: JSON.stringify({ lat: 999, lng: 1, token: "abc" }),
+          body: JSON.stringify({ lat: 999, lng: 1, token }),
         }),
       ],
       [
@@ -126,7 +127,7 @@ describe("crowd-signal — every response path", () => {
         new Request("https://s.example/v1/signal", {
           method: "POST",
           headers: { "Content-Length": "9999" },
-          body: JSON.stringify({ lat: 1, lng: 1, token: "abc" }),
+          body: JSON.stringify({ lat: 1, lng: 1, token }),
         }),
       ],
       ["404", new Request("https://s.example/nope")],
@@ -136,6 +137,17 @@ describe("crowd-signal — every response path", () => {
       assertWorkerHeaders(res, `crowd-signal ${label}`);
       assertNoLeakage(await res.text(), `crowd-signal ${label}`);
     }
+
+    const limited = await crowdSignal.fetch(
+      new Request("https://s.example/v1/signal", {
+        method: "POST",
+        body: JSON.stringify({ lat: 1, lng: 1, token }),
+      }),
+      { SIGNALS_KV: fakeKv(), RATE_LIMITER: fakeRateLimiter(0) },
+    );
+    assert.equal(limited.status, 429);
+    assertWorkerHeaders(limited, "crowd-signal 429");
+    assertNoLeakage(await limited.text(), "crowd-signal 429");
   });
 });
 
