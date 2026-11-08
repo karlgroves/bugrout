@@ -41,6 +41,24 @@ HTTP handler adds an empty `Fly-Tracestate:` header to every request, and
 `valhalla_service` rejects any empty header with `400 Malformed HTTP request` —
 which broke every route request (#141). Don't switch it back.
 
+## Exposure
+
+The service is public and unauthenticated: the app sends no credential, and one
+embedded in the app could be extracted from it anyway. What bounds abuse today
+(issue #289):
+
+- `fly.toml` `[services.concurrency]` caps concurrent connections at the edge,
+  so a flood waits at Fly Proxy instead of queueing without bound behind the
+  single worker thread.
+- `build-graph.sh` ships `loki.actions` as `route,status` only, so the expensive
+  endpoints (isochrone, matrix, map matching, expansion) are refused. It takes
+  effect with the next graph built and deployed.
+- `max_exclude_polygons_length` caps the costliest part of a route request.
+
+None of these stops one client from taking every slot. Per-client rate limiting
+needs a proxy that can see client addresses in front of `valhalla_service`,
+which is a deployment change still to be decided.
+
 ## Rebuild the graph, or swap the extract
 
 1. Run **Valhalla Graph** with the extract name and its Geofabrik URL (for
