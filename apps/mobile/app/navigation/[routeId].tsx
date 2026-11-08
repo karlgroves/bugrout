@@ -6,7 +6,7 @@
  */
 
 /* eslint-disable max-lines-per-function -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -43,6 +43,7 @@ import type { LatLng } from "@bugrout/shared";
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
+  const { routeId } = useLocalSearchParams<{ routeId?: string }>();
   /*
    * Selectors, not `useRouteStore()` / `useSettingsStore()`.
    *
@@ -60,6 +61,7 @@ function NavigationScreen(): React.JSX.Element {
    * them adds no subscription churn of its own.
    */
   const activeRoute = useRouteStore((s) => s.activeRoute);
+  const status = useRouteStore((s) => s.status);
   const hasDeviated = useRouteStore((s) => s.hasDeviated);
   const clearRoute = useRouteStore((s) => s.clearRoute);
   const setStatus = useRouteStore((s) => s.setStatus);
@@ -73,6 +75,8 @@ function NavigationScreen(): React.JSX.Element {
   const [maneuverIndex, setManeuverIndex] = useState(0);
   const [remaining, setRemaining] = useState({ distance: 0, duration: 0 });
   const deviationAlertShown = useRef(false);
+  /** The route id the controller was last given, by start or by a reroute. */
+  const syncedRouteId = useRef<string | null>(null);
   const [addedStopId, setAddedStopId] = useState<string | null>(null);
 
   const fuel = useFuelRange(activeRoute, position);
@@ -128,11 +132,16 @@ function NavigationScreen(): React.JSX.Element {
 
   // Start navigation when screen mounts
   useEffect(() => {
-    if (!activeRoute) {
+    // Drive only the trip the user started with Go, addressed by its own id.
+    // A link to /navigation/<anything> must not start or restart guidance, and
+    // a previewed route has not been started yet (#294).
+    const started = status === "active" || status === "rerouting";
+    if (!activeRoute || activeRoute.id !== routeId || !started) {
       router.back();
       return;
     }
 
+    syncedRouteId.current = activeRoute.id;
     void NavController.start(activeRoute, handleNavEvent);
 
     // Initialize remaining from full route
@@ -149,7 +158,11 @@ function NavigationScreen(): React.JSX.Element {
 
   // Update controller if route changes (after reroute)
   useEffect(() => {
+    // Skip the route the mount effect just started: on a remount (Resume) this
+    // would announce "Route updated" and reset guidance to the first maneuver.
+    if (activeRoute?.id === syncedRouteId.current) return;
     if (activeRoute && NavController.isActive()) {
+      syncedRouteId.current = activeRoute.id;
       NavController.updateRoute(activeRoute);
       setManeuverIndex(0);
     }
