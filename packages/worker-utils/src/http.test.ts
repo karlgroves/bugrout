@@ -255,9 +255,14 @@ describe("SECURITY_HEADERS — the required set", () => {
       "Permissions-Policy",
       "Referrer-Policy",
       "Strict-Transport-Security",
+      "Vary",
       "X-Content-Type-Options",
       "X-Frame-Options",
     ]);
+  });
+
+  test("varies on Origin, because Allow-Origin echoes it on cacheable responses", () => {
+    assert.equal(SECURITY_HEADERS.Vary, "Origin");
   });
 
   test("HSTS covers subdomains and is preload-eligible", () => {

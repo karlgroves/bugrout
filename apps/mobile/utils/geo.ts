@@ -159,10 +159,14 @@ export function placeKey(point: LatLng): string {
  *
  * Route params and deep links arrive as strings, and a malformed one must read
  * as "no point given" rather than as `NaN` coordinates somewhere off the globe.
+ * Out-of-range values are rejected too: a latitude past ±90 makes
+ * `haversineDistance` return `NaN`, which then sticks in distance, ETA and the
+ * fuel-range tracker for the rest of the trip (#307).
  *
  * @param lat - The latitude, as text.
  * @param lng - The longitude, as text.
- * @returns The point, or `null` when either is missing or not a number.
+ * @returns The point, or `null` when either is missing, not a number, or off
+ *   the globe (|lat| > 90 or |lng| > 180).
  */
 export function pointFromStrings(
   lat: string | undefined,
@@ -176,6 +180,7 @@ export function pointFromStrings(
   const parsedLat = Number(lat);
   const parsedLng = Number(lng);
   if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return null;
+  if (Math.abs(parsedLat) > 90 || Math.abs(parsedLng) > 180) return null;
   return { lat: parsedLat, lng: parsedLng };
 }
 
