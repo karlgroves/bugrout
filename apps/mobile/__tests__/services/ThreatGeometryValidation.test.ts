@@ -132,13 +132,31 @@ describe("sanitizeThreatGeometry", () => {
     },
   );
 
-  it("rejects a Polygon whose hole is malformed", () => {
+  it("keeps a Polygon's outer ring when only a hole is malformed", () => {
     expect(
       sanitizeThreatGeometry({
         type: "Polygon",
         coordinates: [FIRE, fireWithLng(null)],
       }),
+    ).toEqual(polygon(FIRE));
+  });
+
+  it("rejects a Polygon whose outer ring is malformed", () => {
+    expect(
+      sanitizeThreatGeometry({
+        type: "Polygon",
+        coordinates: [fireWithLng(null), FIRE],
+      }),
     ).toBeNull();
+  });
+
+  it("drops a malformed hole from a MultiPolygon part", () => {
+    expect(
+      sanitizeThreatGeometry({
+        type: "MultiPolygon",
+        coordinates: [[FIRE, fireWithLng("x")]],
+      }),
+    ).toEqual({ type: "MultiPolygon", coordinates: [[FIRE]] });
   });
 
   it("keeps the usable parts of a MultiPolygon", () => {
@@ -182,6 +200,19 @@ describe("routeIntersectsThreat with malformed geometry", () => {
 
   it("warns (fails safe) when the geometry is null", () => {
     expect(routeIntersectsThreat(farAway, fire(null))).toBe(true);
+  });
+
+  it("tests the outer ring when only a hole is malformed", () => {
+    const g = { type: "Polygon", coordinates: [FIRE, fireWithLng(null)] };
+    expect(routeIntersectsThreat(farAway, fire(g))).toBe(false);
+  });
+
+  it("warns when one MultiPolygon part is unreadable", () => {
+    const g = {
+      type: "MultiPolygon",
+      coordinates: [[FIRE], [fireWithLng("x")]],
+    };
+    expect(routeIntersectsThreat(farAway, fire(g))).toBe(true);
   });
 
   it("warns when a coordinate is not a number", () => {

@@ -45,16 +45,19 @@ export function threatsToAvoidancePolygons(
  * Uses simple point-in-polygon test (ray casting) against every part of a
  * MultiPolygon.
  *
- * Fails safe (#287): a threat whose geometry is wholly or partly unreadable
- * counts as intersecting, because a fire perimeter we cannot read must warn
- * rather than stay silent.
+ * Fails safe (#287): a threat whose geometry, or any part of it, has no
+ * readable outer ring counts as intersecting, because a fire perimeter we
+ * cannot read must warn rather than stay silent. A malformed hole does not
+ * count, since only outer rings are tested.
  */
 export function routeIntersectsThreat(
   routeCoordinates: LatLng[],
   threat: ThreatZone,
 ): boolean {
   const geometry = sanitizeThreatGeometry(threat.geometry);
-  if (geometry === null || geometry !== threat.geometry) return true;
+  if (geometry === null || partCount(geometry) !== partCount(threat.geometry)) {
+    return true;
+  }
 
   const outerRings =
     geometry.type === "Polygon"
@@ -68,4 +71,9 @@ export function routeIntersectsThreat(
         pointInPolygon([coord.lng, coord.lat], ring),
       ),
   );
+}
+
+/** How many polygons a geometry holds: 1 for a Polygon, else its part count. */
+function partCount(geometry: ThreatZone["geometry"]): number {
+  return geometry.type === "Polygon" ? 1 : geometry.coordinates.length;
 }

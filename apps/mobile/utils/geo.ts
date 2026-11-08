@@ -97,9 +97,17 @@ export function isValidRing(ring: unknown): ring is number[][] {
   return Array.isArray(ring) && ring.length >= 4 && ring.every(isValidPosition);
 }
 
-/** Whether a polygon has at least one ring and every ring is usable. */
-function isValidPolygonRings(rings: unknown): rings is number[][][] {
-  return Array.isArray(rings) && rings.length > 0 && rings.every(isValidRing);
+/**
+ * The usable rings of one polygon: its outer ring and whichever holes are
+ * valid. A bad hole is dropped rather than the whole polygon, because only the
+ * outer ring is avoided or tested against the route, and losing a hole only
+ * enlarges the drawn area. Returns `null` when the outer ring is unusable, and
+ * the input array itself when every ring is usable.
+ */
+function usablePolygonRings(rings: unknown): number[][][] | null {
+  if (!Array.isArray(rings) || !isValidRing(rings[0])) return null;
+  const kept = rings.filter(isValidRing);
+  return kept.length === rings.length ? (rings as number[][][]) : kept;
 }
 
 /**
@@ -110,9 +118,10 @@ function isValidPolygonRings(rings: unknown): rings is number[][][] {
  * and a `null` geometry throws wherever it is dereferenced. This keeps only
  * what can be used:
  *
- * - a Polygon is kept whole or rejected whole;
- * - a MultiPolygon keeps its usable parts, since each part is avoided on its
- *   own.
+ * - a Polygon is rejected when its outer ring is unusable, and otherwise
+ *   keeps its outer ring and its usable holes;
+ * - a MultiPolygon keeps its usable parts, each sanitized the same way, since
+ *   each part is avoided on its own.
  *
  * When nothing had to be removed the input object itself is returned, so
  * `sanitizeThreatGeometry(g) !== g` means part or all of `g` was unusable.
@@ -130,18 +139,21 @@ export function sanitizeThreatGeometry(
   };
 
   if (type === "Polygon") {
-    return isValidPolygonRings(coordinates)
+    const rings = usablePolygonRings(coordinates);
+    if (rings === null) return null;
+    return rings === coordinates
       ? (geometry as ThreatZone["geometry"])
-      : null;
+      : { type: "Polygon", coordinates: rings };
   }
   if (type !== "MultiPolygon" || !Array.isArray(coordinates)) return null;
 
-  const parts = coordinates.filter(isValidPolygonRings);
-  if (parts.length === 0) return null;
-  if (parts.length === coordinates.length) {
+  const parts = coordinates.map(usablePolygonRings);
+  const usable = parts.filter((rings) => rings !== null);
+  if (usable.length === 0) return null;
+  if (parts.every((rings, i) => rings === coordinates[i])) {
     return geometry as ThreatZone["geometry"];
   }
-  return { type: "MultiPolygon", coordinates: parts };
+  return { type: "MultiPolygon", coordinates: usable };
 }
 
 /**

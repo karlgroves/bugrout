@@ -7,7 +7,7 @@
  * Tappable to show threat detail card.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
 import { MapDetailSheet } from "@/components/map/MapDetailSheet";
@@ -49,10 +49,16 @@ export function ThreatOverlay(): React.JSX.Element | null {
     [threatZones],
   );
 
-  if (threatZones.length === 0) return null;
+  // Group threats by type for separate layers with different colors. Each
+  // threat is validated on its own, so one malformed polygon cannot blank
+  // every other threat of its type that shares the source (#287). Memoized so
+  // a render for the detail card does not re-check every vertex.
+  const threatsByType = useMemo(
+    () => groupThreats(withUsableGeometry(threatZones)),
+    [threatZones],
+  );
 
-  // Group threats by type for separate layers with different colors
-  const threatsByType = groupThreats(threatZones);
+  if (threatZones.length === 0) return null;
 
   return (
     <>
@@ -151,14 +157,11 @@ function groupThreats(threats: ThreatZone[]): Record<string, ThreatZone[]> {
 /**
  * Converts a list of threat zones into a GeoJSON FeatureCollection for use
  * as a MapLibre ShapeSource.
- *
- * Each threat is validated on its own, so one malformed polygon cannot blank
- * every other threat of its type that shares the source (#287).
  */
 function threatsToFeatureCollection(threats: ThreatZone[]) {
   return {
     type: "FeatureCollection" as const,
-    features: withUsableGeometry(threats).map((t) => ({
+    features: threats.map((t) => ({
       type: "Feature" as const,
       geometry: t.geometry,
       properties: { threatId: t.id, type: t.type, severity: t.severity },
