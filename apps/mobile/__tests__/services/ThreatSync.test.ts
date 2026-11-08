@@ -120,6 +120,18 @@ describe("refreshThreats — a failed fetch (#288)", () => {
     expect(mockClearThreatsBySource).not.toHaveBeenCalledWith("usfs");
   });
 
+  it("replaces a source's cached threats with the fresh set (#291)", async () => {
+    mockGetCachedThreats.mockResolvedValue([
+      fire("fire-1", "usfs"),
+      fire("alert-0", "nws"),
+    ]);
+    mockFetchFirePerimeters.mockResolvedValue([fire("fire-7", "usfs")]);
+    await refreshThreats(BBOX, "md");
+    expect(mockClearThreatsBySource).toHaveBeenCalledWith("usfs");
+    const ids = useThreatStore.getState().threatZones.map((t) => t.id);
+    expect(ids).toEqual(["alert-0", "fire-7"]);
+  });
+
   it("still skips a source that succeeded within its TTL", async () => {
     await refreshThreats(BBOX, "md");
     await refreshThreats(BBOX, "md");
