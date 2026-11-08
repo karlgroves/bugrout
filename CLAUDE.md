@@ -25,7 +25,9 @@ pnpm workspaces + Turborepo. Four workspace roots:
 - **`backend/services/`** — Fly.io services (route-tracker with Redis)
 - **`security/`** — security regression tests and scanner wrappers; a workspace
   only so `turbo run lint` reaches it (#306). Root `scripts/` and root `*.mjs`
-  are linted by `pnpm run lint:root`
+  are linted by `pnpm run lint:root`. `pnpm run typecheck:root` type-checks
+  `security/` and `scripts/` with `tsc -b` over project references: the tests
+  with Node types, the Workers source they import with Workers types
 - **`data-pipeline/`** — Shell scripts for OSM → Valhalla tiles and PMTiles
   builds
 

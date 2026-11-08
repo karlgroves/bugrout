@@ -9,19 +9,25 @@
   // replaced classified these files as CommonJS, since security/package.json
   // has no "type", and rejected every `import.meta`.
   //
-  // There is no `typecheck` script yet. `tsc -p security` checks the tests
-  // themselves cleanly, but the program also pulls in the Workers source the
-  // tests import, and that source only type-checks against
-  // @cloudflare/workers-types, whose globals (`declare const Buffer: any`,
-  // `process: any`, its own Response) collide with @types/node. Those files are
-  // type-checked in their own workspaces. These files are executed by
+  // Type-checked by `pnpm run typecheck:root` (`tsc -b`), not through Turbo:
+  // this program reaches source in four other workspaces, which a per-package
+  // Turbo cache hash would not see change. The tests import Workers source,
+  // which only type-checks against @cloudflare/workers-types, and those types
+  // must not enter this program: their globals (`declare const Buffer: any`,
+  // `process: any`, their own Response) would silently turn every Node API
+  // misuse in the tests into `any`. So the Workers source is its own project,
+  // tsconfig.workers.json, checked with Workers types, and this one sees only
+  // its emitted declarations through `references`. The JS scanner wrappers and
+  // root scripts/ are tsconfig.scripts.json. These files are executed by
   // `node --import tsx`.
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
     "verbatimModuleSyntax": false,
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    "tsBuildInfoFile": "./.tsbuild/tests.tsbuildinfo"
   },
-  "include": ["tests/**/*.ts"]
+  "include": ["tests/**/*.ts"],
+  "references": [{ "path": "./tsconfig.workers.json" }]
 }

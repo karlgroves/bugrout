@@ -202,7 +202,7 @@ try {
     // ENOENT is a missing binary. Anything else — ENOBUFS on a huge history,
     // EACCES — is a different problem and must not be reported as a missing
     // install, which would send someone to bootstrap.sh for no reason.
-    if (result.error.code === "ENOENT") {
+    if (/** @type {NodeJS.ErrnoException} */ (result.error).code === "ENOENT") {
       console.error(
         "trufflehog is not installed — run `bash scripts/bootstrap.sh` first.",
       );
