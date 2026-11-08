@@ -450,6 +450,28 @@ describe("downloadRegion", () => {
       });
     });
 
+    // The live manifest today: sizes, no routing archive, and no MD5 until
+    // the package is rebuilt. The map is checked by size alone, nothing is
+    // hashed, and the region is recorded as current.
+    it("verifies a package without MD5s by size alone, without hashing", async () => {
+      respondWith(200);
+
+      await downloadRegion(MARYLAND);
+
+      expect(mockGetInfoAsync).toHaveBeenCalledWith(PART_PATH, undefined);
+      expect(mockGetInfoAsync).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ md5: true }),
+      );
+      expect(mockMoveAsync).toHaveBeenCalledWith({
+        from: PART_PATH,
+        to: PMTILES_PATH,
+      });
+      expect(insertDownloadedRegion).toHaveBeenCalledWith(
+        expect.objectContaining({ version: "2026.09.28" }),
+      );
+    });
+
     it("records no routing path for a package that has none", async () => {
       respondWith(200);
 
