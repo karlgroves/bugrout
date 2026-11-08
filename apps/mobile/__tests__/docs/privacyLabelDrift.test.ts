@@ -195,6 +195,19 @@ describe("route endpoints vs. the label", () => {
     );
     expect(PRIVACY_POLICY).toContain("routing service");
   });
+
+  // #206 corrected the labels and the policy but not the product spec or the
+  // onboarding screen, both of which still said location stays on-device.
+  it("does not say location stays on the device in spec.md or onboarding", () => {
+    if (!remoteRouting) return;
+    const onDeviceOnly = /processed on-device only/i;
+    const spec = readFileSync(join(APP_ROOT, "..", "..", "spec.md"), "utf8");
+    expect(spec).not.toMatch(onDeviceOnly);
+    expect(spec).toContain("routing service");
+    const onboarding = readSource("app", "onboarding", "index.tsx");
+    expect(onboarding).not.toMatch(onDeviceOnly);
+    expect(onboarding).toContain("routing service");
+  });
 });
 
 describe("destination search vs. the label", () => {

@@ -2,7 +2,8 @@
  * Route Engine
  *
  * High-level routing service that wraps Valhalla and adds:
- * - Threat avoidance (exclude polygons for fire/flood/weather zones)
+ * - Threat avoidance (exclude polygons for fire and flood zones; weather zones
+ *   are warned about in the preview, not routed around)
  * - (not yet) ELF congestion weighting: the pipeline writes a weight table
  *   but applies it to no route, so routes here are plain fastest-path (#195)
  * - Waypoint insertion for resource stops

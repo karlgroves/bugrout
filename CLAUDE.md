@@ -86,7 +86,7 @@ pnpm run doctor
 cd apps/mobile
 npx expo prebuild --platform android --no-install
 pnpm run e2e:build   # gradle assembleDebug + assembleAndroidTest
-pnpm run e2e:smoke   # all five specs, against a Pixel_6_API_33 AVD
+pnpm run e2e:smoke   # all nine specs, against a Pixel_6_API_33 AVD
 
 # Run a specific backend worker locally
 cd backend/workers/tile-server && pnpm dev
@@ -159,8 +159,11 @@ bash scripts/bootstrap.sh
   avoid that segment. **Not yet applied (#195):** `bake-elf-weights.sh` writes
   the weight table but copies the tiles unchanged, and nothing reads the table,
   so every route today is plain fastest-path.
-- **Threat avoidance:** Active fire/flood/weather polygons are converted to
-  Valhalla `exclude_polygons` to route around danger zones. Logic in
+- **Threat avoidance:** Active fire and flood polygons are converted to Valhalla
+  `exclude_polygons` to route around danger zones. Weather polygons (tornado,
+  hurricane, ice storm, anything NWS reports that is not fire- or flood-worded)
+  are deliberately **not** excluded — they are only warned about in the route
+  preview (pinned by `ThreatAvoidance.test.ts`). Logic in
   `services/routing/ThreatAvoidance.ts`.
 - **Three-tap navigation:** Launch → "Bug Out" FAB → Select destination →
   Confirm route. The primary UX flow must never exceed 3 taps.
@@ -282,10 +285,13 @@ breaks a listed feature, and re-check it before every submission.
 ## Data Sources (all free/open for MVP)
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
-(flood zones), USFS/NIFC (fire perimeters), OSM `amenity=fuel` (fuel stations:
-packaged with each region by `data-pipeline/osm/extract-fuel.sh`, refreshed
-online through Overpass; NREL adds EV/alternative fuels only when a key is set),
-USGS NWIS (water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
+(flood zones — **not live**: `FEMAService.loadFloodZones` returns `[]` and
+region packages ship an empty flood GeoJSON), USFS/NIFC (fire perimeters — **not
+live**: the configured NIFC layer returns 400; see the removed claims in
+`docs/store-listing.md`), OSM `amenity=fuel` (fuel stations: packaged with each
+region by `data-pipeline/osm/extract-fuel.sh`, refreshed online through
+Overpass; NREL adds EV/alternative fuels only when a key is set), USGS NWIS
+(water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
 (shelters; source and terms in `services/resources/ShelterService.ts`).
 
 ## Reviewing PRs

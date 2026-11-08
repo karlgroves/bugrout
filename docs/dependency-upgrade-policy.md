@@ -273,8 +273,8 @@ failure class above, and both are already gating.
 
 ## GitHub Actions are pinned to commit SHAs
 
-Every `uses:` across the seven workflows is pinned to a full 40-character commit
-SHA, with the human-readable version in a trailing comment:
+Every `uses:` across the eleven workflows is pinned to a full 40-character
+commit SHA, with the human-readable version in a trailing comment:
 
 ```yaml
 - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

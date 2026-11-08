@@ -57,7 +57,7 @@ on:
       - "apps/mobile/components/common/DownloadGuide.tsx"
       # The screens the suite drives by accessible name or visible text. It
       # navigates between them by tapping the tab titles in (tabs)/_layout.tsx,
-      # which four of the five spec files depend on, and it addresses controls
+      # which eight of the nine spec files depend on, and it addresses controls
       # on each screen by label — "Clear search", "Scenario name", "Create
       # Scenario". A rename in any of these breaks specs while touching none of
       # the paths above; #116 edits two of them and this job runs zero times.
