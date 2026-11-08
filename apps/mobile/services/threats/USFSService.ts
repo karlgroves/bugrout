@@ -32,7 +32,9 @@ interface NIFCResponse {
  */
 export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
   const resp = await fetch(NIFC_URL, { signal: timeoutSignal(15000) });
-  if (!resp.ok) return [];
+  // A failed feed must not read as "no active fires" (#288): the caller keeps
+  // the cached perimeters, retries on the next sync, and says it failed.
+  if (!resp.ok) throw new Error(`NIFC perimeters: HTTP ${resp.status}`);
 
   const data = (await resp.json()) as NIFCResponse;
 
