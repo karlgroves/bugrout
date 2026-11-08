@@ -12,14 +12,18 @@ import { withUsableGeometry } from "@/utils/geo";
 import type { ThreatZone } from "@bugrout/shared";
 
 const NIFC_URL =
-  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/NIFC_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,irwin_PercentContained&f=geojson";
+  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/NIFC_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID,poly_IncidentName,irwin_PercentContained&f=geojson";
 
 const CACHE_TTL_MS = 43200000; // 12 hours
 
 /** Shape of the NIFC fire-perimeter GeoJSON response (fields may be absent). */
 interface NIFCResponse {
   features: {
-    /** ArcGIS emits the layer's OBJECTID here; unique per perimeter. */
+    /**
+     * The layer's OBJECTID, unique per perimeter. ArcGIS sets the GeoJSON
+     * feature id only when OBJECTID (or *) is in outFields, so NIFC_URL must
+     * keep requesting it; without it every feature arrives with no id.
+     */
     id?: string | number | null;
     properties: {
       poly_IncidentName?: string;

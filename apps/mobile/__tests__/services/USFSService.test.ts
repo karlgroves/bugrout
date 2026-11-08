@@ -59,4 +59,15 @@ describe("fetchFirePerimeters ids", () => {
     expect(ids[1]).toBe("fire-102");
     expect(new Set(ids).size).toBe(3);
   });
+
+  it("requests OBJECTID, which ArcGIS needs to set each feature id", async () => {
+    mockFeed([]);
+
+    await fetchFirePerimeters();
+
+    const [[requested]] = (global.fetch as jest.Mock<unknown, [string]>).mock
+      .calls;
+    const url = new URL(String(requested));
+    expect(url.searchParams.get("outFields")?.split(",")).toContain("OBJECTID");
+  });
 });
