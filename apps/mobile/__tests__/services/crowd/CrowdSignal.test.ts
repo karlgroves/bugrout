@@ -258,7 +258,10 @@ describe("CrowdSignal — send rate when the endpoint fails (#297)", () => {
 
   it("treats a 5xx as a failure and resets after a success", async () => {
     const { mod, fetchSpy } = load(() => TOKEN);
-    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    fetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
 
     await mod.sendSignal(POSITION, 12, 90);
     clock += 10_000;
@@ -266,10 +269,16 @@ describe("CrowdSignal — send rate when the endpoint fails (#297)", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
     clock += 10_000; // 20 s after the 503
-    await mod.sendSignal(POSITION, 12, 90); // succeeds (default 200)
+    await mod.sendSignal(POSITION, 12, 90); // succeeds
     clock += 10_000;
-    await mod.sendSignal(POSITION, 12, 90);
+    await mod.sendSignal(POSITION, 12, 90); // fails again
     expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+    // The success reset the count, so this is a first failure again: the
+    // wait is 20 s. Without the reset it would be a second failure, 40 s.
+    clock += 20_000;
+    await mod.sendSignal(POSITION, 12, 90);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
   });
 
   it("never runs two sends at once", async () => {
