@@ -36,6 +36,13 @@ describe("sqlite shim with expo-sqlite present", () => {
     expect(isUsingInMemoryDatabase()).toBe(false);
   });
 
+  it("does not report an in-memory database that failed to open", async () => {
+    mockOpen.mockRejectedValue(new Error("SQLITE_NOMEM"));
+
+    await expect(openInMemoryDatabaseAsync()).rejects.toThrow("SQLITE_NOMEM");
+    expect(isUsingInMemoryDatabase()).toBe(false);
+  });
+
   it("opens the named database file", async () => {
     const db = { execAsync: jest.fn() };
     mockOpen.mockResolvedValue(db);

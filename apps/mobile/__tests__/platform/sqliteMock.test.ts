@@ -54,21 +54,66 @@ describe("mock database", () => {
 
   it("throws on a WHERE clause it cannot evaluate instead of wiping the table", async () => {
     await db.runAsync(
-      "INSERT OR REPLACE INTO threat_zones (id, expires_at) VALUES (?, ?)",
+      "INSERT OR REPLACE INTO threat_zones (id, source) VALUES (?, ?)",
       "t1",
-      100,
+      "nws",
     );
 
     await expect(
       db.runAsync(
-        "DELETE FROM threat_zones WHERE expires_at IS NOT NULL AND expires_at < ?",
-        50,
+        "DELETE FROM threat_zones WHERE source = ? OR source = ?",
+        "nws",
+        "usfs",
       ),
+    ).rejects.toThrow("cannot evaluate WHERE");
+    await expect(
+      db.runAsync("DELETE FROM threat_zones WHERE source LIKE ?", "n%"),
+    ).rejects.toThrow("cannot evaluate WHERE");
+    await expect(
+      db.runAsync("DELETE FROM threat_zones WHERE source = ? AND", "nws"),
     ).rejects.toThrow("cannot evaluate WHERE");
 
     await expect(
       db.getAllAsync("SELECT * FROM threat_zones"),
     ).resolves.toHaveLength(1);
+  });
+
+  it("evaluates the expired-threat cleanup the app runs (IS NOT NULL, <)", async () => {
+    for (const [id, expiresAt] of [
+      ["expired", 40],
+      ["live", 100],
+      ["no-expiry", null],
+    ] as const) {
+      await db.runAsync(
+        "INSERT OR REPLACE INTO threat_zones (id, expires_at) VALUES (?, ?)",
+        id,
+        expiresAt,
+      );
+    }
+
+    // The statement in db/queries/threats.ts clearExpiredThreats().
+    await expect(
+      db.runAsync(
+        "DELETE FROM threat_zones WHERE expires_at IS NOT NULL AND expires_at < ?",
+        50,
+      ),
+    ).resolves.toEqual({ changes: 1 });
+
+    const ids = (
+      await db.getAllAsync<{ id: string }>("SELECT * FROM threat_zones")
+    ).map((r) => r.id);
+    expect(ids).toEqual(["live", "no-expiry"]);
+
+    const idsWhere = async (clause: string): Promise<string[]> =>
+      (
+        await db.getAllAsync<{ id: string }>(
+          `SELECT * FROM threat_zones WHERE ${clause}`,
+        )
+      ).map((r) => r.id);
+    await expect(idsWhere("expires_at IS NULL")).resolves.toEqual([
+      "no-expiry",
+    ]);
+    await expect(idsWhere("expires_at IS NOT NULL")).resolves.toEqual(["live"]);
   });
 
   it("applies every AND term of a delete and reports the true count", async () => {
@@ -111,13 +156,38 @@ describe("mock database", () => {
     expect(rows.map((r) => r.id)).toEqual(["b"]);
   });
 
+  it("evaluates the bounding-box select the app runs (BETWEEN ? AND ?)", async () => {
+    for (const [id, lat, lng, type] of [
+      ["inside", 39.0, -77.0, "fuel"],
+      ["inside-shelter", 39.0, -77.0, "shelter"],
+      ["edge", 39.5, -77.0, "fuel"],
+      ["outside", 40.0, -77.0, "fuel"],
+    ] as const) {
+      await db.runAsync(
+        "INSERT OR REPLACE INTO resource_points (id, lat, lng, type) VALUES (?, ?, ?, ?)",
+        id,
+        lat,
+        lng,
+        type,
+      );
+    }
+
+    // The shape of db/queries/resources.ts getResourcesNearPoint(), with type.
+    const rows = await db.getAllAsync<{ id: string }>(
+      `SELECT * FROM resource_points
+    WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ? AND type = ?`,
+      38.5,
+      39.5,
+      -77.5,
+      -76.5,
+      "fuel",
+    );
+    expect(rows.map((r) => r.id)).toEqual(["inside", "edge"]);
+  });
+
   it("throws on a select WHERE it cannot evaluate instead of ignoring it", async () => {
     await expect(
-      db.getAllAsync(
-        "SELECT * FROM resource_points WHERE lat BETWEEN ? AND ?",
-        1,
-        2,
-      ),
+      db.getAllAsync("SELECT * FROM resource_points WHERE lat IN (?, ?)", 1, 2),
     ).rejects.toThrow("cannot evaluate WHERE");
   });
 

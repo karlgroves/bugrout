@@ -94,8 +94,9 @@ export async function openDatabaseAsync(name: string): Promise<SQLiteDatabase> {
  * a fresh empty file.
  */
 export async function openInMemoryDatabaseAsync(): Promise<SQLiteDatabase> {
+  const db = await openDatabaseAsync(":memory:");
   inMemory = true;
-  return openDatabaseAsync(":memory:");
+  return db;
 }
 
 /**
@@ -157,44 +158,120 @@ function mockInsert(
   return { changes: 1 };
 }
 
-/** A WHERE clause the mock can evaluate: `col = ?` terms joined by AND. */
+/** One term of a WHERE clause the mock can evaluate. */
+interface MockTerm {
+  column: string;
+  /** `=`, `<`, `<=`, `>`, `>=`, `BETWEEN`, `IS NULL` or `IS NOT NULL`. */
+  op: string;
+  /** Index of the term's first `?` parameter. */
+  offset: number;
+  /** How many `?` parameters the term binds. */
+  arity: number;
+}
+
+/** A WHERE clause the mock can evaluate: terms joined by AND. */
 interface MockWhere {
-  columns: string[];
+  terms: MockTerm[];
+  /** The total number of `?` parameters the clause binds. */
+  arity: number;
+}
+
+/**
+ * One term the mock understands, followed by `AND <another term>` or the end
+ * of the clause: `col = ?` (or `<`, `<=`, `>`, `>=`), `col IS [NOT] NULL`, or
+ * `col BETWEEN ? AND ?`.
+ */
+const MOCK_TERM =
+  /^(\w+)\s*(?:(<=|>=|=|<|>)\s*\?|IS\s+(NOT\s)?\s*NULL|(BETWEEN)\s+\?\s+AND\s+\?)\s*(?:\bAND\s+(?=\S)|$)/i;
+
+/** Builds the term `match` (a {@link MOCK_TERM} match) describes. */
+function mockTerm(match: RegExpExecArray, offset: number): MockTerm {
+  const [, column = "", cmp, not, between] = match;
+  if (cmp) return { column, op: cmp, offset, arity: 1 };
+  if (between) return { column, op: "BETWEEN", offset, arity: 2 };
+  return { column, op: not ? "IS NOT NULL" : "IS NULL", offset, arity: 0 };
 }
 
 /**
  * Parses the WHERE clause of `sql`, if any.
  *
- * Only conjunctions of `col = ?` are understood. Anything else throws rather
- * than being guessed at: a guess used to turn `expires_at < ?` into "delete
- * every row" and report `changes: 0` (#299).
+ * Only AND-joined terms of the shapes in {@link MOCK_TERM} are understood —
+ * the ones the app's queries use. Anything else (OR, LIKE, IN, functions)
+ * throws rather than being guessed at: a guess used to turn `expires_at < ?`
+ * into "delete every row" and report `changes: 0` (#299).
  *
- * @returns The clause's columns in parameter order, or `null` if there is no
- *   WHERE clause.
+ * @returns The clause's terms, or `null` if there is no WHERE clause.
  */
 function parseMockWhere(sql: string): MockWhere | null {
   const match = /\bWHERE\b([\s\S]*?)(?:\bORDER\s+BY\b|\bLIMIT\b|$)/i.exec(sql);
   if (!match) return null;
-  const terms = (match[1] ?? "").trim().split(/\s+AND\s+/i);
-  const columns = terms.map((term) => {
-    const col = /^(\w+)\s*=\s*\?$/.exec(term.trim())?.[1];
-    if (!col) {
+  let rest = (match[1] ?? "").trim();
+  const terms: MockTerm[] = [];
+  let arity = 0;
+  do {
+    const term = MOCK_TERM.exec(rest);
+    if (!term) {
       throw new Error(`[BugRout] Mock database cannot evaluate WHERE: ${sql}`);
     }
-    return col;
-  });
-  return { columns };
+    const parsed = mockTerm(term, arity);
+    terms.push(parsed);
+    arity += parsed.arity;
+    rest = rest.slice(term[0].length);
+  } while (rest);
+  return { terms, arity };
 }
 
-/** Whether `row` satisfies every `col = ?` term of `where`. */
+/** A value the mock compares: what a row or a parameter holds. */
+type MockValue = number | string;
+
+/**
+ * How each binary operator compares a row value with its parameters (`b` is
+ * the second parameter, used only by BETWEEN).
+ */
+const MOCK_COMPARE: Record<
+  string,
+  (value: MockValue, a: MockValue, b: MockValue) => boolean
+> = {
+  "=": (v, a) => v === a,
+  "<": (v, a) => v < a,
+  "<=": (v, a) => v <= a,
+  ">": (v, a) => v > a,
+  ">=": (v, a) => v >= a,
+  BETWEEN: (v, a, b) => v >= a && v <= b,
+};
+
+/**
+ * Whether `value` satisfies `term`. As in SQL, a NULL on either side of a
+ * comparison is never a match; only `IS [NOT] NULL` tests for it.
+ */
+function mockTermMatches(
+  value: unknown,
+  term: MockTerm,
+  params: unknown[],
+): boolean {
+  if (term.op === "IS NULL") return value == null;
+  if (term.op === "IS NOT NULL") return value != null;
+  const args = params.slice(term.offset, term.offset + term.arity);
+  if (value == null || args.some((a) => a == null)) return false;
+  const compare = MOCK_COMPARE[term.op];
+  const first = args[0] as MockValue;
+  const second = (args[1] ?? args[0]) as MockValue;
+  return compare ? compare(value as MockValue, first, second) : false;
+}
+
+/** Whether `row` satisfies every term of `where`. */
 function mockMatches(
   row: unknown,
   where: MockWhere | null,
   params: unknown[],
 ): boolean {
   if (!where) return true;
-  return where.columns.every(
-    (col, i) => (row as Record<string, unknown>)[col] === params[i],
+  return where.terms.every((term) =>
+    mockTermMatches(
+      (row as Record<string, unknown>)[term.column],
+      term,
+      params,
+    ),
   );
 }
 
@@ -253,7 +330,7 @@ function mockLimit<T>(
 }
 
 /**
- * Handles a mock SELECT statement: `col = ?` WHERE terms, a single-column
+ * Handles a mock SELECT statement: AND-joined WHERE terms, a single-column
  * ORDER BY, then LIMIT (a literal or a `?` parameter).
  */
 function mockSelect<T>(
@@ -270,12 +347,7 @@ function mockSelect<T>(
     mockMatches(r, where, params),
   ) as T[];
 
-  return mockLimit(
-    mockOrder(rows, sql),
-    sql,
-    params,
-    where?.columns.length ?? 0,
-  );
+  return mockLimit(mockOrder(rows, sql), sql, params, where?.arity ?? 0);
 }
 
 /** Normalises a thrown value so a rejection always carries an Error. */
