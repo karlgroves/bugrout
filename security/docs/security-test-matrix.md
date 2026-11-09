@@ -33,30 +33,49 @@ writing a team name in the column would be a fiction.
 | — Unlinkability of telemetry token   | Token minted from a CSPRNG only                                                                                                                                                                                                                                                                                                       | jest                             | `apps/mobile/__tests__/`                                                                                                                             | every PR                             | block                         |
 | — Privacy policy accuracy            | Policy claims asserted against the code                                                                                                                                                                                                                                                                                               | jest                             | `apps/mobile/__tests__/services/privacyPolicy.test.ts`                                                                                               | every PR                             | block                         |
 
+Rows are WSTG categories, not files: `security/tests/` holds 12 test files and
+some of them (store URLs, deep-link decoding, asset sizing, pnpm overrides, the
+Play service account, the secret scanner, the tile origin, the ZAP step) have no
+category row here yet. `ls security/tests/` is the full list.
+
 ## The mutation check
 
 Every endpoint control in the table above was verified to **fail** when the
 control is removed. A test that still passes with the control deleted pins
 nothing and is indistinguishable from one that does.
 
-| Control removed                                           | Result          |
-| --------------------------------------------------------- | --------------- |
-| route-tracker auth middleware deleted                     | 6 tests fail    |
-| tile-server rate-limit outcome ignored                    | 3 tests fail    |
-| tile-server `API_KEY` guard reintroduced                  | 1 test fails    |
-| `regionId` allowlist removed                              | 1 test fails    |
-| 64 KB body cap removed                                    | 1 test fails    |
-| crowd-signal coordinate range checks removed              | 1 test fails    |
-| `X-Content-Type-Options` removed                          | 3 tests fail    |
-| route-tracker limiter keyed on leftmost `X-Forwarded-For` | 1 test fails    |
-| route-tracker Redis-failure 503 handlers removed          | 2 tests fail    |
-| crowd-signal body counted on Content-Length only          | 2 tests fail    |
-| crowd-signal declared Content-Length early reject removed | 1 test fails    |
-| crowd-signal UUID token check removed                     | 1 test fails    |
-| crowd-signal limiter bypassed                             | 2 tests fail    |
-| crowd-signal limiter keyed on a constant                  | 1 test fails    |
-| crowd-signal signal key not bucketed per 10 s             | 1 test fails    |
-| _(nothing removed)_                                       | 40 pass, 0 fail |
+The baseline these rows are read against, measured on 2026-11-09 by
+`pnpm run security:tests` on Node 22 (`.nvmrc`), which prints its own totals:
+**119 tests, 34 suites, 119 pass, 0 fail**, across the 12 test files in
+`security/tests/`. The four files this table mutates account for 57 of them —
+`auth.security.test.ts` 14, `input-validation.security.test.ts` 24,
+`headers.security.test.ts` 9, `route-tracker-resilience.security.test.ts` 10.
+Run the whole suite rather than one file: several of these controls are asserted
+from more than one.
+
+Each "n tests fail" figure below is what was observed when that row was added.
+They have not all been re-measured in one pass since, so treat a figure as a
+record of one past run, not as a current assertion — re-measure the row you
+touch.
+
+| Control removed                                           | Result                                              |
+| --------------------------------------------------------- | --------------------------------------------------- |
+| route-tracker auth middleware deleted                     | 6 tests fail                                        |
+| tile-server rate-limit outcome ignored                    | 3 tests fail                                        |
+| tile-server `API_KEY` guard reintroduced                  | 1 test fails                                        |
+| `regionId` allowlist removed                              | 1 test fails                                        |
+| 64 KB body cap removed                                    | 1 test fails                                        |
+| crowd-signal coordinate range checks removed              | 1 test fails                                        |
+| `X-Content-Type-Options` removed                          | 3 tests fail                                        |
+| route-tracker limiter keyed on leftmost `X-Forwarded-For` | 1 test fails                                        |
+| route-tracker Redis-failure 503 handlers removed          | 2 tests fail                                        |
+| crowd-signal body counted on Content-Length only          | 2 tests fail                                        |
+| crowd-signal declared Content-Length early reject removed | 1 test fails                                        |
+| crowd-signal UUID token check removed                     | 1 test fails                                        |
+| crowd-signal limiter bypassed                             | 2 tests fail                                        |
+| crowd-signal limiter keyed on a constant                  | 1 test fails                                        |
+| crowd-signal signal key not bucketed per 10 s             | 1 test fails                                        |
+| _(nothing removed)_                                       | 119 pass, 0 fail (whole suite, measured 2026-11-09) |
 
 Repeat this whenever a test is added. It takes a minute and it is the only thing
 that distinguishes a regression test from decoration.

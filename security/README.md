@@ -16,13 +16,16 @@ security/
     zap-exclusions.txt          §19 URL exclusions, read by the DAST workflow
   scripts/
     semgrep.mjs                 builds and runs Semgrep from config/semgrep.yml
+    trufflehog.mjs              §5.1 — secrets, with the value withheld
     check-headers.js            §15 — headers as a client actually receives them
+    check-overrides.mjs         pnpm override expiry/justification check
+    check-store-urls.mjs        store-listing URL check
     generate-security-report.mjs  §21 — security-summary.{md,json}
-  tests/
-    auth.security.test.ts       §10.1 / §10.2
-    input-validation.security.test.ts  §10.4
-    headers.security.test.ts    §10.6 / §5.10
-    helpers.ts                  fakes for R2, KV, Redis; a node:http driver
+  tests/                        12 *.security.test.ts files (119 tests as of
+                                2026-11-09) plus helpers.ts — fakes for R2, KV
+                                and Redis, and a node:http driver. WSTG
+                                mapping in docs/security-test-matrix.md;
+                                run with `pnpm run security:tests`
   docs/
     security-automation.md      §22
     security-exceptions.md      §22
