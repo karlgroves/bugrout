@@ -113,7 +113,7 @@ export /**
  */
 const TERMS_OF_SERVICE = `
 BugRout Terms of Service
-Last Updated: October 2026
+Last Updated: November 2026
 
 1. ACCEPTANCE OF TERMS
 
@@ -121,7 +121,7 @@ By downloading, installing, or using BugRout, you agree to these Terms of Servic
 
 2. IMPORTANT SAFETY DISCLAIMER
 
-BugRout provides ADVISORY ROUTING ONLY. Route suggestions are based on statistical models and cached data that may not reflect real-time conditions.
+BugRout provides ADVISORY ROUTING ONLY. Route suggestions are based on map data and cached threat information that may not reflect real-time conditions.
 
 YOU MUST NOT rely solely on this app for life-safety decisions. Always:
 - Follow official evacuation orders from local authorities
@@ -131,21 +131,23 @@ YOU MUST NOT rely solely on this app for life-safety decisions. Always:
 
 BugRout's routes come from map data and cached threat information. They do not predict congestion, and they CANNOT account for:
 - Roads that have just been closed or damaged
-- Real-time traffic conditions (when offline)
+- Real-time traffic conditions, which BugRout does not receive from any source
 - Bridges, tunnels, or roads destroyed by the event
 - Local conditions only visible to on-the-ground observers
 
 3. DESCRIPTION OF SERVICE
 
 BugRout is a mobile navigation application that provides:
-- Offline routing using pre-downloaded map data
+- Routing, which requires a data connection: every route is calculated by BugRout's routing service
+- Offline map display from pre-downloaded map tiles
 - Threat zone overlays (fire, flood, weather) from government data sources
 - Resource location markers (fuel, water, shelter)
 
 4. OFFLINE FUNCTIONALITY
 
-BugRout is designed to work without internet connectivity. However:
-- Map tiles must be downloaded before going offline
+Parts of BugRout work without internet connectivity, but routing does not:
+- Routing requires a data connection. Every route is calculated by BugRout's routing service over the network, so no new route can be calculated while offline
+- Map display works offline, but map tiles must be downloaded before going offline
 - Threat data is cached and may become stale
 - Resource locations are cached and may be outdated
 - Crowd Signal features require connectivity

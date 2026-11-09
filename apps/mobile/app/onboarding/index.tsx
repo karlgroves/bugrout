@@ -99,8 +99,8 @@ function OnboardingScreen(): React.JSX.Element {
             </Text>
             <Text style={styles.disclaimerText}>
               BugRout provides advisory routing only. Route suggestions are
-              based on statistical models and may not reflect real-time
-              conditions.
+              based on map data and cached threat information, and may not
+              reflect real-time conditions.
             </Text>
             <Text style={styles.disclaimerText}>
               Do not rely solely on this app for life-safety decisions. Always
