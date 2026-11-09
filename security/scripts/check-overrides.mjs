@@ -42,7 +42,33 @@ function compare(a, b) {
   if (a[3] === b[3]) return 0;
   if (a[3] === "") return 1;
   if (b[3] === "") return -1;
-  return a[3] < b[3] ? -1 : 1;
+  return comparePrerelease(a[3], b[3]);
+}
+
+/**
+ * SemVer precedence (spec rule 11) for two non-empty prerelease strings.
+ *
+ * Dot-separated identifiers compare one at a time: numeric ones numerically,
+ * others in ASCII order, and a numeric identifier always sorts below a
+ * non-numeric one. When every shared identifier ties, the longer list wins.
+ * A plain `<` over the whole string instead read `beta.10` as below `beta.2`,
+ * which can report a dead override as live (#351).
+ */
+function comparePrerelease(a, b) {
+  const left = a.split(".");
+  const right = b.split(".");
+  const shared = Math.min(left.length, right.length);
+  for (let i = 0; i < shared; i++) {
+    const x = left[i];
+    const y = right[i];
+    if (x === y) continue;
+    const xIsNumber = /^\d+$/.test(x);
+    const yIsNumber = /^\d+$/.test(y);
+    if (xIsNumber && yIsNumber) return Number(x) - Number(y);
+    if (xIsNumber !== yIsNumber) return xIsNumber ? -1 : 1;
+    return x < y ? -1 : 1;
+  }
+  return left.length - right.length;
 }
 
 const OPS = {
