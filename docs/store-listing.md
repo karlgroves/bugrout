@@ -25,16 +25,16 @@ state.
 
 ## Claims removed until the work lands
 
-| Removed claim                                      | Why it's not true today                                        | Reinstate with |
-| -------------------------------------------------- | -------------------------------------------------------------- | -------------- |
-| Offline routing                                    | Routes come from a remote server; regions ship no graph        | #193, #146     |
-| Evacuation Load Factor (ELF) congestion routing    | ELF is applied to no route                                     | #195           |
-| Fuel stations; fuel stops                          | The live Maryland package predates packaged fuel; rebuild it   | #200           |
-| Wildfire perimeters                                | The NIFC service queried returns 400 (2026-10-05)              | not yet filed  |
-| Flood zones                                        | The app never downloads the region's flood GeoJSON             | not yet filed  |
-| "Location processed on-device only"; "No tracking" | Route endpoints and searches leave the device; PostHog can run | #206           |
-| Crowd signal                                       | Its endpoint doesn't resolve and the workers aren't deployed   | #144           |
-| "Live" location in the emergency text              | The text carries a one-time snapshot                           | —              |
+| Removed claim                                      | Why it's not true today                                            | Reinstate with  |
+| -------------------------------------------------- | ------------------------------------------------------------------ | --------------- |
+| Offline routing                                    | Routes come from a remote server; regions ship no graph            | #193, #146      |
+| Evacuation Load Factor (ELF) congestion routing    | ELF is applied to no route                                         | #195            |
+| Fuel stations; fuel stops                          | The live Maryland package predates packaged fuel; rebuild it       | #200            |
+| Wildfire perimeters                                | The feed answers again since #336; the listing copy still omits it | next submission |
+| Flood zones                                        | The app never downloads the region's flood GeoJSON                 | not yet filed   |
+| "Location processed on-device only"; "No tracking" | Route endpoints and searches leave the device; PostHog can run     | #206            |
+| Crowd signal                                       | Its endpoint doesn't resolve and the workers aren't deployed       | #144            |
+| "Live" location in the emergency text              | The text carries a one-time snapshot                               | —               |
 
 ## Submission blockers outside the build
 

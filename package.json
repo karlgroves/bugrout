@@ -41,6 +41,7 @@
     "security:report": "node security/scripts/generate-security-report.mjs",
     "security": "run-p security:audit security:osv security:secrets security:tests security:fs security:docker security:iac",
     "license:check": "node scripts/check-licenses.mjs",
+    "threats:check": "node scripts/check-threat-feeds.mjs",
     "license:report": "pnpm licenses list --prod --long > reports/licenses.txt || pnpm licenses list --prod",
     "check": "run-s format:check lint typecheck knip security:overrides test markdownlint",
     "check:all": "run-s check doctor dupes links lint:actions security security:semgrep license:check",
