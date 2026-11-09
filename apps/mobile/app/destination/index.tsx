@@ -3,9 +3,11 @@
  *
  * Three input modes:
  * 1. Saved plans, then destinations saved in Settings (quick-select, #187)
- * 2. Address search via Nominatim (online only, debounced) — see
- *    services/geocoding/Geocoder.ts, which owns the request and refuses to
- *    make it before the disclaimer is accepted
+ * 2. Address search via Nominatim (online only, sent when the search is
+ *    submitted, never while typing — see services/geocoding/Geocoder.ts, which
+ *    owns the request and refuses to make it before the disclaimer is
+ *    accepted). Nominatim's usage policy forbids client-side auto-complete
+ *    outright, so the request is tied to an explicit submit (#208).
  * 3. Recent destinations from SQLite
  *
  * Tapping a destination routes to it and opens the route preview, whose Go is
@@ -16,7 +18,7 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity -- pre-existing oversized destination picker with inline search/scenario/recent list rendering; tracked in docs/tech-debt.md (decompose destination picker) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -60,7 +62,17 @@ interface GeocodingResult {
   lng: number;
 }
 
-const SEARCH_DEBOUNCE_MS = 400;
+/** Shortest query that is worth sending to the geocoder. */
+const MIN_QUERY_LENGTH = 3;
+
+/**
+ * Attribution for the search results, which are OpenStreetMap data.
+ *
+ * Nominatim's usage policy requires the data to be attributed "as suitable for
+ * your medium"; the bundled terms name the ODbL, but a line of small print in
+ * the legal screen is not the result list the user is looking at (#208).
+ */
+const SEARCH_ATTRIBUTION = "Search results © OpenStreetMap contributors";
 
 /** How many recent destinations the picker lists. */
 const RECENTS_SHOWN = 5;
@@ -95,7 +107,6 @@ function DestinationScreen(): React.JSX.Element {
     dest: LatLng;
     label: string;
   } | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setGettingLocation(true);
@@ -131,22 +142,29 @@ function DestinationScreen(): React.JSX.Element {
     }
   }, [getPosition, params.pinLat, params.pinLng]);
 
-  // Debounced search
-  const handleSearchChange = useCallback(
+  /**
+   * Typing sends nothing. Nominatim's usage policy lists client-side
+   * auto-complete under "strictly forbidden", so the request waits for an
+   * explicit submit rather than for a pause in typing (#208).
+   */
+  const handleSearchChange = useCallback((text: string) => {
+    setQuery(text);
+    setResults([]);
+    setNoResults(false);
+  }, []);
+
+  /**
+   * Run the search the user asked for.
+   *
+   * Takes the text rather than reading the `query` state so that the keyboard's
+   * submit uses the text the field actually submitted, which is the authority
+   * on what the user typed.
+   */
+  const runSearch = useCallback(
     (text: string) => {
-      setQuery(text);
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      if (text.length < 3) {
-        setResults([]);
-        setNoResults(false);
-        return;
-      }
-
-      debounceRef.current = setTimeout(() => {
-        void searchAddress(text);
-      }, SEARCH_DEBOUNCE_MS);
+      const q = text.trim();
+      if (q.length < MIN_QUERY_LENGTH) return;
+      void searchAddress(q);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- searchAddress is stable (memoized below) and including it would create a declaration-order cycle
     [],
@@ -249,20 +267,33 @@ function DestinationScreen(): React.JSX.Element {
 
       {/* Search input */}
       <View style={styles.searchRow}>
-        <FontAwesome
-          name="search"
-          size={16}
-          color={colors.textMuted}
-          style={styles.searchIcon}
-        />
+        <Pressable
+          onPress={() => {
+            runSearch(query);
+          }}
+          disabled={query.trim().length < MIN_QUERY_LENGTH}
+          style={styles.searchButton}
+          accessibilityRole="button"
+          accessibilityLabel="Search"
+          accessibilityHint="Looks up the address you typed"
+          accessibilityState={{
+            disabled: query.trim().length < MIN_QUERY_LENGTH,
+          }}
+          testID="destination-search-submit"
+        >
+          <FontAwesome name="search" size={16} color={colors.textMuted} />
+        </Pressable>
         <TextInput
           style={styles.searchInput}
           placeholder="Search address or city..."
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={handleSearchChange}
+          onSubmitEditing={(e) => {
+            runSearch(e.nativeEvent.text);
+          }}
           accessibilityLabel="Search for an address"
-          accessibilityHint="Type at least three characters to look up matching addresses and cities"
+          accessibilityHint="Type at least three characters, then search to look up matching addresses and cities"
           returnKeyType="search"
           testID="destination-search-input"
         />
@@ -288,6 +319,12 @@ function DestinationScreen(): React.JSX.Element {
 
       {searching ? (
         <ActivityIndicator style={styles.spinner} color={colors.accent} />
+      ) : null}
+
+      {results.length > 0 ? (
+        <Text style={styles.attribution} testID="search-attribution">
+          {SEARCH_ATTRIBUTION}
+        </Text>
       ) : null}
 
       {noResults && !searching ? (
@@ -602,8 +639,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: spacing.md,
   },
-  searchIcon: {
+  searchButton: {
     marginRight: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: touchTarget.minHeight,
+    minHeight: touchTarget.minHeight,
+  },
+  attribution: {
+    ...typography.caption,
+    color: colors.textMuted,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   searchInput: {
     flex: 1,

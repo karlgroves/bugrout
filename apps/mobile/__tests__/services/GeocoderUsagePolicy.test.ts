@@ -1,10 +1,20 @@
 /**
  * Destination search stays within Nominatim's usage policy (#208).
  *
- * The OSM Foundation blocks apps that send a generic User-Agent or more than
- * one request per second, and can do it without notice — and an evacuation is
- * when every install searches at once. The UA used to be "BugRout/1.0", and
- * the picker's 400 ms debounce let a steady typist send two or three a second.
+ * The OSM Foundation bans apps that send a generic User-Agent or more than one
+ * request per second — and an evacuation is when every install searches at
+ * once. The UA used to be "BugRout/1.0", and the picker's 400 ms debounce let a
+ * steady typist send two or three a second.
+ *
+ * Two limits of what this file can prove are worth stating, because a green
+ * suite here has already been mistaken for compliance:
+ *
+ * - The 1 req/s cap is **per application** ("the sum of traffic by all your
+ *   users should not exceed the limits"), so the interval pinned below bounds
+ *   one device and nothing more.
+ * - The policy's ban on client-side auto-complete is a property of the caller,
+ *   not of this module. It is pinned in
+ *   `__tests__/screens/destinationSearchSubmit.test.tsx`.
  */
 
 import type * as GeocoderNamespace from "@/services/geocoding/Geocoder";
@@ -53,6 +63,31 @@ describe("Nominatim User-Agent", () => {
     await geocoder.searchDestinations("baltimore");
 
     expect(userAgentOf(0)).toBe("BugRout/1.2.3 (+https://bugrout.app/support)");
+  });
+});
+
+describe("switchable endpoint", () => {
+  it("sends to the configured geocoder rather than a hardcoded host", async () => {
+    process.env.EXPO_PUBLIC_GEOCODER_URL = "https://geocode.example.test";
+    try {
+      const geocoder = loadGeocoder();
+      await geocoder.searchDestinations("baltimore");
+
+      const sent = new URL(String(fetchSpy.mock.calls[0]?.[0]));
+      expect(sent.origin).toBe("https://geocode.example.test");
+      expect(sent.pathname).toBe("/search");
+    } finally {
+      delete process.env.EXPO_PUBLIC_GEOCODER_URL;
+    }
+  });
+
+  it("falls back to the public endpoint when nothing is configured", async () => {
+    const geocoder = loadGeocoder();
+    await geocoder.searchDestinations("baltimore");
+
+    expect(new URL(String(fetchSpy.mock.calls[0]?.[0])).origin).toBe(
+      "https://nominatim.openstreetmap.org",
+    );
   });
 });
 
