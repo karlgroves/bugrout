@@ -57,15 +57,16 @@ beforeAll(async () => {
 });
 
 it("routes through a packaged station near the road", async () => {
-  const waypoints = await getResourceWaypoints(ROUTE, [
+  const plan = await getResourceWaypoints(ROUTE, [
     { type: "fuel", maxDetour: 10_000, enabled: true },
   ]);
-  expect(waypoints).toEqual([{ lat: 39.02, lng: -75.99 }]);
+  expect(plan.waypoints).toEqual([{ lat: 39.02, lng: -75.99 }]);
+  expect(plan.dropped).toEqual([]);
 });
 
 it("passes up a station further off the road than the detour allows", async () => {
-  const waypoints = await getResourceWaypoints(ROUTE, [
+  const plan = await getResourceWaypoints(ROUTE, [
     { type: "fuel", maxDetour: 1_000, enabled: true },
   ]);
-  expect(waypoints).toEqual([]);
+  expect(plan.waypoints).toEqual([]);
 });

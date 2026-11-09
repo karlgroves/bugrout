@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { Route, RouteStatus, LatLng } from "@bugrout/shared";
+import type { DroppedStop, Route, RouteStatus, LatLng } from "@bugrout/shared";
 
 /** Which view of a route is showing: the map or the directions list (#192). */
 export type RouteView = "map" | "directions";
@@ -25,6 +25,12 @@ interface RouteState {
    * about this drive, not a setting, so it clears with the route (#203).
    */
   fuelRangeMeters: number | null;
+  /**
+   * Resource stops the driver asked for that this route does not include, and
+   * why (#341). Replaced on every calculation and cleared with the route, so
+   * it always describes the route currently in hand.
+   */
+  droppedStops: DroppedStop[];
 
   /**
    * Store a calculated route. It is `previewing` until {@link startNavigation},
@@ -41,6 +47,8 @@ interface RouteState {
   setRouteView: (view: RouteView) => void;
   /** Record the driver's stated range, or `null` when they skip it (#203). */
   setFuelRange: (meters: number | null) => void;
+  /** Record the stops this route left out, or `[]` when it left out none. */
+  setDroppedStops: (dropped: DroppedStop[]) => void;
   clearRoute: () => void;
 }
 
@@ -55,6 +63,7 @@ const useRouteStore = create<RouteState>((set, get) => ({
   destination: null,
   routeView: "map",
   fuelRangeMeters: null,
+  droppedStops: [],
 
   setRoute: (route) => {
     set((state) => ({
@@ -98,6 +107,9 @@ const useRouteStore = create<RouteState>((set, get) => ({
   setFuelRange: (meters) => {
     set({ fuelRangeMeters: meters });
   },
+  setDroppedStops: (dropped) => {
+    set({ droppedStops: dropped });
+  },
   clearRoute: () => {
     set({
       activeRoute: null,
@@ -107,6 +119,7 @@ const useRouteStore = create<RouteState>((set, get) => ({
       destination: null,
       routeView: "map",
       fuelRangeMeters: null,
+      droppedStops: [],
     });
   },
 }));
