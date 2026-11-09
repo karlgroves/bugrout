@@ -69,4 +69,31 @@ describe("fetchFirePerimeters", () => {
     global.fetch = jest.fn().mockResolvedValue(response(200, { features: [] }));
     await expect(fetchFirePerimeters()).resolves.toEqual([]);
   });
+
+  it("rejects when the feed answers with perimeters but none is usable (#338)", async () => {
+    // Every perimeter in the NIFC feed is a polygon, so a response whose
+    // every feature is dropped as malformed (#287) is a broken feed, not
+    // "no active fires": resolving to [] stamped the source as fetched just
+    // now and silently lost the cached perimeters.
+    global.fetch = jest.fn().mockResolvedValue(
+      response(200, {
+        features: [
+          { properties: { poly_IncidentName: "Null" }, geometry: null },
+          {
+            properties: { poly_IncidentName: "Bad" },
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-77, 39],
+                  [null, 39],
+                ],
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    await expect(fetchFirePerimeters()).rejects.toThrow(/unusable geometry/);
+  });
 });

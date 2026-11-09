@@ -114,19 +114,22 @@ async function applyResult(
     return;
   }
 
-  if (threats.length > 0) {
-    // The fresh set replaces the source's old one, in SQLite and in the store
-    // alike: ids are per feature (#291), so a feed reload can re-key a
-    // perimeter, and merging by id alone would show it twice.
-    await clearThreatsBySource(source);
-    await upsertThreatZones(threats);
-    store.setThreats([
-      ...useThreatStore
-        .getState()
-        .threatZones.filter((t) => t.source !== source),
-      ...threats,
-    ]);
-  }
+  // The fresh set replaces the source's old one, in SQLite and in the store
+  // alike: ids are per feature (#291), so a feed reload can re-key a
+  // perimeter, and merging by id alone would show it twice.
+  //
+  // An EMPTY successful fetch is a result, not a non-event (#338): the source
+  // says there is nothing active, so its old threats go. They used to survive
+  // an empty refresh, and USFS perimeters carry `expiresAt: null`, so
+  // clearExpiredThreats never reached them either and a finished fire stayed
+  // on the map until the next non-empty fetch. A fetch that FAILED returned
+  // above and still keeps its cache.
+  await clearThreatsBySource(source);
+  if (threats.length > 0) await upsertThreatZones(threats);
+  store.setThreats([
+    ...useThreatStore.getState().threatZones.filter((t) => t.source !== source),
+    ...threats,
+  ]);
   store.setLastFetched(source, now);
   store.setSourceFailed(source, false);
 }
