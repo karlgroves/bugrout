@@ -5,7 +5,6 @@
  * Handles TTL-based refresh, connectivity-aware fetching, and SQLite persistence.
  * When offline, serves cached data from SQLite.
  */
-/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (refreshThreats: per-source TTL/connectivity branching) */
 
 import {
   upsertThreatZones,
@@ -81,29 +80,55 @@ export async function refreshThreats(
     });
   }
 
-  // Fetch all sources in parallel
-  const results = await Promise.allSettled(
-    sourcesToRefresh.map(async ({ source, fetcher }) => {
-      const threats = await fetcher();
-      return { source, threats };
-    }),
+  // Fetch all sources in parallel; a rejection stays tied to its source.
+  const results = await Promise.all(
+    sourcesToRefresh.map(({ source, fetcher }) =>
+      fetcher().then(
+        (threats) => ({ source, threats }),
+        () => ({ source, threats: null }),
+      ),
+    ),
   );
 
-  for (const result of results) {
-    if (result.status !== "fulfilled") continue;
-
-    const { source, threats } = result.value;
-
-    if (threats.length > 0) {
-      // Update SQLite cache
-      await clearThreatsBySource(source);
-      await upsertThreatZones(threats);
-    }
-
-    // Update store
-    store.addThreats(threats);
-    store.setLastFetched(source, now);
+  for (const { source, threats } of results) {
+    await applyResult(source, threats, now);
   }
+}
+
+/**
+ * Record one source's refresh; `threats` is null when its fetch failed.
+ *
+ * A failed fetch is not an empty one (#288): it leaves the cached threats in
+ * place, marks the source failed so the map and route preview say so, and
+ * does NOT advance the source's TTL, so the next sync retries it rather than
+ * treating "couldn't reach the feed" as "fetched just now, no threats".
+ */
+async function applyResult(
+  source: ThreatSource,
+  threats: ThreatZone[] | null,
+  now: number,
+): Promise<void> {
+  const store = useThreatStore.getState();
+  if (threats === null) {
+    store.setSourceFailed(source, true);
+    return;
+  }
+
+  if (threats.length > 0) {
+    // The fresh set replaces the source's old one, in SQLite and in the store
+    // alike: ids are per feature (#291), so a feed reload can re-key a
+    // perimeter, and merging by id alone would show it twice.
+    await clearThreatsBySource(source);
+    await upsertThreatZones(threats);
+    store.setThreats([
+      ...useThreatStore
+        .getState()
+        .threatZones.filter((t) => t.source !== source),
+      ...threats,
+    ]);
+  }
+  store.setLastFetched(source, now);
+  store.setSourceFailed(source, false);
 }
 
 /**

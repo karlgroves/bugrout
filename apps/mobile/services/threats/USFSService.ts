@@ -13,6 +13,7 @@ import {
   MAX_HEADLINE_CHARS,
   readJsonBounded,
 } from "@/utils/feedBounds";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { BBox, ThreatZone } from "@bugrout/shared";
 
@@ -24,6 +25,12 @@ const CACHE_TTL_MS = 43200000; // 12 hours
 /** Shape of the NIFC fire-perimeter GeoJSON response (fields may be absent). */
 interface NIFCResponse {
   features: {
+    /**
+     * The layer's OBJECTID, unique per perimeter. ArcGIS sets the GeoJSON
+     * feature id only when OBJECTID (or *) is in outFields, so nifcQueryUrl
+     * must keep requesting it; without it every feature arrives with no id.
+     */
+    id?: string | number | null;
     properties: {
       poly_IncidentName?: string;
       irwin_PercentContained?: number;
@@ -48,7 +55,7 @@ export function nifcQueryUrl(bbox: BBox): string {
     geometryType: "esriGeometryEnvelope",
     inSR: "4326",
     spatialRel: "esriSpatialRelIntersects",
-    outFields: "poly_IncidentName,irwin_PercentContained",
+    outFields: "OBJECTID,poly_IncidentName,irwin_PercentContained",
     f: "geojson",
   });
   return `${NIFC_QUERY_URL}?${params.toString()}`;
@@ -58,36 +65,53 @@ export function nifcQueryUrl(bbox: BBox): string {
  * Fetch the active wildfire perimeters intersecting a region from the NIFC
  * ArcGIS feature service and map them to ThreatZone records.
  *
- * Throws when the response is larger than the feed bounds allow (#305).
+ * Throws when the feed fails (#288) or the response is larger than the feed
+ * bounds allow (#305).
  */
 export async function fetchFirePerimeters(bbox: BBox): Promise<ThreatZone[]> {
   const resp = await fetch(nifcQueryUrl(bbox), {
     signal: timeoutSignal(15000),
   });
-  if (!resp.ok) return [];
+  // A failed feed must not read as "no active fires" (#288): the caller keeps
+  // the cached perimeters, retries on the next sync, and says it failed.
+  if (!resp.ok) throw new Error(`NIFC perimeters: HTTP ${resp.status}`);
 
   const data = await readJsonBounded<NIFCResponse>(resp);
 
-  return boundedFeatures(data.features, "NIFC perimeters").map((f) => {
-    const name = capText(
-      f.properties.poly_IncidentName ?? "Unnamed",
-      MAX_HEADLINE_CHARS,
-    );
-    return {
-      id: `fire-${name}`,
-      type: "wildfire" as const,
-      severity:
-        (f.properties.irwin_PercentContained ?? 0) < 50
-          ? ("severe" as const)
-          : ("moderate" as const),
-      geometry: f.geometry,
-      headline: `Active Fire: ${name}`,
-      description: `${f.properties.irwin_PercentContained ?? 0}% contained`,
-      source: "usfs" as const,
-      fetchedAt: Date.now(),
-      expiresAt: null,
-    };
-  });
+  // Key on the feature, never the incident name: one incident can publish
+  // several perimeters and unnamed ones are common, and a shared id makes the
+  // later perimeter silently replace the earlier one in the store and SQLite.
+  // Unusable perimeters are dropped below so they never reach the cache (#287).
+  const seen = new Set<string>();
+  const threats = boundedFeatures(data.features, "NIFC perimeters").map(
+    (f, i) => {
+      const name = capText(
+        f.properties.poly_IncidentName ?? "Unnamed",
+        MAX_HEADLINE_CHARS,
+      );
+      let id =
+        f.id === undefined || f.id === null
+          ? `fire-i${String(i)}`
+          : `fire-${String(f.id)}`;
+      if (seen.has(id)) id = `${id}-${String(i)}`;
+      seen.add(id);
+      return {
+        id,
+        type: "wildfire" as const,
+        severity:
+          (f.properties.irwin_PercentContained ?? 0) < 50
+            ? ("severe" as const)
+            : ("moderate" as const),
+        geometry: f.geometry,
+        headline: `Active Fire: ${name}`,
+        description: `${f.properties.irwin_PercentContained ?? 0}% contained`,
+        source: "usfs" as const,
+        fetchedAt: Date.now(),
+        expiresAt: null,
+      };
+    },
+  );
+  return withUsableGeometry(threats);
 }
 
 export { CACHE_TTL_MS };
