@@ -280,7 +280,8 @@ describe("downloadRegion", () => {
       expect(mockLoadPackagedFuelStations).not.toHaveBeenCalled();
     });
   });
-  describe("map and routing archive sizes (#292)", () => {
+
+  describe("map and routing archive sizes and MD5s (#292)", () => {
     const WITH_ROUTING: Region = { ...MARYLAND, valhallaSize: 52_000_000 };
 
     it("discards a map file that isn't the manifest's size, keeping the old one", async () => {
