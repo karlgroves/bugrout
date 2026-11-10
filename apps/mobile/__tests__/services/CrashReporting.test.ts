@@ -186,6 +186,23 @@ describe("scrubEvent — the beforeSend hook", () => {
       "GET https://nominatim.openstreetmap.org/reverse",
     );
   });
+  it("redacts coordinates that sit in a URL path, not a query", () => {
+    // NWS looks a point up by path: /points/<lat>,<lng>.
+    const url = "https://api.weather.gov/points/38.8977,-77.0365";
+    const out = scrubEvent({
+      breadcrumbs: [{ category: "xhr", data: { url } }],
+      spans: [{ description: `GET ${url}` }],
+    });
+    const json = JSON.stringify(out);
+    expect(json).not.toContain("38.8977");
+    expect(json).not.toContain("77.0365");
+    expect(json).toContain("https://api.weather.gov/points/[redacted]");
+  });
+
+  it("leaves version strings and ordinary numbers alone", () => {
+    const crumb = { category: "app", message: "v1.2.3 took 12.5, 3.25 s" };
+    expect(scrubBreadcrumb(crumb)).toEqual(crumb);
+  });
 });
 
 describe("stripUrlQueries", () => {
@@ -316,8 +333,25 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
     initCrashReporting(true);
 
     const options = init.mock.calls[0]?.[0];
-    expect(typeof options?.beforeSendTransaction).toBe("function");
-    expect(typeof options?.beforeBreadcrumb).toBe("function");
+    const beforeBreadcrumb = options?.beforeBreadcrumb as (
+      c: Record<string, unknown>,
+    ) => Record<string, unknown> | null;
+    const beforeSendTransaction = options?.beforeSendTransaction as (
+      e: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    // Exercised, not just type-checked: a pass-through hook must fail here.
+    expect(
+      beforeBreadcrumb({ category: "console", message: TYPED }),
+    ).toBeNull();
+    const crumb = beforeBreadcrumb({
+      category: "xhr",
+      data: { url: SEARCH_URL },
+    });
+    expect(JSON.stringify(crumb)).not.toContain("q=");
+    const txn = beforeSendTransaction({
+      spans: [{ description: `GET ${REVERSE_URL}` }],
+    });
+    expect(JSON.stringify(txn)).not.toContain("38.8976763");
   });
 
   it("the installed hook is one that actually redacts", () => {

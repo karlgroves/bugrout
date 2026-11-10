@@ -123,7 +123,27 @@ export function stripUrlQueries(text: string): string {
 }
 
 /**
- * {@link redactSensitive}, plus query-string removal from every string value.
+ * A decimal latitude,longitude pair (at least three decimal places each).
+ *
+ * Query stripping cannot see coordinates that sit in a URL path, such as the
+ * NWS points lookup (`/points/38.8977,-77.0365`). Three decimals (~110 m) is
+ * coarse enough to leave version strings and ordinary numbers alone.
+ */
+const COORDINATE_PAIR_PATTERN = /-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/g;
+
+/**
+ * Strip URL queries and redact coordinate pairs from a string.
+ *
+ * @param text - Any string.
+ * @returns The string with queries removed and coordinate pairs redacted.
+ */
+function scrubString(text: string): string {
+  return stripUrlQueries(text).replace(COORDINATE_PAIR_PATTERN, REDACTED);
+}
+
+/**
+ * {@link redactSensitive}, plus query-string removal and coordinate-pair
+ * redaction on every string value.
  *
  * Needed chiefly for the parts of an event Sentry's own integrations fill in
  * — breadcrumbs and spans — where the sensitive value sits inside a URL rather
@@ -138,7 +158,7 @@ function scrubDeep(value: unknown, depth = 0): unknown {
     return REDACTED;
   }
   if (typeof value === "string") {
-    return stripUrlQueries(value);
+    return scrubString(value);
   }
   if (Array.isArray(value)) {
     return value.map((item) => scrubDeep(item, depth + 1));
