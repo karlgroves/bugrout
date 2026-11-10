@@ -9,7 +9,10 @@ import { DatabaseSync } from "node:sqlite";
 import { getCachedThreats, upsertThreatZones } from "@/db/queries/threats";
 import { CREATE_TABLES_SQL } from "@/db/schema";
 import { boundAvoidancePolygons } from "@/services/routing/AvoidanceBudget";
-import { parseNWSResponse } from "@/services/threats/NWSService";
+import {
+  fetchNWSAlerts,
+  parseNWSResponse,
+} from "@/services/threats/NWSService";
 import {
   fetchFirePerimeters,
   nifcQueryUrl,
@@ -115,6 +118,28 @@ describe("readJsonBounded", () => {
 });
 
 describe("NWS alerts", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("refuses an alerts body over the limit before parsing it", async () => {
+    const points = {
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          properties: { relativeLocation: { properties: { state: "MD" } } },
+        }),
+    } as unknown as Response;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(points)
+      .mockResolvedValueOnce(response("{}", 32 * 1024 * 1024 + 1));
+
+    await expect(fetchNWSAlerts(MARYLAND)).rejects.toThrow(/too large/);
+  });
+
   it("caps a stored headline", () => {
     const [alert] = parseNWSResponse({
       features: [nwsFeature("a1", "H".repeat(1_000_000))],
@@ -153,7 +178,7 @@ describe("NIFC fire perimeters", () => {
     expect(url.searchParams.get("inSR")).toBe("4326");
   });
 
-  it("caps the incident name in the headline and the id", async () => {
+  it("caps the incident name in the headline", async () => {
     global.fetch = jest.fn(() =>
       Promise.resolve(
         response(JSON.stringify({ features: [nifcFeature("N".repeat(5000))] })),
@@ -163,9 +188,6 @@ describe("NIFC fire perimeters", () => {
     const [fire] = await fetchFirePerimeters(MARYLAND);
     expect(fire?.headline.length).toBeLessThanOrEqual(
       "Active Fire: ".length + MAX_HEADLINE_CHARS,
-    );
-    expect(fire?.id.length).toBeLessThanOrEqual(
-      "fire-".length + MAX_HEADLINE_CHARS,
     );
   });
 

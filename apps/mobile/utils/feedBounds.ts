@@ -21,6 +21,11 @@ const MAX_HEADLINE_CHARS = 300;
 /**
  * Read a response body as JSON, refusing one larger than `maxChars`.
  *
+ * A declared `content-length` over the limit is refused before the body is
+ * read. Otherwise the body is buffered by `resp.text()` first (React Native's
+ * fetch has no streaming body), so the actual-length check bounds what is
+ * parsed and stored, not what is downloaded.
+ *
  * @param resp - The fetch response.
  * @param maxChars - The largest body accepted.
  * @returns The parsed body.
