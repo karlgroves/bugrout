@@ -33,6 +33,14 @@ region = {
     'version': m['version'],
     'updatedAt': m['generatedAt']
 }
+# MD5 of the map and routing archives, which the app checks each download
+# against (#292). Published only when the package has the file and a digest;
+# a package built before digests were added publishes none, and the app then
+# checks the size alone.
+for kind in ('pmtiles', 'valhalla'):
+    digest = m.get('md5', {}).get(kind)
+    if digest and m.get('sizes', {}).get(kind, 0) > 0:
+        region[kind + 'Md5'] = digest
 # Only a package built with fuel (#200) lists it; for one built before, the
 # app fetches fuel online instead.
 if m.get('sha256', {}).get('fuel'):
