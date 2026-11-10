@@ -76,11 +76,11 @@ export function useTileManager(): UseTileManagerResult {
   const downloadRegion = useCallback(
     async (region: Region) => {
       try {
+        const { region: entry, manifest } = await publishedEntryFor(region);
+        if (manifest) setAvailableRegions(manifest);
         const downloaded = await TileManager.downloadRegion(
-          region,
-          (progress) => {
-            setActiveDownload(progress);
-          },
+          entry,
+          setActiveDownload,
         );
         setActiveDownload(null);
         await syncActiveRegion(downloaded);
@@ -112,6 +112,37 @@ export function useTileManager(): UseTileManagerResult {
     deleteRegion,
     refresh,
   };
+}
+
+/**
+ * The manifest's entry for `region`, before any of it is downloaded (#292).
+ *
+ * When the manifest couldn't be loaded, the list on screen is `DEFAULT_REGIONS`,
+ * whose sizes are hand estimates. A download must match the published size
+ * exactly, so starting one from an estimate would always fail, and only after
+ * the whole file had downloaded. Instead the manifest is fetched again and its
+ * entry used, along with the fresh list.
+ *
+ * @throws When the manifest still can't be fetched, or doesn't publish the
+ *   region; nothing has been downloaded.
+ */
+async function publishedEntryFor(
+  region: Region,
+): Promise<{ region: Region; manifest?: Region[] }> {
+  if (!DEFAULT_REGIONS.includes(region)) return { region };
+  let manifest: Region[];
+  try {
+    manifest = await TileManager.fetchManifest();
+  } catch {
+    throw new Error(
+      "The list of offline maps couldn't be loaded. Check your connection and try again.",
+    );
+  }
+  const entry = manifest.find((r) => r.id === region.id);
+  if (!entry) {
+    throw new Error(`The offline map for ${region.name} isn't published yet.`);
+  }
+  return { region: entry, manifest };
 }
 
 /**
