@@ -52,9 +52,8 @@ jobs:
     name: Verify checks passed
     runs-on: ubuntu-latest
     # A CI run counts only if it ran on a push from this repository: a fork
-    # PR's run has event `pull_request` and a different head repository. Same
-    # shape as dast.yml's own `workflow_run` guard. With the gate skipped, both
-    # deploy jobs (`needs: gate`) are skipped too.
+    # PR's run has event `pull_request` and a different head repository. With
+    # the gate skipped, both deploy jobs (`needs: gate`) are skipped too.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.event == 'push' &&
