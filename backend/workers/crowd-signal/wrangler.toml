@@ -5,3 +5,17 @@ compatibility_date = "2025-04-01"
 [[kv_namespaces]]
 binding = "SIGNALS_KV"
 id = "YOUR_KV_NAMESPACE_ID"
+
+# Per-IP request limit (#297). Replaces a get-then-put counter in KV, which has
+# no atomic increment, so a parallel burst all read the same count and passed.
+# namespace_id is an arbitrary integer chosen here, unique per account; it needs
+# no provisioning and holds no secret. period must be 10 or 60 seconds.
+# Cloudflare's limiter is per location and not an exact counter either: it
+# bounds abuse rather than accounting for every request.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "2970"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

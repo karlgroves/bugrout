@@ -249,7 +249,8 @@ describe("ingest", () => {
     );
 
     const threats = await fetchFirePerimeters();
-    expect(threats.map((t) => t.id)).toEqual(["fire-Good"]);
+    // Ids are per feature since #291, so identify the survivor by its headline.
+    expect(threats.map((t) => t.headline)).toEqual(["Active Fire: Good"]);
   });
 
   it("parseFloodFeatures drops zones with unusable geometry", () => {
