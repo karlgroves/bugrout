@@ -129,7 +129,7 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 35 now, and all 35 are
+sweep that bounded every one of them was #126; there are 39 now, and all 39 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
@@ -252,11 +252,43 @@ leave two overlapping rules for one package; which of them wins has not been
 tested here, and an override whose effect nobody has established is the thing
 this whole section is about.
 
+**One entry crosses a major on purpose: `glob`.** GHSA-3g3m-2fjr-6pw4 (an
+aborted walk keeps reading directories) covers glob 9.0.0 through 14.0.1 with no
+backport — `glob@13.0.7`, the `v13-legacy` release, is still reported affected —
+so `glob@>=9 <14.0.2` → `>=14.0.2 <15` moves every 13.x copy onto 14.x, outside
+the `^13.0.0` that `@expo/cli`, `@expo/config`, `@expo/config-plugins`,
+`@expo/fingerprint` and `@expo/metro-config` all declare, at their latest
+releases too. That is the one deliberate exception to "same major as its
+replacement" above, and to ADR 0007's current-major bound, made in #302. It is
+still bounded on both sides, so it cannot drift on to 15.
+
+It was exercised, not argued, because glob 14 changed its API (minimatch 11
+matchers in place of RegExps, `walk()` returning arrays). All five consumers
+resolve 14.0.3 through their own links; `pnpm run doctor` passes 18/18;
+`pnpm run bundle:check` exports iOS and Android; and `@expo/fingerprint`'s
+`createFingerprintAsync` on `apps/mobile` returns the **same hash over the same
+70 sources** under glob 13.0.6 and 14.0.3, which is the check that the
+file-walking these packages do still finds the same files. Retire the entry when
+an Expo SDK declares glob 14 itself.
+
+`minimatch` (GHSA-g3hv-75wg-m249) did not get the same treatment because the
+equivalent override breaks ESLint outright; `osv-scanner.toml` records that and
+why the vulnerable path is not reached.
+
+**A dead override says nothing either.** An entry whose package has left the
+tree, or moved to a release line its selector does not cover, matches nothing
+and stays in the diff looking like protection. `markdown-it@>=14 <14.3.1` was
+one: no markdown-it 14.x was installed, only 15.0.3, which its sibling entry
+covers. pnpm does not report this, so `pnpm run check` runs
+`security/scripts/check-overrides.mjs`, which fails when an entry has no
+installed version inside either its selector or its replacement.
+
 ## What runs in CI instead
 
 | Check                                  | Where          | Gating                |
 | -------------------------------------- | -------------- | --------------------- |
 | `pnpm audit --prod --audit-level=high` | `ci.yml`       | yes                   |
+| Dead `pnpm.overrides` entries          | `ci.yml`       | yes                   |
 | `expo-doctor` (SDK alignment)          | `ci.yml`       | yes                   |
 | `bundle:check` (Metro, iOS + Android)  | `ci.yml`       | yes                   |
 | Semgrep (OWASP Top 10)                 | `security.yml` | yes — now runs on PRs |
@@ -493,9 +525,12 @@ The entries are version-pinned, so bumping the Expo SDK invalidates five of them
 and introduces five replacements — and nothing will tell you. Every other
 suppression in this repository is self-policing: `osv-scanner.toml` entries have
 `ignoreUntil` dates _and_ osv-scanner reports an ignore as unused once the
-advisory leaves the tree, and `patchedDependencies` fails the install outright
-with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither — verified, an
-entry naming a package absent from the tree installs silently.
+advisory leaves the tree, `patchedDependencies` fails the install outright with
+`ERR_PNPM_UNUSED_PATCH`, and `pnpm.overrides` is policed by
+`security/scripts/check-overrides.mjs` in `pnpm run check`, because pnpm itself
+is silent about an override that matches nothing. `trustPolicyExclude` has none
+of these — verified, an entry naming a package absent from the tree installs
+silently.
 
 So: **re-run the scan above after any upgrade that moves these packages**, and
 delete the entries that no longer match. The block carries an advisory
@@ -563,7 +598,10 @@ because they retire on different signals:
    exists; `osv-scanner.toml` records how each one left. `sprintf-js`
    (GHSA-hp3w-g68c-fv3c) is in this case too, reached through `argparse` in
    Jest's coverage config loading; it is moderate, below the `pnpm audit` gate,
-   so it needs no `ignoreGhsas` entry. See
+   so it needs no `ignoreGhsas` entry. `deepmerge` (GHSA-gcqx-w48m-w2h4) is the
+   one osv-scanner entry in this case: 4.3.1 is the latest release and is
+   affected, and its consumers (`@expo/config`, `jest-config`) merge only this
+   repository's own config files. See
    [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how an
    entry in this case retires.
 2. **A fixed version exists but is structurally unreachable** — pinning it
@@ -571,14 +609,20 @@ because they retire on different signals:
    and no patch bridges the gap. Retires when the _consumer_ changes, not when
    the vulnerable package does.
 
-**Two packages are in case 2:** `katex`, reached only through markdownlint's
+**Three packages are in case 2:** `katex`, reached only through markdownlint's
 math syntax extension, whose only consumer declares `^0.16.0` against a fix in
-0.18.2; and `stream-json`, a devDependency of Detox, with the evidence for all
-three grounds recorded in `osv-scanner.toml`. `decode-uri-component` was
-recorded there too, by PR #120, on the grounds that `0.5.0` is ESM-only and its
-only consumer `query-string@7.1.3` is CommonJS. Both of those facts hold. The
-conclusion did not: PR #124 closed the advisory with a two-line `pnpm` patch
-that unwraps the interop, described under
+0.18.2; `stream-json`, a devDependency of Detox, with the evidence for all three
+grounds recorded in `osv-scanner.toml`; and `minimatch` (GHSA-g3hv-75wg-m249),
+whose fix in 11.0.1 removed `makeRe()` and so breaks ESLint in every workspace
+through `eslint-plugin-import-x`. Its patch ground is weaker than the other two
+and the entry says so: a patch could bridge import-x, but four other consumers
+still declare 9.x or 10.x at their latest releases, so the finding would stay
+either way. Its retirement trigger is dated — `eslint-plugin-import-x@4.18.0`,
+which accepts minimatch 11, clears the release-age quarantine on 2026-11-13.
+`decode-uri-component` was recorded there too, by PR #120, on the grounds that
+`0.5.0` is ESM-only and its only consumer `query-string@7.1.3` is CommonJS. Both
+of those facts hold. The conclusion did not: PR #124 closed the advisory with a
+two-line `pnpm` patch that unwraps the interop, described under
 [Patched transitive packages](#patched-transitive-packages).
 
 The lesson is in the bar, not the entry. "Structurally unreachable" now requires

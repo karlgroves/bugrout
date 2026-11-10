@@ -39,7 +39,6 @@ code gets no exemptions. Remove the disable when the item is resolved.
 | `apps/mobile/services/alerts/AlertParser.ts`              | Geometric intersection tests               |
 | `apps/mobile/services/resources/USGSService.ts`           | RDB (tab-delimited) parser                 |
 | `apps/mobile/services/routing/RouteEngine.ts`             | Two-pass smart routing                     |
-| `apps/mobile/services/threats/ThreatSync.ts`              | Per-source TTL/connectivity branching      |
 | `apps/mobile/__tests__/packages/elf-model.test.ts`        | Inlined weight-table scoring               |
 
 ## Other
