@@ -81,6 +81,8 @@ describe("mock database", () => {
   it("evaluates the expired-threat cleanup the app runs (IS NOT NULL, <)", async () => {
     for (const [id, expiresAt] of [
       ["expired", 40],
+      // Expires exactly at the cutoff: `<` is strict, so it is not expired yet.
+      ["at-cutoff", 50],
       ["live", 100],
       ["no-expiry", null],
     ] as const) {
@@ -102,7 +104,7 @@ describe("mock database", () => {
     const ids = (
       await db.getAllAsync<{ id: string }>("SELECT * FROM threat_zones")
     ).map((r) => r.id);
-    expect(ids).toEqual(["live", "no-expiry"]);
+    expect(ids).toEqual(["at-cutoff", "live", "no-expiry"]);
 
     const idsWhere = async (clause: string): Promise<string[]> =>
       (
@@ -113,7 +115,10 @@ describe("mock database", () => {
     await expect(idsWhere("expires_at IS NULL")).resolves.toEqual([
       "no-expiry",
     ]);
-    await expect(idsWhere("expires_at IS NOT NULL")).resolves.toEqual(["live"]);
+    await expect(idsWhere("expires_at IS NOT NULL")).resolves.toEqual([
+      "at-cutoff",
+      "live",
+    ]);
   });
 
   it("applies every AND term of a delete and reports the true count", async () => {

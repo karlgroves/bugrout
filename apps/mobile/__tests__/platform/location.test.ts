@@ -3,10 +3,10 @@
  *
  * expo-location is mocked as unresolvable, so the module is absent — the
  * same path Expo Go takes. A rejection from a present module must never reach
- * these mocks; locationNative.test.ts pins that (#299). That mock track is what the navigation UI renders
- * against during development, so "it drifts" and "remove() actually stops it"
- * are the two properties worth pinning; a leaked interval here would keep
- * firing GPS updates after navigation ends.
+ * these mocks; locationNative.test.ts pins that (#299). That mock track is
+ * what the navigation UI renders against during development, so "it drifts"
+ * and "remove() actually stops it" are the two properties worth pinning; a
+ * leaked interval here would keep firing GPS updates after navigation ends.
  */
 
 jest.mock("expo-location", () => {
