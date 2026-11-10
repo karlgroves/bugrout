@@ -178,6 +178,33 @@ describe("alert-aggregator — a failed poll keeps the last good set", () => {
     assert.deepEqual(body.missingSources, ["usfs"]);
     assert.equal(typeof body.sources.nws?.fetchedAt, "number");
   });
+
+  test("a stored set outlives many missed cron ticks", async () => {
+    // A 1-hour TTL against a 15-minute cron let one short outage expire the
+    // key (#301). Each source's set must last at least 6 hours.
+    const kv = fakeKv() as {
+      put: (key: string, value: string, options?: unknown) => Promise<void>;
+    };
+    const ttls = new Map<string, unknown>();
+    const put = kv.put;
+    kv.put = (key, value, options): Promise<void> => {
+      ttls.set(key, (options as { expirationTtl?: unknown }).expirationTtl);
+      return put(key, value);
+    };
+    stubUpstreams(
+      [200, nwsBody("nws-1", -75, 40)],
+      [200, nifcBody("Ridge", -76, 39)],
+    );
+    await tick(kv as never);
+
+    assert.deepEqual([...ttls.keys()].sort(), ["alerts:nws", "alerts:usfs"]);
+    for (const [key, ttl] of ttls) {
+      assert.ok(
+        typeof ttl === "number" && ttl >= 6 * 60 * 60,
+        `${key} expirationTtl ${String(ttl)}`,
+      );
+    }
+  });
 });
 
 describe("alert-aggregator — absence is not 'no threats'", () => {
