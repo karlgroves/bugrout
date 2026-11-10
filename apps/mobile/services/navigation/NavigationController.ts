@@ -110,7 +110,7 @@ export async function start(
     await stop();
   }
 
-  state = {
+  const nav: NavigationState = {
     route,
     currentManeuverIndex: 0,
     lastSpokenManeuverIndex: -1,
@@ -119,6 +119,7 @@ export async function start(
     running: true,
     needsResync: true,
   };
+  state = nav;
   eventHandler = onEvent;
 
   // Directions must stay on screen for the whole trip.
@@ -126,11 +127,17 @@ export async function start(
 
   // Start GPS tracking. Without it there is nothing to navigate with, so do
   // not leave the screen held awake or the trip marked running (#300).
+  // A stop() or a newer start() while GPS starts replaces `state`; this call
+  // must then not end the newer trip or announce a departure for this one.
   try {
     await startTracking(onLocationUpdate);
   } catch (err) {
-    await teardown(false);
+    if (state === nav) await teardown(false);
     throw err;
+  }
+  if (state !== nav) {
+    await releaseIfStopped();
+    return;
   }
 
   // Announce departure
@@ -406,7 +413,7 @@ async function handleGpsFrequency(
     await stopTracking();
     await startGps(shouldBeHighFreq);
     // Stopped while switching: do not leave the new subscription running.
-    if (state !== nav) await stopTracking();
+    if (state !== nav) await releaseIfStopped();
   } catch (err) {
     // The old subscription is already gone. Restore the mode that was working;
     // if GPS will not start at all, end the trip loudly rather than leave it
@@ -416,12 +423,25 @@ async function handleGpsFrequency(
     if (state !== nav) return;
     try {
       await startGps(previous);
+      if (state !== nav) await releaseIfStopped();
     } catch (restoreErr) {
       reportFailure(restoreErr, "gps-restore");
+      // Only this trip lost GPS. A trip started since has its own handler.
+      if (state !== nav) return;
       emit({ type: "tracking_lost" });
       await stop();
     }
   }
+}
+
+/**
+ * GPS finished starting for a trip that has since ended. With no trip left,
+ * stop the subscription it opened. If a newer trip is running, leave it:
+ * `onLocationUpdate` feeds whichever trip is current, and stopping would cut
+ * off that trip's GPS.
+ */
+async function releaseIfStopped(): Promise<void> {
+  if (!state) await stopTracking();
 }
 
 /** Start GPS in high-frequency or battery-saving mode. */
