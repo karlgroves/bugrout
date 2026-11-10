@@ -282,14 +282,19 @@ jobs:
       # from. `trivy fs` in PR CI covers the dependency manifests; only this
       # sees the base image's own OS packages, which is where a container
       # vulnerability usually lives.
-      - name: Install Trivy
+      #
+      # Version and SHA-256 move together, and match security.yml's Trivy step;
+      # see "Pinned scanner binaries" in docs/dependency-upgrade-policy.md.
+      - name: Install Trivy (pinned + checksum-verified)
         env:
           TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
         run: |
           set -euo pipefail
           archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
           curl -sSLf -o "$archive" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${archive}"
+          echo "${TRIVY_SHA256}  ${archive}" | sha256sum --check --strict -
           tar -xzf "$archive" trivy
           sudo mv trivy /usr/local/bin/trivy
           rm -f "$archive"

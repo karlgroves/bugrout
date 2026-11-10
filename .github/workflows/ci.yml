@@ -53,6 +53,12 @@ jobs:
       - name: Unused code and dependencies (knip)
         run: pnpm run knip
 
+      # pnpm is silent about an override that matches nothing installed, so a
+      # dead entry reads as protection in a diff while protecting nothing.
+      # docs/dependency-upgrade-policy.md, "A dead override says nothing either".
+      - name: Dead pnpm overrides
+        run: pnpm run security:overrides
+
       - name: Test
         run: pnpm run test
 

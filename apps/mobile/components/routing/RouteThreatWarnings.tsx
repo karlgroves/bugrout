@@ -7,11 +7,15 @@
  * Lifted out of the preview screen, which `docs/tech-debt.md` records as one
  * to decompose; the screen reads better for it and stays inside the file's
  * line budget.
+ *
+ * Under it, a line when threat data couldn't be updated (#288): no warning box
+ * must not read as a confirmed-clear route when the feeds were unreachable.
  */
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, Text, View } from "react-native";
 
+import { ThreatStatusNotice } from "@/components/map/ThreatStatusNotice";
 import { colors, spacing, typography } from "@/constants/theme";
 
 import type { ThreatZone } from "@bugrout/shared";
@@ -30,9 +34,22 @@ interface RouteThreatWarningsProps {
 /**
  * Warning box naming the threats a previewed route passes near.
  *
- * Renders nothing when the route is clear.
+ * Renders no box when the route is clear, and says so when the threat data
+ * behind that couldn't be updated.
  */
 export function RouteThreatWarnings({
+  threats,
+}: RouteThreatWarningsProps): React.JSX.Element {
+  return (
+    <>
+      <ThreatWarningBox threats={threats} />
+      <ThreatStatusNotice context="route" />
+    </>
+  );
+}
+
+/** The warning box itself, or nothing when the route is clear. */
+function ThreatWarningBox({
   threats,
 }: RouteThreatWarningsProps): React.JSX.Element | null {
   if (threats.length === 0) return null;
