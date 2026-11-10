@@ -364,8 +364,11 @@ since pipx and a global npm install have no checksum mode here: Semgrep and
 Checkov (`pipx install <tool>==<version>`), wrangler in `data-pipeline.yml`
 (`npm install -g wrangler@<version>`, kept equal to what `pnpm-lock.yaml`
 resolves), and the EAS CLI (`eas-version`). `pnpm run security:tests` fails on a
-`releases/latest` URL, a release download with no `sha256sum` check, or an
-unpinned install, so a new tool cannot be added any other way.
+`releases/latest` URL, a `/releases/download/` URL with no `sha256sum` check in
+its step, an unpinned `pipx install` or `npm install -g`, or
+`eas-version: latest`. It does not recognise other install forms (`pip install`,
+`npm install --global`, a download from outside GitHub releases, a setup action
+with no version), so review a new tool's install step against this pattern.
 
 Two values have to move together when bumping trufflehog:
 

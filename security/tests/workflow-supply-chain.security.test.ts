@@ -67,10 +67,12 @@ function runBlocks(file: string, text: string): RunBlock[] {
   const lines = text.split("\n");
   const out: RunBlock[] = [];
   lines.forEach((line, i) => {
-    const m = /^(\s*)(?:- )?run:\s*(.*)$/.exec(line);
+    const m = /^(\s*)(- )?run:\s*(.*)$/.exec(line);
     if (!m) return;
-    const keyIndent = (m[1] ?? "").length;
-    const body = [m[2] ?? ""];
+    // The `run:` key's own column: under `- run:` it sits past the dash, so
+    // the step's sibling keys (`env:`, `with:`) end the script, not join it.
+    const keyIndent = (m[1] ?? "").length + (m[2] ?? "").length;
+    const body = [m[3] ?? ""];
     for (const next of lines.slice(i + 1)) {
       if (next.trim() !== "" && indentOf(next) <= keyIndent) break;
       body.push(next);
