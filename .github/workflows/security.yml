@@ -37,8 +37,12 @@ jobs:
         with:
           node-version: 22
 
+      # Pinned so the rule engine cannot change between runs. pipx has no
+      # hash-checking mode, so this is a version pin, not a checksum; bump it
+      # deliberately (docs/dependency-upgrade-policy.md, "Pinned scanner
+      # binaries").
       - name: Install Semgrep
-        run: pipx install semgrep
+        run: pipx install semgrep==1.182.1
 
       # Rule selection lives in security/config/semgrep.yml and is applied by
       # security/scripts/semgrep.mjs, which `pnpm run security:semgrep` also
@@ -76,10 +80,24 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install OSV-Scanner
+      # Pinned by version AND verified by SHA-256 before it runs, matching the
+      # trufflehog step in ci.yml. This binary is the dependency gate, and
+      # backend-deploy.yml deploys only after this workflow succeeds, so a
+      # substituted scanner that always exits 0 would retire the gate and
+      # unblock deploys. `releases/latest` also changed the scanner between
+      # runs. 2.7.0 is what Homebrew installs, so local and CI agree.
+      - name: Install OSV-Scanner (pinned + checksum-verified)
+        env:
+          OSV_SCANNER_VERSION: "2.7.0"
+          OSV_SCANNER_SHA256: "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
         run: |
-          curl -sSL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o /usr/local/bin/osv-scanner
-          chmod +x /usr/local/bin/osv-scanner
+          set -euo pipefail
+          curl -sSLf -o osv-scanner \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum --check --strict -
+          sudo install -m 0755 osv-scanner /usr/local/bin/osv-scanner
+          rm -f osv-scanner
+          osv-scanner --version
 
       - name: Scan lockfile
         run: |
@@ -108,31 +126,39 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Trivy
+      # Version and SHA-256 move together; see "Pinned scanner binaries" in
+      # docs/dependency-upgrade-policy.md.
+      - name: Install Trivy (pinned + checksum-verified)
         env:
           TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
         run: |
           set -euo pipefail
           archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
           curl -sSLf -o "$archive" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${archive}"
+          echo "${TRIVY_SHA256}  ${archive}" | sha256sum --check --strict -
           tar -xzf "$archive" trivy
           sudo mv trivy /usr/local/bin/trivy
           rm -f "$archive"
           trivy --version
 
-      - name: Install Hadolint
+      - name: Install Hadolint (pinned + checksum-verified)
         env:
           HADOLINT_VERSION: "2.15.1"
+          HADOLINT_SHA256: "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
         run: |
           set -euo pipefail
-          sudo curl -sSLf -o /usr/local/bin/hadolint \
-            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64"
-          sudo chmod +x /usr/local/bin/hadolint
+          curl -sSLf -o hadolint \
+            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
+          echo "${HADOLINT_SHA256}  hadolint" | sha256sum --check --strict -
+          sudo install -m 0755 hadolint /usr/local/bin/hadolint
+          rm -f hadolint
           hadolint --version
 
+      # Version-pinned for the same reason as Semgrep above.
       - name: Install Checkov
-        run: pipx install checkov
+        run: pipx install checkov==3.3.30
 
       # Each step runs the same script the pre-push hook and a developer's
       # shell run, so a local pass and a CI pass cannot disagree.
