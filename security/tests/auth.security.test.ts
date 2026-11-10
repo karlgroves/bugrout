@@ -3,7 +3,9 @@
  *
  * BugRout has no accounts, sessions or roles, so most of the baseline's
  * scenarios do not apply. What does apply is the shape underneath them: a
- * request without a valid credential must not reach protected data.
+ * request without a valid credential must not reach protected data — and data
+ * that is public on purpose must be pinned as public, not guarded by a check
+ * that never runs (tile-server, #293).
  *
  * Every control here was correct before these tests existed and untested. The
  * point is that deleting one now turns a test red — each assertion below was
@@ -23,76 +25,119 @@ import tileServer from "../../backend/workers/tile-server/src/index";
 import {
   assertNoLeakage,
   emptyR2,
+  fakeRateLimiter,
   fakeRedis,
   invokeNodeHandler,
+  r2With,
 } from "./helpers";
 
 const TILE_URL = "https://tiles.example/v1/tiles/bay-area/pmtiles";
 
 setRedisClient(fakeRedis());
 
-describe("tile-server — protected tile packages", () => {
-  test("no Authorization header is rejected with 401", async () => {
+describe("tile-server — public by design, rate-limited per IP", () => {
+  // #293: tile packages are deliberately public (open-data derivatives, and the
+  // app sends no credential). The old API-key check was skipped whenever its
+  // key was unset, which was every deployment, so it pinned nothing real. These
+  // tests pin the actual contract instead; a future real auth scheme must
+  // change them on purpose, not by accident.
+  const PACKAGE = "bay-area/bay-area.pmtiles";
+
+  test("a tile package is served with no Authorization header", async () => {
     const res = await tileServer.fetch(new Request(TILE_URL), {
-      TILES_BUCKET: emptyR2(),
-      API_KEY: "correct-horse-battery-staple",
+      TILES_BUCKET: r2With({ [PACKAGE]: "pmtiles-bytes" }),
+      RATE_LIMITER: fakeRateLimiter(),
     });
-    assert.equal(res.status, 401);
-    assertNoLeakage(await res.text(), "tile-server 401");
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), "pmtiles-bytes");
   });
 
-  test("a wrong key of the same length is rejected", async () => {
-    const key = "correct-horse-battery-staple";
-    const wrong = "c".repeat(key.length);
-    assert.equal(wrong.length, key.length, "test must compare equal lengths");
-    const res = await tileServer.fetch(
-      new Request(TILE_URL, { headers: { Authorization: `Bearer ${wrong}` } }),
-      { TILES_BUCKET: emptyR2(), API_KEY: key },
-    );
-    assert.equal(res.status, 401);
+  test("an API_KEY binding does not switch on a hidden key check", async () => {
+    // An operator who sets API_KEY must not silently break every shipped build,
+    // which sends no key. The worker no longer reads it at all.
+    const env = {
+      TILES_BUCKET: r2With({ [PACKAGE]: "pmtiles-bytes" }),
+      RATE_LIMITER: fakeRateLimiter(),
+      API_KEY: "correct-horse-battery-staple",
+    };
+    const res = await tileServer.fetch(new Request(TILE_URL), env);
+    assert.equal(res.status, 200);
   });
 
-  test("a wrong key of a different length is rejected", async () => {
-    const res = await tileServer.fetch(
-      new Request(TILE_URL, { headers: { Authorization: "Bearer short" } }),
-      { TILES_BUCKET: emptyR2(), API_KEY: "correct-horse-battery-staple" },
-    );
-    assert.equal(res.status, 401);
-  });
-
-  test("a key without the Bearer prefix is rejected", async () => {
-    const key = "correct-horse-battery-staple";
-    const res = await tileServer.fetch(
-      new Request(TILE_URL, { headers: { Authorization: key } }),
-      { TILES_BUCKET: emptyR2(), API_KEY: key },
-    );
-    assert.equal(res.status, 401);
-  });
-
-  test("an empty Bearer value is rejected", async () => {
-    const res = await tileServer.fetch(
-      new Request(TILE_URL, { headers: { Authorization: "Bearer " } }),
-      { TILES_BUCKET: emptyR2(), API_KEY: "correct-horse-battery-staple" },
-    );
-    assert.equal(res.status, 401);
-  });
-
-  test("the correct key gets past auth", async () => {
-    const key = "correct-horse-battery-staple";
-    const res = await tileServer.fetch(
-      new Request(TILE_URL, { headers: { Authorization: `Bearer ${key}` } }),
-      { TILES_BUCKET: emptyR2(), API_KEY: key },
-    );
-    // The fake bucket is empty, so 404 — but not 401, which is the point.
-    assert.notEqual(res.status, 401);
-  });
-
-  test("the manifest stays public", async () => {
+  test("the manifest is public", async () => {
     const res = await tileServer.fetch(
       new Request("https://tiles.example/v1/tiles/manifest"),
-      { TILES_BUCKET: emptyR2(), API_KEY: "a-key" },
+      { TILES_BUCKET: emptyR2(), RATE_LIMITER: fakeRateLimiter() },
     );
-    assert.notEqual(res.status, 401);
+    assert.equal(res.status, 200);
+  });
+
+  test("CORS no longer advertises an Authorization header", async () => {
+    const res = await tileServer.fetch(
+      new Request("https://tiles.example/v1/tiles/manifest", {
+        method: "OPTIONS",
+      }),
+      { TILES_BUCKET: emptyR2(), RATE_LIMITER: fakeRateLimiter() },
+    );
+    const allowed = res.headers.get("Access-Control-Allow-Headers") ?? "";
+    assert.doesNotMatch(allowed, /authorization/i);
+  });
+
+  test("requests over the per-IP limit get 429 with Retry-After", async () => {
+    const env = {
+      TILES_BUCKET: r2With({ [PACKAGE]: "pmtiles-bytes" }),
+      RATE_LIMITER: fakeRateLimiter(2),
+    };
+    const fromIp = (ip: string) =>
+      new Request(TILE_URL, { headers: { "CF-Connecting-IP": ip } });
+
+    assert.equal(
+      (await tileServer.fetch(fromIp("198.51.100.1"), env)).status,
+      200,
+    );
+    assert.equal(
+      (await tileServer.fetch(fromIp("198.51.100.1"), env)).status,
+      200,
+    );
+    const limited = await tileServer.fetch(fromIp("198.51.100.1"), env);
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get("Retry-After"), "60");
+    assertNoLeakage(await limited.text(), "tile-server 429");
+
+    // The limit is per address: a different client is unaffected.
+    assert.equal(
+      (await tileServer.fetch(fromIp("198.51.100.2"), env)).status,
+      200,
+    );
+  });
+
+  test("the limiter covers the manifest and unknown paths, not /health", async () => {
+    const env = { TILES_BUCKET: emptyR2(), RATE_LIMITER: fakeRateLimiter(0) };
+    for (const path of [
+      "/v1/tiles/manifest",
+      "/v1/tiles/bay-area/fuel",
+      "/nope",
+    ]) {
+      const res = await tileServer.fetch(
+        new Request(`https://tiles.example${path}`),
+        env,
+      );
+      assert.equal(res.status, 429, `${path} should be rate-limited`);
+    }
+    const health = await tileServer.fetch(
+      new Request("https://tiles.example/health"),
+      env,
+    );
+    assert.equal(health.status, 200);
+  });
+
+  test("the limiter is keyed on CF-Connecting-IP", async () => {
+    const limiter = fakeRateLimiter() as unknown as { keys: string[] };
+    await tileServer.fetch(
+      new Request(TILE_URL, { headers: { "CF-Connecting-IP": "203.0.113.9" } }),
+      { TILES_BUCKET: emptyR2(), RATE_LIMITER: limiter as never },
+    );
+    assert.deepEqual(limiter.keys, ["203.0.113.9"]);
   });
 
   test("a path that does not match the tile pattern is not served", async () => {
@@ -103,10 +148,11 @@ describe("tile-server — protected tile packages", () => {
       "/v1/tiles/bay-area/pmtiles/extra",
     ]) {
       const res = await tileServer.fetch(
-        new Request(`https://tiles.example${path}`, {
-          headers: { Authorization: "Bearer a-key" },
-        }),
-        { TILES_BUCKET: emptyR2(), API_KEY: "a-key" },
+        new Request(`https://tiles.example${path}`),
+        {
+          TILES_BUCKET: r2With({ [PACKAGE]: "pmtiles-bytes" }),
+          RATE_LIMITER: fakeRateLimiter(),
+        },
       );
       assert.equal(res.status, 404, `${path} should not be served`);
     }
