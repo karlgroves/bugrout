@@ -83,6 +83,11 @@ const route: Route = {
   ],
 };
 
+/** Let pending promise callbacks run. */
+async function flush(): Promise<void> {
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
 /** Feed one GPS fix at `position` and let the async handler finish. */
 async function fixAt(position: LatLng): Promise<void> {
   mockOnLocation?.({
@@ -92,7 +97,7 @@ async function fixAt(position: LatLng): Promise<void> {
     accuracy: 5,
     timestamp: Date.now(),
   });
-  await new Promise((resolve) => setImmediate(resolve));
+  await flush();
 }
 
 /** A promise the test settles by hand, to hold GPS start-up mid-flight. */
@@ -117,11 +122,6 @@ function deferred(): {
       settle.reject(err);
     },
   };
-}
-
-/** Let pending promise callbacks run. */
-async function flush(): Promise<void> {
-  await new Promise((resolve) => setImmediate(resolve));
 }
 
 const secondRoute: Route = { ...route, id: "second-trip" };
@@ -253,6 +253,24 @@ describe("NavigationController keep-awake", () => {
     expect(mockStopTracking).toHaveBeenCalledTimes(stopsBeforeRestore + 1);
   });
 
+  it("leaves a newer trip's GPS running when an old trip's restore succeeds (#300)", async () => {
+    await NavController.start(route, jest.fn());
+    await fixAt(START);
+    const restore = deferred();
+    mockStartBatterySaving.mockRejectedValue(new Error("unavailable"));
+    mockStartTracking.mockReturnValueOnce(restore.promise);
+    await fixAt(START);
+
+    await NavController.stop();
+    await NavController.start(secondRoute, jest.fn());
+    const stopsBeforeRestore = mockStopTracking.mock.calls.length;
+    restore.resolve();
+    await flush();
+
+    expect(mockStopTracking).toHaveBeenCalledTimes(stopsBeforeRestore);
+    expect(NavController.isActive()).toBe(true);
+  });
+
   it("does not end a newer trip when an old trip's GPS restore fails (#300)", async () => {
     await NavController.start(route, jest.fn());
     await fixAt(START);
@@ -289,6 +307,22 @@ describe("NavigationController keep-awake", () => {
     expect(mockStopTracking).toHaveBeenCalledTimes(stopsBeforeStart + 1);
     expect(speak).not.toHaveBeenCalled();
     expect(NavController.isActive()).toBe(false);
+  });
+
+  it("leaves a newer trip's GPS running when an old trip's GPS starts late (#300)", async () => {
+    const gps = deferred();
+    mockStartTracking.mockReturnValueOnce(gps.promise);
+    const starting = NavController.start(route, jest.fn());
+    await flush();
+
+    await NavController.stop();
+    await NavController.start(secondRoute, jest.fn());
+    const stopsBeforeStart = mockStopTracking.mock.calls.length;
+    gps.resolve();
+    await starting;
+
+    expect(mockStopTracking).toHaveBeenCalledTimes(stopsBeforeStart);
+    expect(NavController.isActive()).toBe(true);
   });
 
   it("does not end a newer trip when an old trip's GPS start fails (#300)", async () => {
