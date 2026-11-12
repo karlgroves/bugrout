@@ -161,6 +161,8 @@ describe("LocationTracker with the demo location on", () => {
     const fixes: LocationUpdate[] = [];
     await startTracking((u) => fixes.push(u));
     jest.advanceTimersByTime(3000);
+    // Without this, emitting nothing at all would pass the loop below.
+    expect(fixes.length).toBeGreaterThan(1);
     for (const fix of fixes) expect(fix.position).toEqual(DEMO_ORIGIN);
   });
 

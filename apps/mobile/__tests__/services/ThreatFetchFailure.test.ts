@@ -17,8 +17,10 @@ function response(status: number, body: unknown = {}): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: { get: () => null },
     json: () => Promise.resolve(body),
-  } as Response;
+    text: () => Promise.resolve(JSON.stringify(body)),
+  } as unknown as Response;
 }
 
 const POINT = {
@@ -62,12 +64,12 @@ describe("fetchNWSAlerts", () => {
 describe("fetchFirePerimeters", () => {
   it("rejects when the NIFC feed fails", async () => {
     global.fetch = jest.fn().mockResolvedValue(response(403));
-    await expect(fetchFirePerimeters()).rejects.toThrow(/HTTP 403/);
+    await expect(fetchFirePerimeters(BBOX)).rejects.toThrow(/HTTP 403/);
   });
 
   it("resolves to [] when there are no active perimeters", async () => {
     global.fetch = jest.fn().mockResolvedValue(response(200, { features: [] }));
-    await expect(fetchFirePerimeters()).resolves.toEqual([]);
+    await expect(fetchFirePerimeters(BBOX)).resolves.toEqual([]);
   });
 
   it("rejects when the feed answers with perimeters but none is usable (#338)", async () => {

@@ -150,7 +150,7 @@ function ScenarioEditScreen(): React.JSX.Element {
   }, [existing, deleteScenario, router]);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="plan-editor">
       <Text style={styles.label}>Plan Name</Text>
       <TextInput
         style={styles.input}
