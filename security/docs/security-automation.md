@@ -133,7 +133,12 @@ does.
 
 Findings are grouped by source — `sast`, `dependencies`, `containers`, `iac` —
 and each severity is mapped through `security-thresholds.json` to one of `fail`,
-`warn` or `ignore`. Only `fail` blocks.
+`warn` or `ignore`. That mapping drives the summary only: the report script
+always exits 0 and both workflows run it as reporting. The scanners block on
+their own exit codes (semgrep `--error`, `osv-scanner`, `trivy --exit-code 1`,
+`checkov`, `pnpm audit --audit-level=high`), which are stricter than the
+thresholds. The `headers` section is the exception: `check-headers.js` reads it
+and does fail on it.
 
 Two things worth attention in a summary:
 

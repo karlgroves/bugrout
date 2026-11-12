@@ -208,3 +208,161 @@ describe("route-tracker — density response size", () => {
     assert.equal(body.truncated, false);
   });
 });
+
+describe("route-tracker — IPv6 clients are limited by /64, not by address", () => {
+  test("addresses inside one /64 share a single window", async () => {
+    resetRateLimits();
+    let last;
+    for (let i = 0; i < 130; i += 1) {
+      last = await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": `2001:db8:abcd:1234::${i.toString(16)}` },
+      });
+    }
+    assert.equal(last?.status, 429);
+  });
+
+  test("a different /64 keeps its own window", async () => {
+    resetRateLimits();
+    for (let i = 0; i < 130; i += 1) {
+      await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": `2001:db8:abcd:1234::${i.toString(16)}` },
+      });
+    }
+    const other = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "2001:db8:abcd:9999::1" },
+    });
+    assert.equal(other.status, 200);
+  });
+
+  test("one /64 cannot fill the limiter and lock out other clients", async () => {
+    resetRateLimits();
+    for (let i = 0; i < 10_000; i += 1) {
+      await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: {
+          "fly-client-ip": `2001:db8:dead:beef::${i.toString(16)}`,
+        },
+      });
+    }
+    const victim = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "2001:db8:0:5::1" },
+    });
+    assert.equal(victim.status, 200, "an unrelated client is still served");
+  });
+
+  test("IPv4 callers are still limited per address", async () => {
+    resetRateLimits();
+    let last;
+    for (let i = 0; i < 130; i += 1) {
+      last = await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": "198.51.100.30" },
+      });
+    }
+    assert.equal(last?.status, 429);
+    const other = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "198.51.100.31" },
+    });
+    assert.equal(other.status, 200, "a different IPv4 address is not grouped");
+  });
+
+  test("IPv4-mapped addresses are not all grouped together", async () => {
+    resetRateLimits();
+    let last;
+    for (let i = 0; i < 130; i += 1) {
+      last = await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": "::ffff:198.51.100.40" },
+      });
+    }
+    assert.equal(last?.status, 429);
+    const other = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "::ffff:198.51.100.41" },
+    });
+    assert.equal(
+      other.status,
+      200,
+      "every IPv4-mapped caller shares the all-zero top 64 bits",
+    );
+  });
+});
+
+describe("route-tracker — the limiter key does not depend on spelling", () => {
+  test("one IPv4-mapped address spelled two ways shares a window", async () => {
+    resetRateLimits();
+    for (let i = 0; i < 130; i += 1) {
+      await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": "::ffff:198.51.100.40" },
+      });
+    }
+    // ::ffff:c633:6428 is the same address with no dotted quad to recognise.
+    const sameHost = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "::ffff:c633:6428" },
+    });
+    assert.equal(sameHost.status, 429, "spelling must not buy a second window");
+  });
+
+  test("hex-spelled IPv4-mapped callers are not grouped together", async () => {
+    resetRateLimits();
+    let last;
+    for (let i = 0; i < 130; i += 1) {
+      last = await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": "::ffff:c633:6428" },
+      });
+    }
+    assert.equal(last?.status, 429);
+    const other = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "::ffff:c633:6429" },
+    });
+    assert.equal(other.status, 200, "a different IPv4 peer is its own client");
+  });
+
+  test("a dotted quad does not move a caller out of its own /64", async () => {
+    resetRateLimits();
+    for (let i = 0; i < 130; i += 1) {
+      await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": "2001:db8:abcd:1234::198.51.100.40" },
+      });
+    }
+    const sameNet = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "2001:db8:abcd:1234::1" },
+    });
+    assert.equal(sameNet.status, 429, "it is one address in that /64");
+    const unrelated = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "198.51.100.40" },
+    });
+    assert.equal(
+      unrelated.status,
+      200,
+      "an IPv4 client must not inherit an IPv6 caller's window",
+    );
+  });
+
+  test("an unparsable address cannot land in a /64's window", async () => {
+    resetRateLimits();
+    for (let i = 0; i < 130; i += 1) {
+      await invokeNodeHandler(handleRequest, {
+        url: "/health",
+        headers: { "fly-client-ip": "2001:db8:abcd:1234::/64" },
+      });
+    }
+    const victim = await invokeNodeHandler(handleRequest, {
+      url: "/health",
+      headers: { "fly-client-ip": "2001:db8:abcd:1234::7" },
+    });
+    assert.equal(victim.status, 200, "real clients keep their own window");
+  });
+});

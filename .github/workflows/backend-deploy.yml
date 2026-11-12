@@ -12,6 +12,16 @@ name: Backend Deploy
 # succeeded for the same commit, and re-derives the deploy-input path filter
 # that `workflow_run` cannot express.
 #
+# Provenance is checked here, not left to a dependency. `workflow_run` fires for
+# CI runs on fork pull requests too, and `branches: [main]` matches only the
+# run's head_branch, which a fork names. The gate job therefore runs only for a
+# CI run on a push from this repository, and every path — including a manual
+# dispatch, which skips the CI and Security waits — refuses a commit that is
+# not already on main. Before this, the only thing stopping a fork PR's code
+# from being checked out next to the deploy tokens was actions/checkout's own
+# fork-PR refusal (new in v7), and a dispatch with `ref: refs/pull/N/head`
+# deployed unreviewed code with nothing checked at all (#290).
+#
 # Not a schedule: `workflow_run` is event-driven, triggered by CI completing.
 on:
   workflow_run:
@@ -41,6 +51,13 @@ jobs:
   gate:
     name: Verify checks passed
     runs-on: ubuntu-latest
+    # A CI run counts only if it ran on a push from this repository: a fork
+    # PR's run has event `pull_request` and a different head repository. With
+    # the gate skipped, both deploy jobs (`needs: gate`) are skipped too.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     outputs:
       deploy: ${{ steps.decide.outputs.deploy }}
       sha: ${{ steps.decide.outputs.sha }}
@@ -79,6 +96,30 @@ jobs:
       - name: Read back the resolved commit
         id: commit
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Runs on both paths. For a dispatch it is the only check: a dispatched
+      # ref may name anything the repository can resolve, including
+      # refs/pull/N/head, so without this a manual deploy could ship code that
+      # never reached main. Asked of the API rather than the checkout, which
+      # is shallow; status `ahead` or `identical` means main contains the
+      # commit.
+      - name: Require the commit to be on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          status=$(gh api "repos/$REPO/compare/$SHA...main" --jq '.status')
+          case "$status" in
+            ahead | identical)
+              echo "$SHA is on main."
+              ;;
+            *)
+              echo "::error::$SHA is not on main (compare status '$status') — not deploying."
+              exit 1
+              ;;
+          esac
 
       - name: Require CI to have succeeded
         if: steps.resolve.outputs.manual == 'false'
@@ -251,14 +292,19 @@ jobs:
       # from. `trivy fs` in PR CI covers the dependency manifests; only this
       # sees the base image's own OS packages, which is where a container
       # vulnerability usually lives.
-      - name: Install Trivy
+      #
+      # Version and SHA-256 move together, and match security.yml's Trivy step;
+      # see "Pinned scanner binaries" in docs/dependency-upgrade-policy.md.
+      - name: Install Trivy (pinned + checksum-verified)
         env:
           TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
         run: |
           set -euo pipefail
           archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
           curl -sSLf -o "$archive" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${archive}"
+          echo "${TRIVY_SHA256}  ${archive}" | sha256sum --check --strict -
           tar -xzf "$archive" trivy
           sudo mv trivy /usr/local/bin/trivy
           rm -f "$archive"
