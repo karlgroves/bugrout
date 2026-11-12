@@ -76,8 +76,9 @@ export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
 /**
  * Fetch alerts by finding the state for a given lat/lng.
  *
- * Throws when either request fails or times out: a failure must not read as
- * "no active alerts" (#288). The caller keeps the cached alerts and retries.
+ * Throws when either request fails or times out, or when the points response
+ * names no state: a failure must not read as "no active alerts" (#288). The
+ * caller keeps the cached alerts and retries.
  */
 async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
   // First, get the state from the NWS points API
@@ -97,7 +98,13 @@ async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
   const pointData = (await pointResp.json()) as NWSPointResponse;
 
   const state = pointData.properties?.relativeLocation?.properties?.state;
-  if (!state) return [];
+  // No state means the alerts query was never made, so this is a failed
+  // fetch, not "no active alerts" (#288). Resolving to [] here used only to
+  // hide the notice; now that an empty result CLEARS the source (#338) it
+  // would also drop the cached alerts.
+  if (!state) {
+    throw new Error("NWS points: no state in the points response");
+  }
 
   // Fetch alerts for the state
   const alertResp = await fetch(

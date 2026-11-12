@@ -37,6 +37,14 @@ describe("fetchNWSAlerts", () => {
     await expect(fetchNWSAlerts(BBOX)).rejects.toThrow(/HTTP 503/);
   });
 
+  it("rejects when the points response names no state (#338)", async () => {
+    // The alerts query is never made, so this is a failed fetch. Resolving to
+    // [] would stamp the source as fetched just now and, now that an empty
+    // result clears the source, drop the cached alerts as well.
+    global.fetch = jest.fn().mockResolvedValue(response(200, {}));
+    await expect(fetchNWSAlerts(BBOX)).rejects.toThrow(/no state/);
+  });
+
   it("rejects when the alerts request fails", async () => {
     global.fetch = jest
       .fn()
@@ -96,6 +104,8 @@ describe("fetchFirePerimeters", () => {
         ],
       }),
     );
-    await expect(fetchFirePerimeters()).rejects.toThrow(/unusable geometry/);
+    await expect(fetchFirePerimeters(BBOX)).rejects.toThrow(
+      /unusable geometry/,
+    );
   });
 });
