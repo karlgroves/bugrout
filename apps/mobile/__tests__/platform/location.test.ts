@@ -1,11 +1,12 @@
 /**
  * Tests for the location platform shim's mock fallback.
  *
- * expo-location is mocked as unresolvable so the `catch` path runs — the same
- * path Expo Go takes. That mock track is what the navigation UI renders
- * against during development, so "it drifts" and "remove() actually stops it"
- * are the two properties worth pinning; a leaked interval here would keep
- * firing GPS updates after navigation ends.
+ * expo-location is mocked as unresolvable, so the module is absent — the
+ * same path Expo Go takes. A rejection from a present module must never reach
+ * these mocks; locationNative.test.ts pins that (#299). That mock track is
+ * what the navigation UI renders against during development, so "it drifts"
+ * and "remove() actually stops it" are the two properties worth pinning; a
+ * leaked interval here would keep firing GPS updates after navigation ends.
  */
 
 jest.mock("expo-location", () => {
@@ -16,6 +17,7 @@ import {
   watchPositionAsync,
   getCurrentPositionAsync,
   hasServicesEnabledAsync,
+  isUsingMockLocation,
 } from "@/platform/location";
 
 import type { LocationResult } from "@/platform/location";
@@ -136,7 +138,7 @@ describe("watchPositionAsync — mock fallback", () => {
   });
 });
 
-describe("other fallbacks", () => {
+describe("other fallbacks (module absent)", () => {
   it("returns the fixed mock position", async () => {
     const pos = await getCurrentPositionAsync();
     expect(pos.coords.latitude).toBeCloseTo(37.7749);
@@ -145,5 +147,9 @@ describe("other fallbacks", () => {
 
   it("assumes location services are enabled", async () => {
     await expect(hasServicesEnabledAsync()).resolves.toBe(true);
+  });
+
+  it("reports that positions are simulated", () => {
+    expect(isUsingMockLocation()).toBe(true);
   });
 });
