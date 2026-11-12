@@ -39,8 +39,11 @@ function OnboardingScreen(): React.JSX.Element {
   }, []);
 
   const handleRequestLocation = useCallback(async () => {
-    const { status } = await requestForegroundPermissionsAsync();
-    const granted = status === "granted";
+    // A request the OS rejects outright is not a grant.
+    const granted = await requestForegroundPermissionsAsync().then(
+      ({ status }) => status === "granted",
+      () => false,
+    );
     setLocationGranted(granted);
     track(
       granted

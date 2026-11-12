@@ -7,13 +7,14 @@
  * Tappable to show threat detail card.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
 import { MapDetailSheet } from "@/components/map/MapDetailSheet";
 import { colors, spacing, typography } from "@/constants/theme";
 import * as MapLibreGL from "@/platform/maplibre";
 import { useThreatStore } from "@/stores/useThreatStore";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
@@ -48,10 +49,16 @@ export function ThreatOverlay(): React.JSX.Element | null {
     [threatZones],
   );
 
-  if (threatZones.length === 0) return null;
+  // Group threats by type for separate layers with different colors. Each
+  // threat is validated on its own, so one malformed polygon cannot blank
+  // every other threat of its type that shares the source (#287). Memoized so
+  // a render for the detail card does not re-check every vertex.
+  const threatsByType = useMemo(
+    () => groupThreats(withUsableGeometry(threatZones)),
+    [threatZones],
+  );
 
-  // Group threats by type for separate layers with different colors
-  const threatsByType = groupThreats(threatZones);
+  if (threatZones.length === 0) return null;
 
   return (
     <>

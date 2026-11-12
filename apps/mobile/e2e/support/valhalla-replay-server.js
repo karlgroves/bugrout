@@ -27,6 +27,13 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 
+/**
+ * Largest request body the server will read. A real route request is a few
+ * hundred bytes; anything near this is not one, and buffering it would let a
+ * stray client grow the test process without bound.
+ */
+const MAX_BODY_BYTES = 64 * 1024;
+
 /** How far a requested location may be from a recorded one and still match. */
 const MATCH_TOLERANCE_M = 150;
 
@@ -103,10 +110,22 @@ function startReplayServer(options = {}) {
     }
 
     let raw = "";
+    let bytes = 0;
+    let tooLarge = false;
     req.on("data", (chunk) => {
+      if (tooLarge) return;
+      // Counted on the Buffer, not the decoded string: `raw.length` is UTF-16
+      // code units, so multi-byte characters would slip past the cap.
+      bytes += chunk.length;
       raw += chunk;
+      if (bytes > MAX_BODY_BYTES) {
+        tooLarge = true;
+        raw = "";
+        reply(413, { error: "request body too large" });
+      }
     });
     req.on("end", () => {
+      if (tooLarge) return;
       let request;
       try {
         request = JSON.parse(raw);
@@ -126,10 +145,18 @@ function startReplayServer(options = {}) {
 
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, () => {
+    // Loopback only. adb reverse and the iOS simulator both reach the host's
+    // loopback, so binding every interface would only expose the replay to
+    // the rest of the network for the length of the run.
+    server.listen(port, "127.0.0.1", () => {
       resolve(server);
     });
   });
 }
 
-module.exports = { startReplayServer, findRecording, MATCH_TOLERANCE_M };
+module.exports = {
+  startReplayServer,
+  findRecording,
+  MATCH_TOLERANCE_M,
+  MAX_BODY_BYTES,
+};

@@ -2,30 +2,44 @@
  * SQLite queries for cached threat zones.
  */
 
+import { sanitizeThreatGeometry } from "@/utils/geo";
+
 import { getDatabase } from "../database";
 
 import type { ThreatZone, ThreatType, ThreatSource } from "@bugrout/shared";
 
 /**
+ * Rows written per INSERT statement. Nine parameters per row keeps a statement
+ * under SQLite's historical 999-parameter limit.
+ */
+const ROWS_PER_INSERT = 100;
+
+/**
  * Inserts or replaces a batch of cached threat zones.
+ *
+ * Written in multi-row statements rather than one awaited round trip per zone,
+ * so a large feed does not stall the refresh on thousands of writes (#305).
  */
 export async function upsertThreatZones(threats: ThreatZone[]): Promise<void> {
   const db = await getDatabase();
 
-  for (const t of threats) {
+  for (let i = 0; i < threats.length; i += ROWS_PER_INSERT) {
+    const chunk = threats.slice(i, i + ROWS_PER_INSERT);
     await db.runAsync(
       `INSERT OR REPLACE INTO threat_zones
        (id, type, severity, geometry, headline, description, source, fetched_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      t.id,
-      t.type,
-      t.severity,
-      JSON.stringify(t.geometry),
-      t.headline,
-      t.description,
-      t.source,
-      t.fetchedAt,
-      t.expiresAt,
+       VALUES ${chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ")}`,
+      ...chunk.flatMap((t) => [
+        t.id,
+        t.type,
+        t.severity,
+        JSON.stringify(t.geometry),
+        t.headline,
+        t.description,
+        t.source,
+        t.fetchedAt,
+        t.expiresAt,
+      ]),
     );
   }
 }
@@ -58,17 +72,34 @@ export async function getCachedThreats(
     expires_at: number | null;
   }>(query, ...params);
 
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type as ThreatType,
-    severity: row.severity as ThreatZone["severity"],
-    geometry: JSON.parse(row.geometry) as ThreatZone["geometry"],
-    headline: row.headline,
-    description: row.description ?? "",
-    source: row.source as ThreatSource,
-    fetchedAt: row.fetched_at,
-    expiresAt: row.expires_at,
-  }));
+  // A row written by an older build, before geometry was validated at ingest,
+  // must not poison routing or the map: re-check it on the way out (#287).
+  return rows.flatMap((row) => {
+    const geometry = sanitizeThreatGeometry(parseJson(row.geometry));
+    if (geometry === null) return [];
+    return [
+      {
+        id: row.id,
+        type: row.type as ThreatType,
+        severity: row.severity as ThreatZone["severity"],
+        geometry,
+        headline: row.headline,
+        description: row.description ?? "",
+        source: row.source as ThreatSource,
+        fetchedAt: row.fetched_at,
+        expiresAt: row.expires_at,
+      },
+    ];
+  });
+}
+
+/** Parse stored JSON, reading unparseable text as `null`. */
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 /**

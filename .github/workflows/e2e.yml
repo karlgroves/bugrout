@@ -98,11 +98,12 @@ on:
       # while touching none of the paths above. useTileManager itself stays out
       # — it defines nothing the suite addresses, it only passes them on.
       #
-      # ValhallaModule is here for one string: buildMockRoute's summary, "Mock
-      # Route (Valhalla unavailable)", which full-navigation.test.ts asserts
-      # exactly. That assertion is what proves CI routed offline rather than
-      # against a live service, so the string is load-bearing and a change to
-      # it has to run this job.
+      # ValhallaModule is here because it is the parser the journey spec is
+      # arranged around. buildMockRoute is gone (#190); the route now comes
+      # from the replay server, and full-navigation.test.ts asserts the summary
+      # buildSummary makes from that recorded response, "via North Calvert
+      # Street". A change to how responses are parsed or summarized can break
+      # that assertion, so it has to run this job.
       - "apps/mobile/constants/regions.ts"
       - "apps/mobile/services/valhalla/ValhallaModule.ts"
       # The suite itself.

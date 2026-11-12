@@ -51,8 +51,24 @@ const SIGNAL_BASE =
 const SIGNAL_ENDPOINT = `${SIGNAL_BASE}/v1/signal`;
 const MIN_INTERVAL_MS = 10000; // Max 1 signal per 10 seconds
 const TOKEN_ROTATION_MS = 86400000; // 24 hours
+/** Cap on the failure backoff: 2^5 x 10 s, a little over five minutes. */
+const MAX_BACKOFF_EXPONENT = 5;
 
-let lastSentAt = 0;
+/**
+ * Earliest time the next send may start.
+ *
+ * The window is claimed when a send is *attempted*, before any await, not when
+ * one succeeds. Navigation calls `sendSignal` on every GPS fix (about 1 Hz)
+ * without awaiting it, so a window claimed only on success let every fix through
+ * once the endpoint stopped answering: ten times the intended rate, several
+ * requests in flight at once, during exactly the outage a mass evacuation
+ * causes (#297).
+ */
+let nextAllowedAt = 0;
+/** Consecutive failed sends; each one doubles the wait before the next. */
+let consecutiveFailures = 0;
+/** True while a POST is outstanding; a second one never starts alongside it. */
+let inFlight = false;
 let cachedToken: string | null = null;
 let cachedTokenExpiry = 0;
 
@@ -85,7 +101,8 @@ function signalAllowed(): boolean {
  * Silently no-ops if:
  * - User hasn't opted in
  * - Device is offline
- * - Rate limit not met (10s between signals)
+ * - Rate limit not met (10s between signals, longer after failures)
+ * - A previous signal is still in flight
  * - Battery is below 20%
  * - No CSPRNG is available to mint the device token (permanently, for the session)
  */
@@ -99,10 +116,34 @@ export async function sendSignal(
 
   if (!signalAllowed()) return;
 
-  // Rate limit
+  // Rate limit. Claim the window and the in-flight slot now, synchronously,
+  // so neither concurrent calls nor failed sends can reopen it.
   const now = Date.now();
-  if (now - lastSentAt < MIN_INTERVAL_MS) return;
+  if (inFlight || now < nextAllowedAt) return;
+  nextAllowedAt = now + MIN_INTERVAL_MS;
+  inFlight = true;
+  try {
+    await attemptSend(position, speed, heading, now);
+  } finally {
+    inFlight = false;
+  }
+}
 
+/**
+ * Check the battery and token, then POST one signal, recording the outcome
+ * for the backoff. Only `sendSignal` calls this, holding the in-flight slot.
+ *
+ * @param position - Current position; rounded before it leaves the device.
+ * @param speed - Speed to report.
+ * @param heading - Heading to report.
+ * @param now - When the attempt started.
+ */
+async function attemptSend(
+  position: LatLng,
+  speed: number,
+  heading: number,
+  now: number,
+): Promise<void> {
   // Check battery — conserve power when low
   try {
     const batteryLevel = await Battery.getBatteryLevelAsync();
@@ -119,7 +160,7 @@ export async function sendSignal(
   if (acquired === null) return;
 
   try {
-    await fetch(SIGNAL_ENDPOINT, {
+    const response = await fetch(SIGNAL_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -132,10 +173,30 @@ export async function sendSignal(
       }),
       signal: timeoutSignal(5000),
     });
-    lastSentAt = now;
+    // A 5xx or 429 means the service is struggling; back off rather than
+    // keep adding load. Anything else is an answer, so the backoff resets.
+    if (response.status >= 500 || response.status === 429) {
+      recordFailure(now);
+    } else {
+      consecutiveFailures = 0;
+    }
   } catch {
-    // Silently fail — crowd signal is best-effort, never block navigation
+    // Silently fail — crowd signal is best-effort, never block navigation —
+    // but back off: a timeout or dropped connection is not a reason to retry
+    // sooner than usual.
+    recordFailure(now);
   }
+}
+
+/**
+ * Push the next allowed send out exponentially after a failed attempt.
+ *
+ * @param startedAt - When the failed attempt began.
+ */
+function recordFailure(startedAt: number): void {
+  consecutiveFailures += 1;
+  const exponent = Math.min(consecutiveFailures, MAX_BACKOFF_EXPONENT);
+  nextAllowedAt = startedAt + MIN_INTERVAL_MS * 2 ** exponent;
 }
 
 /**
