@@ -29,8 +29,9 @@ import type { LatLng } from "@bugrout/shared";
  * the policy asks for. Closing that gap needs a config the app reads at
  * runtime, which is part of the hosting decision still open on #208.
  */
-const GEOCODER_BASE_URL =
-  process.env.EXPO_PUBLIC_GEOCODER_URL ?? "https://nominatim.openstreetmap.org";
+const GEOCODER_BASE_URL = (
+  process.env.EXPO_PUBLIC_GEOCODER_URL ?? "https://nominatim.openstreetmap.org"
+).replace(/\/+$/, "");
 
 /** Nominatim search endpoint. US results only, capped at 8. */
 const NOMINATIM_SEARCH = `${GEOCODER_BASE_URL}/search`;

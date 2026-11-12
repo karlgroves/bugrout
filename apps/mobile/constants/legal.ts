@@ -176,6 +176,17 @@ For questions about these terms: legal@bugrout.app
 `;
 
 export /**
+ * Attribution for geocoder results, shown beside the results themselves.
+ *
+ * Nominatim's usage policy requires the data to be attributed "as suitable for
+ * your medium". The policy and terms in this file name the ODbL, but small
+ * print on a legal screen is not the result list the user is looking at, so
+ * every screen that displays geocoder results renders this line with them
+ * (#208).
+ */
+const GEOCODER_ATTRIBUTION = "Search results © OpenStreetMap contributors";
+
+export /**
  *
  */
 const DISCLAIMER_SHORT =

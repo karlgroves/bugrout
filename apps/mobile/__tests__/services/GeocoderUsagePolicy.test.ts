@@ -81,6 +81,20 @@ describe("switchable endpoint", () => {
     }
   });
 
+  it("tolerates a trailing slash on the configured host", async () => {
+    process.env.EXPO_PUBLIC_GEOCODER_URL = "https://geocode.example.test/";
+    try {
+      const geocoder = loadGeocoder();
+      await geocoder.searchDestinations("baltimore");
+
+      expect(new URL(String(fetchSpy.mock.calls[0]?.[0])).pathname).toBe(
+        "/search",
+      );
+    } finally {
+      delete process.env.EXPO_PUBLIC_GEOCODER_URL;
+    }
+  });
+
   it("falls back to the public endpoint when nothing is configured", async () => {
     const geocoder = loadGeocoder();
     await geocoder.searchDestinations("baltimore");

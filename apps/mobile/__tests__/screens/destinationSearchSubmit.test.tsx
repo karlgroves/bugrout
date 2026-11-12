@@ -180,6 +180,40 @@ describe("destination search is not auto-complete", () => {
     expect(mockSearchDestinations).not.toHaveBeenCalled();
   });
 
+  it("sends one request however many times the button is pressed", async () => {
+    // The geocoder's one-per-second gate drops a *superseded* waiter, but a
+    // second identical submit is not superseded: it waits its turn and sends.
+    // The cap that matters is the application's, shared by every install, so
+    // the screen refuses while a search is in flight.
+    let release: (value: unknown) => void = () => undefined;
+    mockSearchDestinations.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    const { getByTestId } = await render(<DestinationScreen />);
+    const input = getByTestId("destination-search-input");
+
+    await type(input, "120 Main St");
+    await press(getByTestId("destination-search-submit"));
+    await press(getByTestId("destination-search-submit"));
+    await submit(input, "120 Main St");
+
+    expect(mockSearchDestinations).toHaveBeenCalledTimes(1);
+
+    // Once it has answered, searching again is allowed.
+    await act(async () => {
+      release([MATCH]);
+      await Promise.resolve();
+    });
+    await press(getByTestId("destination-search-submit"));
+
+    await waitFor(() => {
+      expect(mockSearchDestinations).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("drops stale results as soon as the query is edited again", async () => {
     const { getByTestId, queryByTestId, findByTestId } = await render(
       <DestinationScreen />,

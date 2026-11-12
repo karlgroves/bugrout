@@ -33,6 +33,7 @@ import {
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { RouteUnavailableNotice } from "@/components/routing/RouteUnavailableNotice";
+import { GEOCODER_ATTRIBUTION } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   getRecentDestinations,
@@ -64,15 +65,6 @@ interface GeocodingResult {
 
 /** Shortest query that is worth sending to the geocoder. */
 const MIN_QUERY_LENGTH = 3;
-
-/**
- * Attribution for the search results, which are OpenStreetMap data.
- *
- * Nominatim's usage policy requires the data to be attributed "as suitable for
- * your medium"; the bundled terms name the ODbL, but a line of small print in
- * the legal screen is not the result list the user is looking at (#208).
- */
-const SEARCH_ATTRIBUTION = "Search results © OpenStreetMap contributors";
 
 /** How many recent destinations the picker lists. */
 const RECENTS_SHOWN = 5;
@@ -158,15 +150,22 @@ function DestinationScreen(): React.JSX.Element {
    * Takes the text rather than reading the `query` state so that the keyboard's
    * submit uses the text the field actually submitted, which is the authority
    * on what the user typed.
+   *
+   * Refuses while a search is already in flight. A second submit is never
+   * "superseded" by the geocoder's one-per-second gate — it waits its turn and
+   * then sends an identical request — and the cap that matters is the
+   * application's, shared by every install, so a double-tap must not spend it
+   * twice (#208).
    */
   const runSearch = useCallback(
     (text: string) => {
+      if (searching) return;
       const q = text.trim();
       if (q.length < MIN_QUERY_LENGTH) return;
       void searchAddress(q);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- searchAddress is stable (memoized below) and including it would create a declaration-order cycle
-    [],
+    [searching],
   );
 
   const searchAddress = useCallback(async (q: string) => {
@@ -261,6 +260,9 @@ function DestinationScreen(): React.JSX.Element {
     [position, getPosition, calculateRoute, calculateRouteWithStops, router],
   );
 
+  // Too short to be worth a request, or one is already on its way.
+  const searchDisabled = query.trim().length < MIN_QUERY_LENGTH || searching;
+
   const isSelected = (lat: number, lng: number): boolean =>
     selectedDest !== null &&
     selectedDest.lat === lat &&
@@ -276,14 +278,12 @@ function DestinationScreen(): React.JSX.Element {
           onPress={() => {
             runSearch(query);
           }}
-          disabled={query.trim().length < MIN_QUERY_LENGTH}
-          style={styles.searchButton}
+          disabled={searchDisabled}
+          style={[styles.searchButton, searchDisabled && styles.searchDisabled]}
           accessibilityRole="button"
           accessibilityLabel="Search"
           accessibilityHint="Looks up the address you typed"
-          accessibilityState={{
-            disabled: query.trim().length < MIN_QUERY_LENGTH,
-          }}
+          accessibilityState={{ disabled: searchDisabled }}
           testID="destination-search-submit"
         >
           <FontAwesome name="search" size={16} color={colors.textMuted} />
@@ -328,7 +328,7 @@ function DestinationScreen(): React.JSX.Element {
 
       {results.length > 0 ? (
         <Text style={styles.attribution} testID="search-attribution">
-          {SEARCH_ATTRIBUTION}
+          {GEOCODER_ATTRIBUTION}
         </Text>
       ) : null}
 
@@ -650,6 +650,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: touchTarget.minHeight,
     minHeight: touchTarget.minHeight,
+  },
+  // The only visual cue that the control is inert; the icon itself is already
+  // drawn in the muted colour, so colour alone cannot carry the state.
+  searchDisabled: {
+    opacity: 0.4,
   },
   attribution: {
     ...typography.caption,
