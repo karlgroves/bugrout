@@ -179,6 +179,12 @@ function scrubDeep(value: unknown, depth = 0): unknown {
  * `breadcrumbs` and `spans` are the ones Sentry populates itself: the default
  * fetch/XHR integration records each request's full URL as a breadcrumb, and
  * with tracing on each request also becomes a span carrying that URL.
+ *
+ * `transaction` is the transaction event's own name, which is the root span's
+ * description — the same `"GET <url>"` string that a child span carries under
+ * `spans[].description`, so it needs the same treatment. A request recorded as
+ * its own segment rather than as a child span puts that URL here, where no
+ * sensitive key name appears for {@link isSensitiveKey} to match.
  */
 const SCRUBBED_EVENT_FIELDS = [
   "contexts",
@@ -188,6 +194,7 @@ const SCRUBBED_EVENT_FIELDS = [
   "user",
   "breadcrumbs",
   "spans",
+  "transaction",
 ] as const;
 
 /**

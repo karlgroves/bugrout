@@ -203,6 +203,26 @@ describe("scrubEvent — the beforeSend hook", () => {
     const crumb = { category: "app", message: "v1.2.3 took 12.5, 3.25 s" };
     expect(scrubBreadcrumb(crumb)).toEqual(crumb);
   });
+
+  it("scrubs the transaction's own name, not just its spans", () => {
+    // A request recorded as its own segment names the transaction after the
+    // root span, so the URL lands here rather than under `spans`.
+    const out = scrubEvent({
+      type: "transaction",
+      transaction:
+        "GET https://nominatim.openstreetmap.org/search?q=1600+Pennsylvania+Ave",
+    });
+    expect(out.transaction).toBe(
+      "GET https://nominatim.openstreetmap.org/search",
+    );
+
+    const points = scrubEvent({
+      transaction: "GET https://api.weather.gov/points/38.8977,-77.0365",
+    });
+    expect(points.transaction).toBe(
+      "GET https://api.weather.gov/points/[redacted]",
+    );
+  });
 });
 
 describe("stripUrlQueries", () => {
