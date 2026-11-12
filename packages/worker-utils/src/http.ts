@@ -23,6 +23,14 @@
  *
  * `frame-ancestors 'none'` is the modern control; `X-Frame-Options: DENY` is
  * kept alongside it for user agents that predate CSP Level 2.
+ *
+ * `Vary: Origin` is here, not in the CORS builder, because every backend's
+ * `Access-Control-Allow-Origin` echoes the request's `Origin` and several
+ * responses are cacheable (tile-server `max-age=86400`, alert-aggregator
+ * `max-age=900`, crowd-signal `max-age=30`). Without it a shared cache keyed
+ * on the URL alone can hand one origin's ACAO to another (#307). Keeping it in
+ * this set means route-tracker, which spreads these headers onto its own
+ * responses, inherits it too.
  */
 const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
@@ -33,6 +41,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
+  Vary: "Origin",
 };
 
 /**

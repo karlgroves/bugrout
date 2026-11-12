@@ -10,6 +10,12 @@
 
 import { upsertThreatZones } from "@/db/queries/threats";
 import { timeoutSignal } from "@/utils/abort";
+import {
+  boundedFeatures,
+  capText,
+  MAX_HEADLINE_CHARS,
+  readJsonBounded,
+} from "@/utils/feedBounds";
 import { extractRingCoordinates, sanitizeThreatGeometry } from "@/utils/geo";
 
 import type { ThreatZone, BBox } from "@bugrout/shared";
@@ -109,14 +115,16 @@ async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
     throw new Error(`NWS alerts: HTTP ${alertResp.status}`);
   }
 
-  return parseNWSResponse((await alertResp.json()) as NWSAlertResponse);
+  return parseNWSResponse(await readJsonBounded<NWSAlertResponse>(alertResp));
 }
 
 /**
  * Parse NWS GeoJSON response into ThreatZone array.
+ *
+ * Throws when the response holds more alerts than `MAX_FEED_FEATURES` (#305).
  */
-function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
-  return data.features.flatMap((f) => {
+export function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
+  return boundedFeatures(data.features, "NWS alerts").flatMap((f) => {
     // Zone-based alerts have no geometry; malformed ones are dropped too (#287).
     const geometry = sanitizeThreatGeometry(f.geometry);
     if (geometry === null) return [];
@@ -126,7 +134,10 @@ function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
         type: classifyNWSEvent(f.properties.event),
         severity: mapSeverity(f.properties.severity),
         geometry,
-        headline: f.properties.headline ?? f.properties.event,
+        headline: capText(
+          f.properties.headline ?? f.properties.event,
+          MAX_HEADLINE_CHARS,
+        ),
         description: truncateDescription(f.properties.description ?? ""),
         source: "nws" as const,
         fetchedAt: Date.now(),
