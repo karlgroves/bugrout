@@ -1,7 +1,7 @@
 /**
  * USFS (US Forest Service) Fire Perimeter Service
  *
- * Fetches active fire perimeters from NIFC GeoJSON feed.
+ * Fetches active fire perimeters from the NIFC GeoJSON feed.
  * Updated approximately every 12 hours.
  * Cached in SQLite with 12-hour TTL.
  */
@@ -11,8 +11,22 @@ import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
+// The NIFC_Perimeters layer this used to query was withdrawn: every request
+// to it, query or metadata, answers an ArcGIS 400 "Invalid URL", and the name
+// is absent from the org's service list, so the feed fetched nothing at all
+// (#336). WFIGS_Interagency_Perimeters_Current is the same org's live
+// current-perimeters layer and the supported replacement.
+//
+// Its schema is WFIGS's, not the old NIFC one: containment is
+// `attr_PercentContained`, and the old `irwin_PercentContained` does not
+// exist on this layer. Asking for a field the layer does not define is not a
+// soft failure: measured against this endpoint, it answers HTTP **200** with
+// `{"error":{"code":400,"details":["'outFields' parameter is invalid"]}}` and
+// no `features` array at all, so the whole fetch fails rather than returning
+// perimeters with one attribute missing. Keep the names requested here and
+// the names read in `NIFCResponse` identical; `USFSService.test.ts` pins both.
 const NIFC_URL =
-  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/NIFC_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID,poly_IncidentName,irwin_PercentContained&f=geojson";
+  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID,poly_IncidentName,attr_PercentContained&f=geojson";
 
 const CACHE_TTL_MS = 43200000; // 12 hours
 
@@ -27,7 +41,7 @@ interface NIFCResponse {
     id?: string | number | null;
     properties: {
       poly_IncidentName?: string;
-      irwin_PercentContained?: number;
+      attr_PercentContained?: number | null;
     };
     geometry: ThreatZone["geometry"];
   }[];
@@ -62,12 +76,12 @@ export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
       id,
       type: "wildfire" as const,
       severity:
-        (f.properties.irwin_PercentContained ?? 0) < 50
+        (f.properties.attr_PercentContained ?? 0) < 50
           ? ("severe" as const)
           : ("moderate" as const),
       geometry: f.geometry,
       headline: `Active Fire: ${name}`,
-      description: `${f.properties.irwin_PercentContained ?? 0}% contained`,
+      description: `${f.properties.attr_PercentContained ?? 0}% contained`,
       source: "usfs" as const,
       fetchedAt: Date.now(),
       expiresAt: null,
