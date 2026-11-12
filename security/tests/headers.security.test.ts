@@ -152,16 +152,26 @@ describe("crowd-signal — every response path", () => {
 });
 
 describe("alert-aggregator — every response path", () => {
-  const env = { ALERTS_KV: fakeKv() };
+  const snapshot = JSON.stringify({ fetchedAt: 0, features: [] });
+  const env = {
+    ALERTS_KV: fakeKv({ "alerts:nws": snapshot, "alerts:usfs": snapshot }),
+  };
+  const emptyEnv = { ALERTS_KV: fakeKv() };
 
-  test("200, 400 and 404 all carry the full set", async () => {
-    const cases: [string, Request][] = [
-      ["200", new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1")],
-      ["400", new Request("https://a.example/v1/alerts")],
-      ["404", new Request("https://a.example/nope")],
+  test("200, 400, 404 and 503 all carry the full set", async () => {
+    const cases: [string, Request, typeof env][] = [
+      ["200", new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1"), env],
+      ["400", new Request("https://a.example/v1/alerts"), env],
+      ["404", new Request("https://a.example/nope"), env],
+      [
+        "503",
+        new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1"),
+        emptyEnv,
+      ],
     ];
-    for (const [label, request] of cases) {
-      const res = await alertAggregator.fetch(request, env);
+    for (const [label, request, caseEnv] of cases) {
+      const res = await alertAggregator.fetch(request, caseEnv);
+      assert.equal(String(res.status), label, `alert-aggregator ${label}`);
       assertWorkerHeaders(res, `alert-aggregator ${label}`);
       assertNoLeakage(await res.text(), `alert-aggregator ${label}`);
     }
