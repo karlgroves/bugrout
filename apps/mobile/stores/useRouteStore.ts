@@ -61,6 +61,8 @@ const useRouteStore = create<RouteState>((set, get) => ({
       activeRoute: route,
       status: state.status === "rerouting" ? "active" : "previewing",
       currentManeuverIndex: 0,
+      // A new route (including a reroute) starts on route (#298).
+      hasDeviated: false,
     }));
   },
   startNavigation: () => {
@@ -72,11 +74,11 @@ const useRouteStore = create<RouteState>((set, get) => ({
   /*
    * These two are written on every GPS tick — NavigationController calls
    * `setCurrentManeuverIndex` once per position update, and `setDeviated` on
-   * every tick it finds the driver off route. Most ticks carry the same value
-   * as the last, but `set` replaces the state object regardless, so every
-   * subscriber that is not reading through a selector is woken up and
-   * re-rendered for a change that did not happen (#189, "Stop is slow to
-   * respond"; taps elsewhere lagged the same way just after navigation).
+   * every tick with whether the driver is off route (#298). Most ticks carry
+   * the same value as the last, but `set` replaces the state object
+   * regardless, so every subscriber that is not reading through a selector is
+   * woken up and re-rendered for a change that did not happen (#189, "Stop is
+   * slow to respond"; taps elsewhere lagged the same way just after navigation).
    *
    * So they return early when nothing changed. That is a store-level fix for
    * everything subscribed, not only the navigation screen.
