@@ -275,7 +275,20 @@ jobs:
             exit 1
           fi
 
+      # The action is SHA-pinned, but that pins the installer, not what it
+      # installs: with no `version:` it asks
+      # api.fly.io/app/flyctl_releases/.../latest and runs whatever flyctl
+      # that resolves to — in the one job that holds FLY_API_TOKEN. Pinning
+      # the version is what makes the action's own pin mean something.
+      # The action downloads and extracts the release itself and does not
+      # verify a checksum, so this cannot be checksum-gated the way the
+      # pinned release downloads elsewhere in these workflows are (see
+      # "Pinned scanner binaries" in docs/dependency-upgrade-policy.md)
+      # without replacing the action; bump this deliberately, reading the
+      # flyctl release notes in between.
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+        with:
+          version: "0.5.5"
 
       # Scan the image that is about to ship, not the source tree it came
       # from. `trivy fs` in PR CI covers the dependency manifests; only this

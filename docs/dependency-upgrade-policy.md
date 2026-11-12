@@ -363,12 +363,20 @@ installed through a package manager are pinned to an exact version instead,
 since pipx and a global npm install have no checksum mode here: Semgrep and
 Checkov (`pipx install <tool>==<version>`), wrangler in `data-pipeline.yml`
 (`npm install -g wrangler@<version>`, kept equal to what `pnpm-lock.yaml`
-resolves), and the EAS CLI (`eas-version`). `pnpm run security:tests` fails on a
-`releases/latest` URL, a `/releases/download/` URL with no `sha256sum` check in
-its step, an unpinned `pipx install` or `npm install -g`, or
-`eas-version: latest`. It does not recognise other install forms (`pip install`,
-`npm install --global`, a download from outside GitHub releases, a setup action
-with no version), so review a new tool's install step against this pattern.
+resolves), and the EAS CLI (`eas-version`). A setup action that installs a
+release names the version through its own input: `setup-flyctl` in
+`backend-deploy.yml` passes an exact `version:`, because with no `version:` the
+action resolves `latest` from the Fly releases API and installs whatever comes
+back, inside the one job that holds `FLY_API_TOKEN`. It downloads and extracts
+the release in its own JavaScript with no hash check, so the `<TOOL>_SHA256`
+half of the pattern cannot be applied to it without replacing the action.
+`pnpm run security:tests` fails on a `releases/latest` URL, a
+`/releases/download/` URL with no `sha256sum` check in its step, an unpinned
+`pipx install` or `npm install -g`, `eas-version: latest`, or a `setup-flyctl`
+step that does not name an exact `version:`. It does not recognise other install
+forms (`pip install`, `npm install --global`, a download from outside GitHub
+releases, another setup action with no version), so review a new tool's install
+step against this pattern.
 
 Two values have to move together when bumping trufflehog:
 
