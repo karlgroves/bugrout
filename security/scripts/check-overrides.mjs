@@ -32,6 +32,10 @@ const repoRoot = path.resolve(import.meta.dirname, "../..");
 
 /** "1.2.3" or "1.2.3-rc.1" -> [1, 2, 3, prerelease] ; partial "9" -> [9, 0, 0]. */
 function parseVersion(text) {
+  // safe-regex counts star height 2 below because `+` sits inside an optional
+  // group, but `?` bounds each group at one repetition and the pattern is
+  // anchored at both ends, so there is nothing to backtrack over.
+  // eslint-disable-next-line security/detect-unsafe-regex -- bounded, anchored
   const m = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/.exec(text);
   if (!m) throw new Error(`unsupported version "${text}"`);
   return [Number(m[1]), Number(m[2] ?? 0), Number(m[3] ?? 0), m[4] ?? ""];

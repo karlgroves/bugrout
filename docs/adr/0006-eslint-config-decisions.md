@@ -32,4 +32,19 @@
 8. **Semgrep runs at pre-push/CI, not lint-staged** — per-commit latency would
    be seconds-to-minutes per file batch. **`tsc-files` is not used**: per-file
    typechecking can't honor seven different workspace tsconfigs;
-   `turbo typecheck` at pre-push is correct and cached instead.
+   `turbo typecheck` at pre-push is correct and cached instead. Refined by
+   decision 9: Turbo reaches workspaces only, so it is no longer the whole
+   typecheck gate.
+9. **Code outside every workspace gets its own root gate** (issue #306). Turbo
+   runs a task only in a workspace, so `security/`, root `scripts/` and the root
+   `*.mjs` configs were reached by no gate at all: ESLint parsed them and
+   applied no rule, and `tsc` never saw them. `pnpm run lint` is now
+   `lint:workspaces` plus `lint:root` (`eslint scripts "*.mjs"`), with one
+   config block giving those files `js.configs.recommended`, `no-secrets` and
+   the `security` rules that can fire in a local build script.
+   `pnpm run typecheck` is `typecheck:workspaces` plus `typecheck:root`, a
+   `tsc -b` over project references rather than a Turbo task: that program reads
+   source from four other workspaces, which a per-package cache hash would not
+   see change. The references also keep `@cloudflare/workers-types` in its own
+   project, so its `declare const Buffer: any` cannot turn a Node API misuse in
+   the security tests into `any`.
