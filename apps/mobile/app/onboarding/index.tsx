@@ -39,8 +39,11 @@ function OnboardingScreen(): React.JSX.Element {
   }, []);
 
   const handleRequestLocation = useCallback(async () => {
-    const { status } = await requestForegroundPermissionsAsync();
-    const granted = status === "granted";
+    // A request the OS rejects outright is not a grant.
+    const granted = await requestForegroundPermissionsAsync().then(
+      ({ status }) => status === "granted",
+      () => false,
+    );
     setLocationGranted(granted);
     track(
       granted
@@ -142,8 +145,9 @@ function OnboardingScreen(): React.JSX.Element {
             calculate routes from your current position.
           </Text>
           <Text style={styles.privacyNote}>
-            Your location is processed on-device only and never sent to our
-            servers.
+            When you ask for a route, your starting point and destination are
+            sent to BugRout's routing service. Otherwise your location leaves
+            your device only if you turn on Crowd Signal in Settings.
           </Text>
 
           <Pressable

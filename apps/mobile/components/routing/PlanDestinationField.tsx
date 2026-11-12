@@ -10,6 +10,7 @@
 
 import { StyleSheet, View, Text, TextInput, Pressable } from "react-native";
 
+import { GEOCODER_ATTRIBUTION } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { DROPPED_PIN_LABEL } from "@/utils/planLabel";
 
@@ -32,6 +33,51 @@ interface PlanDestinationFieldProps {
   onPickMatch: (match: GeocodeResult) => void;
   /** Called to open the map and drop a pin instead. */
   onChooseOnMap: () => void;
+}
+
+/**
+ * Several places match what was typed. The user chooses; the editor never takes
+ * the first silently.
+ *
+ * @param props - The matches and the callback that takes the chosen one.
+ * @returns The list of matches, attributed to the geocoder that produced them.
+ */
+function AmbiguousMatches({
+  matches,
+  onPickMatch,
+}: Pick<PlanDestinationFieldProps, "matches" | "onPickMatch"> & {
+  matches: GeocodeResult[];
+}): React.JSX.Element {
+  return (
+    <View style={styles.matches}>
+      <Text
+        style={styles.matchesTitle}
+        accessibilityRole="header"
+        aria-level={2}
+      >
+        {matches.length} places match. Which did you mean?
+      </Text>
+      {matches.map((match) => (
+        <Pressable
+          key={`${match.lat},${match.lng}`}
+          style={styles.matchRow}
+          onPress={() => {
+            onPickMatch(match);
+          }}
+          accessibilityLabel={`Use ${match.displayName}`}
+          accessibilityHint="Uses this place as the destination"
+          accessibilityRole="button"
+        >
+          <Text style={styles.matchText}>{match.displayName}</Text>
+        </Pressable>
+      ))}
+      {/* These rows are geocoder results, so they carry the same attribution
+          as the destination picker's list (#208). */}
+      <Text style={styles.attribution} testID="plan-match-attribution">
+        {GEOCODER_ATTRIBUTION}
+      </Text>
+    </View>
+  );
 }
 
 /**
@@ -71,32 +117,8 @@ export function PlanDestinationField({
         </Text>
       ) : null}
 
-      {/* Several places match what was typed. The user chooses; the editor
-          never takes the first silently. */}
       {matches ? (
-        <View style={styles.matches}>
-          <Text
-            style={styles.matchesTitle}
-            accessibilityRole="header"
-            aria-level={2}
-          >
-            {matches.length} places match. Which did you mean?
-          </Text>
-          {matches.map((match) => (
-            <Pressable
-              key={`${match.lat},${match.lng}`}
-              style={styles.matchRow}
-              onPress={() => {
-                onPickMatch(match);
-              }}
-              accessibilityLabel={`Use ${match.displayName}`}
-              accessibilityHint="Uses this place as the destination"
-              accessibilityRole="button"
-            >
-              <Text style={styles.matchText}>{match.displayName}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <AmbiguousMatches matches={matches} onPickMatch={onPickMatch} />
       ) : null}
 
       <Pressable
@@ -165,6 +187,14 @@ const styles = StyleSheet.create({
   matchText: {
     ...typography.body,
     color: colors.textPrimary,
+  },
+  attribution: {
+    ...typography.caption,
+    color: colors.textMuted,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   pinButton: {
     marginTop: spacing.md,
