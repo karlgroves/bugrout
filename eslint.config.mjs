@@ -201,7 +201,11 @@ export default tseslint.config(
       "security/detect-child-process": "error",
       "security/detect-eval-with-expression": "error",
       "security/detect-no-csrf-before-method-override": "error",
-      "security/detect-possible-timing-attacks": "warn",
+      // error, not warn: no lint script passes --max-warnings, so a warn-level
+      // rule can never fail a gate, and this one guards ADR 0005's claim that
+      // route-tracker compares its bearer token in constant time. It has zero
+      // findings, so promoting it is a pure ratchet (#307).
+      "security/detect-possible-timing-attacks": "error",
       "security/detect-pseudoRandomBytes": "error",
 
       // Unicorn (targeted, not the full recommended set)

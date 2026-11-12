@@ -31,10 +31,11 @@ android/
 apps/mobile/native-modules/valhalla/deps/
 apps/mobile/native-modules/valhalla/bin/
 
-# Environment
+# Environment. Expo also reads .env.production, .env.development and
+# .env.preview, so every variant is ignored, not just the *.local ones (#307).
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # IDE
 .idea/
