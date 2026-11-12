@@ -5,15 +5,19 @@
  * All offline data persistence goes through this module.
  *
  * Error recovery:
- * - Falls back to in-memory mock when expo-sqlite is unavailable
+ * - Falls back to in-memory mock only when expo-sqlite is unavailable; an
+ *   open failure on a native build reaches this module's recovery ladder
  * - On corruption (and only corruption), deletes the database and its WAL
  *   files and recreates it; other init errors retry without deleting
+ * - If every attempt fails, runs on an in-memory SQLite database for the
+ *   session (`isUsingInMemoryDatabase()` reports it)
  * - All queries are wrapped in try/catch at the caller level
  */
 
 import { deleteAsync, documentDirectory } from "@/platform/fileSystem";
 import {
   openDatabaseAsync,
+  openInMemoryDatabaseAsync,
   isUsingMockDatabase,
   type SQLiteDatabase,
 } from "@/platform/sqlite";
@@ -69,10 +73,11 @@ export async function getDatabase(): Promise<SQLiteDatabase> {
       return getDatabase();
     }
 
-    // Give up on native, fall back to in-memory mock
+    // Give up on the file and run on an in-memory database for this session.
+    // Opening a second named file here would hide the user's data, still in
+    // bugrout.db, behind an empty database and send new writes elsewhere.
     console.warn("[BugRout] Using in-memory database after recovery failure.");
-    const { openDatabaseAsync: openMock } = await import("@/platform/sqlite");
-    db = await openMock("mock-recovery.db");
+    db = await openInMemoryDatabaseAsync();
     await db.execAsync(CREATE_TABLES_SQL);
     return db;
   }
