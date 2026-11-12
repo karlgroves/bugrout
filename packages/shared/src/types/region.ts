@@ -12,6 +12,16 @@ export interface Region {
   /** Valhalla tiles archive size in bytes */
   valhallaSize: number;
   /**
+   * MD5 (lowercase hex) of the PMTiles file and of the Valhalla archive
+   * (#292). The app checks each download against it before the file replaces
+   * anything. MD5, not SHA-256, because expo-file-system hashes a large file
+   * natively only with MD5. Absent on a manifest published before the field
+   * existed, or for an archive the package does not have; the size check then
+   * stands alone.
+   */
+  pmtilesMd5?: string;
+  valhallaMd5?: string;
+  /**
    * The packaged fuel stations' size in bytes and SHA-256 (#200). Absent for
    * a package built before fuel was packaged; the app then fetches fuel
    * online instead.

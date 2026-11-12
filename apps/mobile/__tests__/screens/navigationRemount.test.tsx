@@ -2,6 +2,9 @@
  * The navigation screen starts guidance only for the trip the user started,
  * addressed by its own id, and never restarts it on a remount (#294).
  *
+ * When GPS will not start, or is lost mid-trip, it says so and goes back
+ * rather than showing guidance for a trip nothing is tracking (#300).
+ *
  * Resume on the trip banner pushes this screen afresh; so does a
  * `bugrout://navigation/<id>` link arriving while the app is warm. Either used
  * to call NavigationController.start, resetting guidance to the departure
@@ -9,10 +12,12 @@
  */
 
 import { act, render } from "@testing-library/react-native";
+import { Alert } from "react-native";
 
 import NavigationScreen from "@/app/navigation/[routeId]";
 import { useRouteStore } from "@/stores/useRouteStore";
 
+import type { NavigationEvent } from "@/services/navigation/NavigationController";
 import type { Route } from "@bugrout/shared";
 
 const mockBack = jest.fn();
@@ -167,5 +172,79 @@ describe("navigation screen mount (#294)", () => {
     });
 
     expect(mockUpdateRoute).toHaveBeenCalledWith(rerouted);
+  });
+});
+
+describe("navigation screen when location is unavailable (#300)", () => {
+  let alertSpy: jest.SpyInstance<void, Parameters<typeof Alert.alert>>;
+
+  beforeEach(() => {
+    alertSpy = jest.spyOn(Alert, "alert").mockImplementation(jest.fn());
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+  });
+
+  /** Press the only button of the alert most recently shown. */
+  function dismissAlert(): void {
+    const buttons = alertSpy.mock.lastCall?.[2];
+    buttons?.[0]?.onPress?.();
+  }
+
+  it("tells the driver and goes back when GPS will not start", async () => {
+    mockStart.mockRejectedValueOnce(
+      new Error("Location permission not granted"),
+    );
+
+    await render(<NavigationScreen />);
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      "Location unavailable",
+      expect.any(String),
+      expect.any(Array),
+    );
+    expect(mockBack).not.toHaveBeenCalled();
+    dismissAlert();
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays quiet if the screen closed before GPS failed to start", async () => {
+    let fail: (err: Error) => void = jest.fn();
+    mockStart.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        fail = reject;
+      }),
+    );
+
+    const screen = await render(<NavigationScreen />);
+    await screen.unmount();
+    await act(async () => {
+      fail(new Error("Location permission not granted"));
+      await Promise.resolve();
+    });
+
+    // Going back now would pop whatever screen replaced this one.
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("tells the driver and goes back when tracking is lost mid-trip", async () => {
+    await render(<NavigationScreen />);
+    const onEvent = mockStart.mock.calls[0]?.[1] as (
+      event: NavigationEvent,
+    ) => void;
+
+    await act(() => {
+      onEvent({ type: "tracking_lost" });
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      "Location unavailable",
+      expect.any(String),
+      expect.any(Array),
+    );
+    dismissAlert();
+    expect(mockBack).toHaveBeenCalledTimes(1);
   });
 });
