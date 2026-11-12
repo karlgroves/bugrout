@@ -261,6 +261,26 @@ describe("SECURITY_HEADERS — the required set", () => {
     ]);
   });
 
+  test("every value is the one the baseline requires", () => {
+    // Literal on purpose. assertAllSecurityHeaders compares responses against
+    // SECURITY_HEADERS itself, so without this the table only vouches for
+    // itself: X-Frame-Options: ALLOWALL or Referrer-Policy: unsafe-url would
+    // keep every other test here green. It is exhaustive, so a header added to
+    // the table has to be added here too.
+    assert.deepEqual(SECURITY_HEADERS, {
+      "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+      "Strict-Transport-Security":
+        "max-age=31536000; includeSubDomains; preload",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "no-referrer",
+      "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Resource-Policy": "same-origin",
+      Vary: "Origin",
+    });
+  });
+
   test("varies on Origin, because Allow-Origin echoes it on cacheable responses", () => {
     assert.equal(SECURITY_HEADERS.Vary, "Origin");
   });
