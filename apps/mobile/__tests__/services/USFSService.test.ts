@@ -13,10 +13,13 @@ const square = {
   ],
 };
 
+const BBOX = { west: -79.5, south: 37.9, east: -75.0, north: 39.8 };
+
 function mockFeed(features: unknown[]): void {
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: () => Promise.resolve({ features }),
+    headers: { get: () => null },
+    text: () => Promise.resolve(JSON.stringify({ features })),
   });
 }
 
@@ -34,7 +37,7 @@ describe("fetchFirePerimeters ids", () => {
       { properties: {}, geometry: square },
     ]);
 
-    const threats = await fetchFirePerimeters();
+    const threats = await fetchFirePerimeters(BBOX);
 
     expect(threats).toHaveLength(4);
     expect(new Set(threats.map((t) => t.id)).size).toBe(4);
@@ -53,7 +56,7 @@ describe("fetchFirePerimeters ids", () => {
       { id: 102, properties: {}, geometry: square },
     ]);
 
-    const ids = (await fetchFirePerimeters()).map((t) => t.id);
+    const ids = (await fetchFirePerimeters(BBOX)).map((t) => t.id);
 
     expect(ids[0]).toBe("fire-101");
     expect(ids[1]).toBe("fire-102");
@@ -63,7 +66,7 @@ describe("fetchFirePerimeters ids", () => {
   it("requests OBJECTID, which ArcGIS needs to set each feature id", async () => {
     mockFeed([]);
 
-    await fetchFirePerimeters();
+    await fetchFirePerimeters(BBOX);
 
     const fetchMock = global.fetch as jest.Mock<unknown, [string]>;
     const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
@@ -84,7 +87,7 @@ describe("fetchFirePerimeters endpoint", () => {
    */
   async function requestedUrl(): Promise<URL> {
     mockFeed([]);
-    await fetchFirePerimeters();
+    await fetchFirePerimeters(BBOX);
     const fetchMock = global.fetch as jest.Mock<unknown, [string]>;
     return new URL(String(fetchMock.mock.calls[0]?.[0]));
   }
@@ -138,7 +141,7 @@ describe("fetchFirePerimeters containment", () => {
       },
     ]);
 
-    const threats = await fetchFirePerimeters();
+    const threats = await fetchFirePerimeters(BBOX);
 
     expect(threats.map((t) => t.severity)).toEqual(["moderate", "severe"]);
     expect(threats.map((t) => t.description)).toEqual([
@@ -161,7 +164,7 @@ describe("fetchFirePerimeters containment", () => {
       },
     ]);
 
-    const threats = await fetchFirePerimeters();
+    const threats = await fetchFirePerimeters(BBOX);
 
     expect(threats[0]?.severity).toBe("severe");
   });
