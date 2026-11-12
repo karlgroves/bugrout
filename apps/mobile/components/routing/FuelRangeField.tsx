@@ -30,6 +30,16 @@ interface FuelRangeFieldProps {
 const METERS_PER_UNIT = { mi: 1609.344, km: 1000 } as const;
 
 /**
+ * Most digits the field accepts, and the largest range it stores, in the
+ * driver's units. `number-pad` limits typing but not pasting: a pasted
+ * 20-digit value became a range of ~1e23 m (or `Infinity`), so the "next fuel
+ * stop is out of reach" check could never fire for the whole trip (#307).
+ * No road vehicle's tank comes near 2000 mi or km.
+ */
+const MAX_DIGITS = 4;
+const MAX_RANGE_UNITS = 2000;
+
+/**
  * A single optional field asking how far the driver can go on current fuel,
  * stored in metres whatever unit it was typed in.
  */
@@ -43,12 +53,12 @@ export function FuelRangeField({
 
   const handleChange = useCallback(
     (text: string) => {
-      const digits = text.replace(/[^0-9]/g, "");
+      const digits = text.replace(/[^0-9]/g, "").slice(0, MAX_DIGITS);
       if (digits === "") {
         onChange(null);
         return;
       }
-      onChange(Number(digits) * perUnit);
+      onChange(Math.min(Number(digits), MAX_RANGE_UNITS) * perUnit);
     },
     [onChange, perUnit],
   );
@@ -65,6 +75,7 @@ export function FuelRangeField({
           value={shown}
           onChangeText={handleChange}
           keyboardType="number-pad"
+          maxLength={MAX_DIGITS}
           placeholder="Optional"
           placeholderTextColor={colors.textMuted}
           accessibilityLabel={`About how far can you drive on your current fuel, in ${units === "mi" ? "miles" : "kilometres"}`}

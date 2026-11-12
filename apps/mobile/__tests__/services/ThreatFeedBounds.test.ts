@@ -76,7 +76,7 @@ function nwsFeature(id: string, headline: string) {
 /** A NIFC perimeter feature with the given incident name. */
 function nifcFeature(name: string) {
   return {
-    properties: { poly_IncidentName: name, irwin_PercentContained: 10 },
+    properties: { poly_IncidentName: name, attr_PercentContained: 10 },
     geometry: SQUARE,
   };
 }

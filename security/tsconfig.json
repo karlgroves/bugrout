@@ -1,20 +1,33 @@
 {
   // The security regression tests import handlers from four different
   // workspaces, so they cannot live under any one workspace's tsconfig. This
-  // exists so typescript-eslint's project service can resolve them — without
-  // it, `eslint security/` fails with "was not found by the project service"
-  // and the files go unlinted, which the pre-push hook catches but the
-  // per-workspace `turbo run lint` does not.
+  // exists so typescript-eslint's project service can resolve them for
+  // `security/`'s own `lint` script — security/ is a workspace (#306) only so
+  // that `turbo run lint` reaches it, and so that @types/node resolves.
   //
-  // Type-checking only. These files are executed by `node --import tsx`.
+  // `module` is inherited from tsconfig.base.json (ESNext). The NodeNext it
+  // replaced classified these files as CommonJS, since security/package.json
+  // has no "type", and rejected every `import.meta`.
+  //
+  // Type-checked by `pnpm run typecheck:root` (`tsc -b`), not through Turbo:
+  // this program reaches source in four other workspaces, which a per-package
+  // Turbo cache hash would not see change. The tests import Workers source,
+  // which only type-checks against @cloudflare/workers-types, and those types
+  // must not enter this program: their globals (`declare const Buffer: any`,
+  // `process: any`, their own Response) would silently turn every Node API
+  // misuse in the tests into `any`. So the Workers source is its own project,
+  // tsconfig.workers.json, checked with Workers types, and this one sees only
+  // its emitted declarations through `references`. The JS scanner wrappers and
+  // root scripts/ are tsconfig.scripts.json. These files are executed by
+  // `node --import tsx`.
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
     "verbatimModuleSyntax": false,
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    "tsBuildInfoFile": "./.tsbuild/tests.tsbuildinfo"
   },
-  "include": ["tests/**/*.ts"]
+  "include": ["tests/**/*.ts"],
+  "references": [{ "path": "./tsconfig.workers.json" }]
 }
