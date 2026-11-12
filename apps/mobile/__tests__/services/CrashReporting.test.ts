@@ -10,7 +10,9 @@ import * as Sentry from "@/platform/sentry";
 import {
   captureError,
   redactSensitive,
+  scrubBreadcrumb,
   scrubEvent,
+  stripUrlQueries,
 } from "@/services/CrashReporting";
 
 // Hoisted above the imports by babel-plugin-jest-hoist, so the mock is in place
@@ -22,6 +24,14 @@ jest.mock("@/platform/sentry", () => ({
   setContext: jest.fn(),
   setTag: jest.fn(),
 }));
+
+// Sentry's own fetch/XHR integration records each request URL in a
+// breadcrumb and, with tracing on, in a span. The typed destination and the
+// exact coordinates travel in those URLs' query strings (#304).
+const TYPED = "1600 Pennsylvania Ave";
+const SEARCH_URL = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(TYPED)}&format=json`;
+const REVERSE_URL =
+  "https://nominatim.openstreetmap.org/reverse?lat=38.8976763&lon=-77.0365298";
 
 describe("redactSensitive", () => {
   it("redacts bare coordinate keys", () => {
@@ -130,6 +140,133 @@ describe("scrubEvent — the beforeSend hook", () => {
   it("does not invent fields that were absent", () => {
     expect(Object.keys(scrubEvent({ message: "boom" }))).toEqual(["message"]);
   });
+
+  it("strips the query string from a breadcrumb's request URL", () => {
+    const out = scrubEvent({
+      breadcrumbs: [
+        {
+          category: "fetch",
+          type: "http",
+          data: { method: "GET", url: SEARCH_URL, status_code: 200 },
+        },
+      ],
+    });
+    const json = JSON.stringify(out);
+    expect(json).not.toContain("Pennsylvania");
+    expect(json).not.toContain("q=");
+    expect(out.breadcrumbs).toEqual([
+      {
+        category: "fetch",
+        type: "http",
+        data: {
+          method: "GET",
+          url: "https://nominatim.openstreetmap.org/search",
+          status_code: 200,
+        },
+      },
+    ]);
+  });
+
+  it("strips coordinates from span descriptions and attributes", () => {
+    const out = scrubEvent({
+      type: "transaction",
+      spans: [
+        {
+          op: "http.client",
+          description: `GET ${REVERSE_URL}`,
+          data: { url: REVERSE_URL, "http.query": "?lat=38.8976763" },
+        },
+      ],
+    });
+    const json = JSON.stringify(out);
+    expect(json).not.toContain("38.8976763");
+    expect(json).not.toContain("77.0365298");
+    const [span] = out.spans as Record<string, unknown>[];
+    expect(span?.description).toBe(
+      "GET https://nominatim.openstreetmap.org/reverse",
+    );
+  });
+  it("redacts coordinates that sit in a URL path, not a query", () => {
+    // NWS looks a point up by path: /points/<lat>,<lng>.
+    const url = "https://api.weather.gov/points/38.8977,-77.0365";
+    const out = scrubEvent({
+      breadcrumbs: [{ category: "xhr", data: { url } }],
+      spans: [{ description: `GET ${url}` }],
+    });
+    const json = JSON.stringify(out);
+    expect(json).not.toContain("38.8977");
+    expect(json).not.toContain("77.0365");
+    expect(json).toContain("https://api.weather.gov/points/[redacted]");
+  });
+
+  it("leaves version strings and ordinary numbers alone", () => {
+    const crumb = { category: "app", message: "v1.2.3 took 12.5, 3.25 s" };
+    expect(scrubBreadcrumb(crumb)).toEqual(crumb);
+  });
+
+  it("scrubs the transaction's own name, not just its spans", () => {
+    // A request recorded as its own segment names the transaction after the
+    // root span, so the URL lands here rather than under `spans`.
+    const out = scrubEvent({
+      type: "transaction",
+      transaction:
+        "GET https://nominatim.openstreetmap.org/search?q=1600+Pennsylvania+Ave",
+    });
+    expect(out.transaction).toBe(
+      "GET https://nominatim.openstreetmap.org/search",
+    );
+
+    const points = scrubEvent({
+      transaction: "GET https://api.weather.gov/points/38.8977,-77.0365",
+    });
+    expect(points.transaction).toBe(
+      "GET https://api.weather.gov/points/[redacted]",
+    );
+  });
+});
+
+describe("stripUrlQueries", () => {
+  it("removes query strings and fragments from embedded URLs", () => {
+    expect(
+      stripUrlQueries(
+        "failed https://a.example/x?api_key=secret then http://b.example/#frag",
+      ),
+    ).toBe("failed https://a.example/x then http://b.example/");
+  });
+
+  it("leaves text without URLs unchanged", () => {
+    expect(stripUrlQueries("what? no url here #1")).toBe(
+      "what? no url here #1",
+    );
+  });
+});
+
+describe("scrubBreadcrumb — the beforeBreadcrumb hook", () => {
+  it("drops console breadcrumbs, which carry whatever the app logged", () => {
+    expect(
+      scrubBreadcrumb({ category: "console", message: "SMS at 38.89767" }),
+    ).toBeNull();
+  });
+
+  it("strips the query string from an XHR breadcrumb", () => {
+    expect(
+      scrubBreadcrumb({
+        category: "xhr",
+        data: { method: "GET", url: SEARCH_URL },
+      }),
+    ).toEqual({
+      category: "xhr",
+      data: {
+        method: "GET",
+        url: "https://nominatim.openstreetmap.org/search",
+      },
+    });
+  });
+
+  it("keeps an ordinary breadcrumb intact", () => {
+    const crumb = { category: "navigation", data: { from: "/", to: "/map" } };
+    expect(scrubBreadcrumb(crumb)).toEqual(crumb);
+  });
 });
 
 describe("captureError", () => {
@@ -205,6 +342,36 @@ describe("initCrashReporting — the redaction is actually wired up", () => {
     expect(init).toHaveBeenCalledTimes(1);
     const options = init.mock.calls[0]?.[0];
     expect(typeof options?.beforeSend).toBe("function");
+  });
+
+  it("installs the scrubbers for transactions and breadcrumbs too", () => {
+    // beforeSend never sees transactions, which is where spans live, and
+    // beforeBreadcrumb is the only hook that runs as a breadcrumb is recorded.
+    const { init, initCrashReporting } = loadWithDsn();
+    init.mockClear();
+
+    initCrashReporting(true);
+
+    const options = init.mock.calls[0]?.[0];
+    const beforeBreadcrumb = options?.beforeBreadcrumb as (
+      c: Record<string, unknown>,
+    ) => Record<string, unknown> | null;
+    const beforeSendTransaction = options?.beforeSendTransaction as (
+      e: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    // Exercised, not just type-checked: a pass-through hook must fail here.
+    expect(
+      beforeBreadcrumb({ category: "console", message: TYPED }),
+    ).toBeNull();
+    const crumb = beforeBreadcrumb({
+      category: "xhr",
+      data: { url: SEARCH_URL },
+    });
+    expect(JSON.stringify(crumb)).not.toContain("q=");
+    const txn = beforeSendTransaction({
+      spans: [{ description: `GET ${REVERSE_URL}` }],
+    });
+    expect(JSON.stringify(txn)).not.toContain("38.8976763");
   });
 
   it("the installed hook is one that actually redacts", () => {

@@ -159,6 +159,25 @@ FUEL_SIZE=$(stat -f%z "$FUEL_FILE" 2>/dev/null || stat --format=%s "$FUEL_FILE" 
 FUEL_SHA256=$(python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$FUEL_FILE")
 GEOCODE_SIZE=$(stat -f%z "$GEOCODE_FILE" 2>/dev/null || stat --format=%s "$GEOCODE_FILE" 2>/dev/null || echo "0")
 GEOCODE_SHA256=$(python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$GEOCODE_FILE")
+# The app checks the map and routing archives against these before either
+# replaces a copy on the device (#292). MD5 because expo-file-system can hash
+# a multi-hundred-MB file natively only with MD5. Read in chunks; empty when
+# the package has no such file (no routing archive yet), and the manifest
+# then publishes none.
+md5_of() {
+  if [[ -f "$1" ]]; then
+    python3 -c "
+import hashlib, sys
+h = hashlib.md5()
+with open(sys.argv[1], 'rb') as f:
+    for chunk in iter(lambda: f.read(1 << 20), b''):
+        h.update(chunk)
+print(h.hexdigest())
+" "$1"
+  fi
+}
+PMTILES_MD5=$(md5_of "$PACKAGE_DIR/${REGION_ID}.pmtiles")
+VALHALLA_MD5=$(md5_of "$PACKAGE_DIR/${REGION_ID}.valhalla.tar.gz")
 
 cat > "$PACKAGE_DIR/manifest.json" << EOF
 {
@@ -184,6 +203,10 @@ cat > "$PACKAGE_DIR/manifest.json" << EOF
   "sha256": {
     "fuel": "$FUEL_SHA256",
     "geocode": "$GEOCODE_SHA256"
+  },
+  "md5": {
+    "pmtiles": "$PMTILES_MD5",
+    "valhalla": "$VALHALLA_MD5"
   }
 }
 EOF

@@ -10,7 +10,13 @@
 
 import { upsertThreatZones } from "@/db/queries/threats";
 import { timeoutSignal } from "@/utils/abort";
-import { extractRingCoordinates } from "@/utils/geo";
+import {
+  boundedFeatures,
+  capText,
+  MAX_HEADLINE_CHARS,
+  readJsonBounded,
+} from "@/utils/feedBounds";
+import { extractRingCoordinates, sanitizeThreatGeometry } from "@/utils/geo";
 
 import type { ThreatZone, BBox } from "@bugrout/shared";
 
@@ -69,54 +75,58 @@ export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
 
 /**
  * Fetch alerts by finding the state for a given lat/lng.
+ *
+ * Throws when either request fails or times out: a failure must not read as
+ * "no active alerts" (#288). The caller keeps the cached alerts and retries.
  */
 async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
   // First, get the state from the NWS points API
-  try {
-    const pointResp = await fetch(
-      `${NWS_BASE}/points/${lat.toFixed(4)},${lng.toFixed(4)}`,
-      {
-        headers: {
-          "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
-          Accept: "application/geo+json",
-        },
-        signal: timeoutSignal(10000),
+  const pointResp = await fetch(
+    `${NWS_BASE}/points/${lat.toFixed(4)},${lng.toFixed(4)}`,
+    {
+      headers: {
+        "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
+        Accept: "application/geo+json",
       },
-    );
+      signal: timeoutSignal(10000),
+    },
+  );
 
-    if (!pointResp.ok) return [];
+  if (!pointResp.ok) throw new Error(`NWS points: HTTP ${pointResp.status}`);
 
-    const pointData = (await pointResp.json()) as NWSPointResponse;
+  const pointData = (await pointResp.json()) as NWSPointResponse;
 
-    const state = pointData.properties?.relativeLocation?.properties?.state;
-    if (!state) return [];
+  const state = pointData.properties?.relativeLocation?.properties?.state;
+  if (!state) return [];
 
-    // Fetch alerts for the state
-    const alertResp = await fetch(
-      `${NWS_BASE}/alerts/active?area=${state}&status=actual&message_type=alert`,
-      {
-        headers: {
-          "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
-          Accept: "application/geo+json",
-        },
-        signal: timeoutSignal(15000),
+  // Fetch alerts for the state
+  const alertResp = await fetch(
+    `${NWS_BASE}/alerts/active?area=${state}&status=actual&message_type=alert`,
+    {
+      headers: {
+        "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
+        Accept: "application/geo+json",
       },
-    );
+      signal: timeoutSignal(15000),
+    },
+  );
 
-    if (!alertResp.ok) return [];
-
-    return parseNWSResponse((await alertResp.json()) as NWSAlertResponse);
-  } catch {
-    return [];
+  if (!alertResp.ok) {
+    throw new Error(`NWS alerts: HTTP ${alertResp.status}`);
   }
+
+  return parseNWSResponse(await readJsonBounded<NWSAlertResponse>(alertResp));
 }
 
 /**
  * Parse NWS GeoJSON response into ThreatZone array.
+ *
+ * Throws when the response holds more alerts than `MAX_FEED_FEATURES` (#305).
  */
-function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
-  return data.features.flatMap((f) => {
-    const geometry = f.geometry;
+export function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
+  return boundedFeatures(data.features, "NWS alerts").flatMap((f) => {
+    // Zone-based alerts have no geometry; malformed ones are dropped too (#287).
+    const geometry = sanitizeThreatGeometry(f.geometry);
     if (geometry === null) return [];
     return [
       {
@@ -124,7 +134,10 @@ function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
         type: classifyNWSEvent(f.properties.event),
         severity: mapSeverity(f.properties.severity),
         geometry,
-        headline: f.properties.headline ?? f.properties.event,
+        headline: capText(
+          f.properties.headline ?? f.properties.event,
+          MAX_HEADLINE_CHARS,
+        ),
         description: truncateDescription(f.properties.description ?? ""),
         source: "nws" as const,
         fetchedAt: Date.now(),
