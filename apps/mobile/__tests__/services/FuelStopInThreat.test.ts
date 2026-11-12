@@ -126,9 +126,10 @@ beforeEach(() => {
 
 describe("resource stop selection", () => {
   it("picks the nearest station when no threat covers it", async () => {
-    await expect(getResourceWaypoints(ROUTE, FUEL)).resolves.toEqual([
-      { lat: 39.01, lng: -76.0 },
-    ]);
+    await expect(getResourceWaypoints(ROUTE, FUEL)).resolves.toMatchObject({
+      waypoints: [{ lat: 39.01, lng: -76.0 }],
+      dropped: [],
+    });
   });
 
   it.each<ThreatType>(["wildfire", "flood", "weather"])(
@@ -136,7 +137,10 @@ describe("resource stop selection", () => {
     async (type) => {
       await expect(
         getResourceWaypoints(ROUTE, FUEL, [threat(type)]),
-      ).resolves.toEqual([{ lat: 39.03, lng: -75.95 }]);
+      ).resolves.toMatchObject({
+        waypoints: [{ lat: 39.03, lng: -75.95 }],
+        dropped: [],
+      });
     },
   );
 
@@ -160,9 +164,12 @@ describe("resource stop selection", () => {
         ],
       },
     };
-    await expect(getResourceWaypoints(ROUTE, FUEL, [multi])).resolves.toEqual([
-      { lat: 39.03, lng: -75.95 },
-    ]);
+    await expect(
+      getResourceWaypoints(ROUTE, FUEL, [multi]),
+    ).resolves.toMatchObject({
+      waypoints: [{ lat: 39.03, lng: -75.95 }],
+      dropped: [],
+    });
   });
 });
 

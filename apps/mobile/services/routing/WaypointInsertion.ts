@@ -17,6 +17,7 @@ import { haversineDistance } from "@/utils/geo";
 import { routeIntersectsThreat } from "./ThreatAvoidance";
 
 import type {
+  DroppedStop,
   LatLng,
   ResourceType,
   ResourcePoint,
@@ -38,25 +39,43 @@ interface WaypointCandidate {
   distanceFromRoute: number;
   /** Estimated total detour in meters (there + back to route) */
   estimatedDetour: number;
+  /** Whether this resource sits inside an active threat zone */
+  inThreat: boolean;
 }
 
 /**
- * Find the best resource stop along a route corridor.
+ * The outcome of searching the corridor for one kind of stop.
+ *
+ * `blocked` is the nearest candidate that was passed over because it is
+ * inside an active threat zone. It is what makes "we found nothing usable"
+ * tellable apart from "there is nothing out here", which the preview needs in
+ * order to say why a stop is missing (#341).
+ */
+interface StopSearch {
+  best: WaypointCandidate | null;
+  blocked: WaypointCandidate | null;
+}
+
+/**
+ * Search a route corridor for one kind of resource stop.
+ *
+ * A resource inside an active threat zone is never chosen, but it is still
+ * reported back as `blocked` so the caller can say why nothing was chosen.
  *
  * @param routeCoordinates - The route polyline
  * @param type - Resource type to search for (fuel, water)
  * @param maxDetour - Maximum acceptable detour in meters
- * @param threats - Active threat zones; a resource inside any of them is
- *   never a candidate
- * @returns Best candidate, or null if none found within tolerance
+ * @param threats - Active threat zones
+ * @returns The best usable candidate and the nearest threat-blocked one,
+ *   either of which may be null
  */
-async function findBestResourceStop(
+async function searchResourceStops(
   routeCoordinates: LatLng[],
   type: ResourceType,
   maxDetour: number = DEFAULT_MAX_DETOUR_METERS,
   threats: ThreatZone[] = [],
-): Promise<WaypointCandidate | null> {
-  if (routeCoordinates.length === 0) return null;
+): Promise<StopSearch> {
+  if (routeCoordinates.length === 0) return { best: null, blocked: null };
 
   // Sample points along the route at regular intervals
   // (every ~5km to avoid querying too many points)
@@ -74,9 +93,7 @@ async function findBestResourceStop(
       type,
     );
 
-    const usable = nearby.filter((r) => !insideAnyThreat(r, threats));
-
-    for (const resource of usable) {
+    for (const resource of nearby) {
       if (allCandidates.has(resource.id)) continue;
 
       const distFromRoute = getMinDistanceToPolyline(
@@ -92,19 +109,21 @@ async function findBestResourceStop(
           resource,
           distanceFromRoute: distFromRoute,
           estimatedDetour,
+          inThreat: insideAnyThreat(resource, threats),
         });
       }
     }
   }
-
-  if (allCandidates.size === 0) return null;
 
   // Rank by smallest detour
   const sorted = Array.from(allCandidates.values()).sort(
     (a, b) => a.estimatedDetour - b.estimatedDetour,
   );
 
-  return sorted[0] ?? null;
+  return {
+    best: sorted.find((c) => !c.inThreat) ?? null,
+    blocked: sorted.find((c) => c.inThreat) ?? null,
+  };
 }
 
 /**
@@ -120,7 +139,23 @@ function insideAnyThreat(resource: ResourcePoint, threats: ThreatZone[]) {
 }
 
 /**
+ * The waypoints to route through, and the stops that are not among them.
+ */
+export interface ResourceStopPlan {
+  /** One waypoint per stop that was found and is usable. */
+  waypoints: LatLng[];
+  /** The stops that were asked for and are not on the route (#341). */
+  dropped: DroppedStop[];
+  /** The chosen stop for each waypoint, in the same order as `waypoints`. */
+  chosen: ResourcePoint[];
+}
+
+/**
  * Find resource stops and return them as waypoints for the route engine.
+ *
+ * Every enabled preference that yields no waypoint is reported in `dropped`
+ * with the reason, because a stop the driver asked for and did not get is a
+ * change to their plan, not a detail (#341).
  *
  * @param threats - Active threat zones; resources inside them are skipped
  */
@@ -128,28 +163,45 @@ export async function getResourceWaypoints(
   routeCoordinates: LatLng[],
   preferences: { type: ResourceType; maxDetour: number; enabled: boolean }[],
   threats: ThreatZone[] = [],
-): Promise<LatLng[]> {
+): Promise<ResourceStopPlan> {
   const waypoints: LatLng[] = [];
+  const chosen: ResourcePoint[] = [];
+  const dropped: DroppedStop[] = [];
 
   for (const pref of preferences) {
     if (!pref.enabled) continue;
 
-    const candidate = await findBestResourceStop(
+    const { best, blocked } = await searchResourceStops(
       routeCoordinates,
       pref.type,
       pref.maxDetour,
       threats,
     );
 
-    if (candidate) {
-      waypoints.push({
-        lat: candidate.resource.lat,
-        lng: candidate.resource.lng,
-      });
+    if (best) {
+      waypoints.push({ lat: best.resource.lat, lng: best.resource.lng });
+      chosen.push(best.resource);
+      continue;
     }
+
+    dropped.push(
+      blocked
+        ? {
+            type: pref.type,
+            reason: "in-threat",
+            name: blocked.resource.name,
+            detourMeters: blocked.estimatedDetour,
+          }
+        : {
+            type: pref.type,
+            reason: "none-nearby",
+            name: null,
+            detourMeters: null,
+          },
+    );
   }
 
-  return waypoints;
+  return { waypoints, dropped, chosen };
 }
 
 /**

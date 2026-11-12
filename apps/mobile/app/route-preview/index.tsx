@@ -23,6 +23,7 @@ import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { DirectionsList } from "@/components/navigation/DirectionsList";
 import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
+import { DroppedStopNotice } from "@/components/routing/DroppedStopNotice";
 import { FuelRangeField } from "@/components/routing/FuelRangeField";
 import { RouteThreatWarnings } from "@/components/routing/RouteThreatWarnings";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
@@ -159,6 +160,9 @@ function RoutePreviewScreen(): React.JSX.Element | null {
               </Text>
             </View>
           )}
+
+          {/* Resource stops the driver asked for and did not get (#341) */}
+          <DroppedStopNotice />
 
           {/* Threat warnings */}
           <RouteThreatWarnings threats={threatWarnings} />

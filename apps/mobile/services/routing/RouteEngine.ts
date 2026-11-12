@@ -11,6 +11,7 @@
  */
 /* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (calculateSmartRoute: two-pass threat-avoidance + waypoint routing) */
 
+import { useRouteStore } from "@/stores/useRouteStore";
 import { useThreatStore } from "@/stores/useThreatStore";
 import { haversineDistance, projectOntoPolyline } from "@/utils/geo";
 
@@ -20,7 +21,9 @@ import { threatsToAvoidancePolygons } from "./ThreatAvoidance";
 import { getResourceWaypoints } from "./WaypointInsertion";
 
 import type {
+  DroppedStop,
   LatLng,
+  ResourcePoint,
   Route,
   RouteOptions,
   ResourceStopPreference,
@@ -31,6 +34,10 @@ const DEVIATION_THRESHOLD_METERS = 500;
 /**
  * Calculate a route with automatic threat avoidance and resource waypoints.
  * This is the high-level "smart route" that incorporates all BugRout features.
+ *
+ * Any resource stop the caller asked for and did not get is recorded on the
+ * route store for the preview to show (#341). The list is replaced on every
+ * calculation, so a reroute never carries the previous route's drops.
  */
 export async function calculateSmartRoute(
   origin: LatLng,
@@ -54,20 +61,25 @@ export async function calculateSmartRoute(
   // Find resource waypoints along the base route corridor
   let waypoints: LatLng[] = extraOptions?.waypoints ?? [];
   let resourceWaypoints: LatLng[] = [];
+  let chosenStops: ResourcePoint[] = [];
+  let dropped: DroppedStop[] = [];
 
   if (resourcePreferences?.some((p) => p.enabled)) {
-    resourceWaypoints = await getResourceWaypoints(
+    const plan = await getResourceWaypoints(
       baseRoute.coordinates,
       resourcePreferences,
       threatZones,
     );
+    resourceWaypoints = plan.waypoints;
+    chosenStops = plan.chosen;
+    dropped = plan.dropped;
     waypoints = [...waypoints, ...resourceWaypoints];
   }
 
   // If we have waypoints, recalculate with them
   if (waypoints.length > 0) {
     try {
-      return await Valhalla.calculateRoute(origin, destination, {
+      const withStops = await Valhalla.calculateRoute(origin, destination, {
         ...extraOptions,
         avoidPolygons: [
           ...(extraOptions?.avoidPolygons ?? []),
@@ -75,20 +87,45 @@ export async function calculateSmartRoute(
         ],
         waypoints,
       });
+      reportDroppedStops(dropped);
+      return withStops;
     } catch (err) {
       // An optional resource stop must never cost the user the route they
       // already have (#295). The base route carries the caller's own
       // waypoints, so only the resource stops are lost.
-      if (resourceWaypoints.length === 0) throw err;
+      if (resourceWaypoints.length === 0) {
+        reportDroppedStops(dropped);
+        throw err;
+      }
       console.warn(
         "[BugRout] routing with resource stops failed; using the route without them:",
         err,
       );
+      reportDroppedStops([
+        ...dropped,
+        ...chosenStops.map((stop): DroppedStop => ({
+          type: stop.type,
+          reason: "routing-failed",
+          name: stop.name,
+          detourMeters: null,
+        })),
+      ]);
       return baseRoute;
     }
   }
 
+  reportDroppedStops(dropped);
   return baseRoute;
+}
+
+/**
+ * Hand the preview the stops this route does not include (#341).
+ *
+ * Always called, with an empty list when nothing was dropped, so the notice
+ * never outlives the route it described.
+ */
+function reportDroppedStops(dropped: DroppedStop[]): void {
+  useRouteStore.getState().setDroppedStops(dropped);
 }
 
 /**
