@@ -365,7 +365,7 @@ Checkov (`pipx install <tool>==<version>`), wrangler in `data-pipeline.yml`
 (`npm install -g wrangler@<version>`, kept equal to what `pnpm-lock.yaml`
 resolves), and the EAS CLI (`eas-version`). A setup action that installs a
 release names the version through its own input: `setup-flyctl` in
-`backend-deploy.yml` passes `version: "0.5.5"`, because with no `version:` the
+`backend-deploy.yml` passes an exact `version:`, because with no `version:` the
 action resolves `latest` from the Fly releases API and installs whatever comes
 back, inside the one job that holds `FLY_API_TOKEN`. It downloads and extracts
 the release in its own JavaScript with no hash check, so the `<TOOL>_SHA256`
