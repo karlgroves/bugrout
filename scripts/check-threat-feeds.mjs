@@ -96,6 +96,14 @@ const FEEDS = [
 /**
  * Extracts a feed URL from a service module's source.
  *
+ * The declaration is found with one static pattern that captures *every*
+ * `const NAME = "literal";` in the file, and the name is then compared as a
+ * string. Interpolating `name` into a `new RegExp(...)` would be the obvious
+ * way to write this, but it is a dynamic pattern the lint gate rejects
+ * (`security/detect-non-literal-regexp`, error for `scripts/**` since #331),
+ * and a literal pattern plus an equality test needs no suppression and cannot
+ * be fed pattern syntax through the name.
+ *
  * @param file - Absolute path to the service module.
  * @param name - The `const` holding the URL string literal.
  * @returns The URL.
@@ -103,12 +111,11 @@ const FEEDS = [
 function readFeedUrl(file, name) {
   const src = readFileSync(file, "utf8");
   // `const NAME =\n  "https://...";` — the literal may sit on the next line.
-  const re = new RegExp(`const\\s+${name}\\s*=\\s*\\n?\\s*"([^"]+)"`, "u");
-  const m = re.exec(src);
-  if (!m?.[1]) {
-    throw new Error(`could not find the ${name} string literal in ${file}`);
+  const re = /const\s+([A-Za-z_$][\w$]*)\s*=\s*\n?\s*"([^"]+)"/gu;
+  for (const m of src.matchAll(re)) {
+    if (m[1] === name && m[2]) return m[2];
   }
-  return m[1];
+  throw new Error(`could not find the ${name} string literal in ${file}`);
 }
 
 /**
