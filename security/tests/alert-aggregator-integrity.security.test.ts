@@ -60,7 +60,7 @@ function nifcBody(name: string, lng: number, lat: number): string {
   return JSON.stringify({
     features: [
       {
-        properties: { poly_IncidentName: name, irwin_PercentContained: 10 },
+        properties: { poly_IncidentName: name, attr_PercentContained: 10 },
         geometry: square(lng, lat),
       },
     ],
