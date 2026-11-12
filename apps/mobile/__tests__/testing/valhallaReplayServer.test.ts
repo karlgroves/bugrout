@@ -15,6 +15,7 @@
 import fixtures from "../../e2e/fixtures/valhalla-routes.json";
 import {
   MATCH_TOLERANCE_M,
+  MAX_BODY_BYTES,
   findRecording,
   startReplayServer,
 } from "../../e2e/support/valhalla-replay-server";
@@ -60,6 +61,19 @@ describe("Valhalla replay server", () => {
     ]);
     expect(resp.status).toBe(400);
     expect(await resp.json()).toMatchObject({ error_code: 171 });
+  });
+
+  it("listens on loopback only", () => {
+    expect((server.address() as AddressInfo).address).toBe("127.0.0.1");
+  });
+
+  it("refuses a body larger than any route request", async () => {
+    const resp = await fetch(`${base}/route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "x".repeat(MAX_BODY_BYTES + 1),
+    });
+    expect(resp.status).toBe(413);
   });
 
   it("matches within the tolerance and not beyond it", () => {

@@ -51,7 +51,7 @@ import {
   SearchSupersededError,
 } from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
-import { placeKey } from "@/utils/geo";
+import { placeKey, pointFromStrings } from "@/utils/geo";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
 
@@ -131,14 +131,13 @@ function DestinationScreen(): React.JSX.Element {
       });
 
     // Auto-select pin dropped from map
-    if (params.pinLat && params.pinLng) {
-      const lat = parseFloat(params.pinLat);
-      const lng = parseFloat(params.pinLng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        const label = `Map pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-        setSelectedDest({ lat, lng });
-        setPinDest({ dest: { lat, lng }, label });
-      }
+    // The params are also reachable as a bugrout:// deep link, so they are
+    // outside input: parseFloat accepted "39abc", "Infinity" and lat 1e9 (#307).
+    const pin = pointFromStrings(params.pinLat, params.pinLng);
+    if (pin) {
+      const label = `Map pin (${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)})`;
+      setSelectedDest(pin);
+      setPinDest({ dest: pin, label });
     }
   }, [getPosition, params.pinLat, params.pinLng]);
 
@@ -224,11 +223,17 @@ function DestinationScreen(): React.JSX.Element {
         return;
       }
 
+      // Bookkeeping must never block the route. Unguarded, a rejected write
+      // (a full disk is plausible after multi-GB map downloads) escaped this
+      // un-awaited callback with `calculating` still true, leaving the screen
+      // behind an undismissable "Calculating route…" overlay (#307).
       await addRecentDestination({
         label: label || `${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}`,
         lat: dest.lat,
         lng: dest.lng,
         usedAt: Date.now(),
+      }).catch((err: unknown) => {
+        console.error("Failed to save recent destination", err);
       });
 
       const avoid =

@@ -244,11 +244,17 @@ describe("ingest", () => {
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ features }),
-      } as Response),
+        headers: { get: () => null },
+        text: () => Promise.resolve(JSON.stringify({ features })),
+      } as unknown as Response),
     );
 
-    const threats = await fetchFirePerimeters();
+    const threats = await fetchFirePerimeters({
+      west: -180,
+      south: -90,
+      east: 180,
+      north: 90,
+    });
     // Ids are per feature since #291, so identify the survivor by its headline.
     expect(threats.map((t) => t.headline)).toEqual(["Active Fire: Good"]);
   });

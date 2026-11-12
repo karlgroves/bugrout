@@ -162,6 +162,7 @@ describe("thinVertices", () => {
     const thinned = thinVertices(dense);
 
     expect(thinned.length).toBeLessThanOrEqual(2000);
+    expect(thinned.length).toBeGreaterThan(1);
     let last = -1;
     for (const v of thinned) {
       const index = dense.indexOf(v);

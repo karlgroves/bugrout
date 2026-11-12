@@ -114,4 +114,36 @@ describe("check-overrides.mjs", () => {
     assert.equal(r.status, 2);
     assert.match(r.stderr, /unsupported version/);
   });
+
+  // Prerelease precedence (#351). The comparator compared two prerelease
+  // strings with a plain `<`, which reads `beta.10` as below `beta.2`. No
+  // override uses a prerelease today, so these drive the rule directly.
+  test("orders numeric prerelease identifiers numerically, not as text", () => {
+    // beta.2 is below the beta.10 floor, so nothing installed is in range and
+    // the entry is dead. Comparing as text put beta.2 above beta.10 and
+    // reported this dead entry as live.
+    const r = run({ "pkg@>=1.0.0-beta.10 <1.0.0": ">=1.0.0 <2" }, [
+      "pkg@1.0.0-beta.2",
+    ]);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /dead override "pkg@>=1\.0\.0-beta\.10 <1\.0\.0"/);
+  });
+
+  test("keeps a live entry live when its prerelease is above the floor", () => {
+    const r = run({ "pkg@>=1.0.0-beta.2 <1.0.0": ">=1.0.0 <2" }, [
+      "pkg@1.0.0-beta.10",
+    ]);
+    assert.equal(r.status, 0, r.stderr);
+  });
+
+  test("sorts a prerelease below its own release and below a longer tag", () => {
+    // 1.0.0-rc.1 < 1.0.0, so the selector still catches it; and
+    // 1.0.0-alpha < 1.0.0-alpha.1, so the alpha.1 floor does not.
+    const inRange = run({ "pkg@<1.0.0": ">=1.0.0 <2" }, ["pkg@1.0.0-rc.1"]);
+    assert.equal(inRange.status, 0, inRange.stderr);
+    const below = run({ "pkg@>=1.0.0-alpha.1 <1.0.0": ">=1.0.0 <2" }, [
+      "pkg@1.0.0-alpha",
+    ]);
+    assert.equal(below.status, 1);
+  });
 });

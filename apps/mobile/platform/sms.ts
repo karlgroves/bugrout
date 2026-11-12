@@ -36,7 +36,8 @@ export async function sendSMSAsync(
     const { result } = await SMS.sendSMSAsync(addresses, message);
     return { result: result ?? "unknown" };
   } catch {
-    console.log("[BugRout] SMS unavailable, message:", message);
+    // The body holds the user's position and destination; never log it.
+    console.log("[BugRout] SMS unavailable; composer did not open.");
     Alert.alert("SMS Unavailable", "SMS is not available on this device.");
     return { result: "unknown" };
   }
