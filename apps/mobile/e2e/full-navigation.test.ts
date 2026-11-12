@@ -253,16 +253,49 @@ describe("Full evacuation journey", () => {
       .withTimeout(15000);
   });
 
-  it("records the trip as a recent destination", async () => {
-    // The journey's only persistent side effect: routing writes the chosen
-    // destination to SQLite before it routes. Seeing it come back on
-    // a later mount of the picker is end-to-end proof the write happened and
-    // survived — the one thing about this flow that outlives the session.
+  it("lists the plan once after the trip, not again as a recent", async () => {
+    // Routing wrote the destination to recents, but the picker leaves out a
+    // recent that is already a saved plan (#216), so the plan is the only
+    // row for this place. This spec asserted the recent row here for a month
+    // after #216 landed, and failed on every run because of it.
     //
     // It also proves the app is still usable after a navigation session, which
     // is not a given: navigation holds a GPS and a heading subscription, and a
     // stop() that failed to release them would show up as a wedged screen here
     // rather than anywhere in the steps above.
+    await element(by.id("bug-out-fab")).tap();
+    await waitFor(element(by.label(`Use plan: ${SCENARIO_NAME}`)))
+      .toBeVisible()
+      .withTimeout(15000);
+    await expect(
+      element(by.label(`Use recent destination: ${SCENARIO_NAME}`)),
+    ).not.toExist();
+    await device.pressBack();
+    await waitFor(element(by.id("bug-out-fab")))
+      .toBeVisible()
+      .withTimeout(10000);
+  });
+
+  it("records the trip as a recent destination", async () => {
+    // The journey's only persistent side effect: routing writes the chosen
+    // destination to SQLite before it routes. With the plan deleted, nothing
+    // hides the recent any more, so seeing it on a later mount of the picker
+    // is end-to-end proof the write happened and survived — the one thing
+    // about this flow that outlives the session.
+    await element(by.text("Plans")).tap();
+    await element(by.label(`Edit plan: ${SCENARIO_NAME}`)).tap();
+    // Delete sits below Save and the stop toggles, off screen on a phone.
+    await waitFor(element(by.label("Delete plan")))
+      .toBeVisible()
+      .whileElement(by.id("plan-editor"))
+      .scroll(300, "down");
+    await element(by.label("Delete plan")).tap();
+    await element(by.text("Delete")).tap();
+    await waitFor(element(by.label(`Edit plan: ${SCENARIO_NAME}`)))
+      .not.toExist()
+      .withTimeout(10000);
+    await element(by.text("Map")).tap();
+
     await element(by.id("bug-out-fab")).tap();
     await waitFor(element(by.label(`Use recent destination: ${SCENARIO_NAME}`)))
       .toBeVisible()

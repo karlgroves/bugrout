@@ -42,13 +42,13 @@ const SECRET = "route-tracker-secret";
  * Two different contracts are at play, and this suite owns the second:
  *
  * - *What* the table must contain is §5.10's list. That is asserted in
- *   `packages/worker-utils/src/http.test.ts`, and extending the table to the
- *   full seven headers is issue #86's work, not this one's.
+ *   `packages/worker-utils/src/http.test.ts`, which pins the whole table as a
+ *   literal — necessarily, because the list here is derived from the table and
+ *   so stays green if a header is deleted from it.
  * - *That every response path emits the whole table* is asserted here. Deriving
  *   the list from the table rather than restating it is deliberate: this suite
  *   should catch a path that skips headers, and should strengthen on its own
- *   the moment #86 grows the table, without an edit here that could be
- *   forgotten.
+ *   whenever the table grows, without an edit here that could be forgotten.
  */
 const REQUIRED_HEADERS = Object.keys(SECURITY_HEADERS).map((h) =>
   h.toLowerCase(),
@@ -152,16 +152,26 @@ describe("crowd-signal — every response path", () => {
 });
 
 describe("alert-aggregator — every response path", () => {
-  const env = { ALERTS_KV: fakeKv() };
+  const snapshot = JSON.stringify({ fetchedAt: 0, features: [] });
+  const env = {
+    ALERTS_KV: fakeKv({ "alerts:nws": snapshot, "alerts:usfs": snapshot }),
+  };
+  const emptyEnv = { ALERTS_KV: fakeKv() };
 
-  test("200, 400 and 404 all carry the full set", async () => {
-    const cases: [string, Request][] = [
-      ["200", new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1")],
-      ["400", new Request("https://a.example/v1/alerts")],
-      ["404", new Request("https://a.example/nope")],
+  test("200, 400, 404 and 503 all carry the full set", async () => {
+    const cases: [string, Request, typeof env][] = [
+      ["200", new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1"), env],
+      ["400", new Request("https://a.example/v1/alerts"), env],
+      ["404", new Request("https://a.example/nope"), env],
+      [
+        "503",
+        new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1"),
+        emptyEnv,
+      ],
     ];
-    for (const [label, request] of cases) {
-      const res = await alertAggregator.fetch(request, env);
+    for (const [label, request, caseEnv] of cases) {
+      const res = await alertAggregator.fetch(request, caseEnv);
+      assert.equal(String(res.status), label, `alert-aggregator ${label}`);
       assertWorkerHeaders(res, `alert-aggregator ${label}`);
       assertNoLeakage(await res.text(), `alert-aggregator ${label}`);
     }
@@ -170,19 +180,14 @@ describe("alert-aggregator — every response path", () => {
 
 describe("route-tracker — every response path", () => {
   /**
-   * Assert a captured node:http response carries the headers this service
-   * actually emits today.
+   * Assert a captured node:http response carries the whole shared table.
    *
-   * Scoped deliberately. route-tracker speaks `node:http`, not the Workers
-   * runtime, so it cannot go through `initWorkerRequest` — on `main` it
-   * hand-rolls two headers and never imports the shared table, and its
-   * rate-limited 429 returns before any header is set at all. Both are
-   * findings of issue #86 and are fixed there, so asserting the full table
-   * here would make this suite red for a reason that is not its own.
-   *
-   * What is pinned here is that these two are present on *every* path,
-   * including the ones that short-circuit. When #86 lands, this constant
-   * should become REQUIRED_HEADERS.
+   * route-tracker speaks `node:http`, not the Workers runtime, so it cannot go
+   * through `initWorkerRequest`; it copies SECURITY_HEADERS onto each response
+   * itself (#86). That makes it the one backend where the table can drift
+   * from what is sent, so it gets the same full set as the workers, on every
+   * path including the ones that short-circuit. This used to check two
+   * headers, from before #86 landed.
    *
    * @param headers - Lower-cased header map from the capture.
    * @param label - Label used in failure messages.
@@ -191,12 +196,14 @@ describe("route-tracker — every response path", () => {
     headers: Record<string, string>,
     label: string,
   ): void {
-    for (const name of [
-      "x-content-type-options",
-      "strict-transport-security",
-    ]) {
+    for (const name of REQUIRED_HEADERS) {
       assert.ok(headers[name], `${label}: missing ${name}`);
     }
+    assert.equal(
+      headers["x-content-type-options"]?.toLowerCase(),
+      "nosniff",
+      `${label}: X-Content-Type-Options must be nosniff`,
+    );
   }
 
   test("200, 204, 400, 401, 404, 413, 429 and 503 all carry the headers", async () => {
@@ -249,9 +256,9 @@ describe("route-tracker — every response path", () => {
   });
 
   test("a rate-limited 429 still carries the headers", async () => {
-    // Fails on `main`: the 429 short-circuit returns before setStandardHeaders
-    // runs, so every rate-limited response goes out bare. Fixed in #86 — this
-    // is the test that will keep it fixed.
+    // The 429 short-circuit used to return before setStandardHeaders ran, so
+    // every rate-limited response went out bare. #86 fixed that; this is the
+    // test that keeps it fixed.
     process.env.API_SECRET = SECRET;
     resetRateLimits();
     let last;

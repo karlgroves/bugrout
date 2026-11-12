@@ -305,8 +305,8 @@ failure class above, and both are already gating.
 
 ## GitHub Actions are pinned to commit SHAs
 
-Every `uses:` across the seven workflows is pinned to a full 40-character commit
-SHA, with the human-readable version in a trailing comment:
+Every `uses:` across the eleven workflows is pinned to a full 40-character
+commit SHA, with the human-readable version in a trailing comment:
 
 ```yaml
 - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -355,7 +355,22 @@ internally consistent.
 SHA-256 before running it. A pinned URL on its own still trusts whatever bytes
 the CDN returns; the checksum is what makes the pin mean something.
 
-Two values have to move together when bumping it:
+Every other release download in the workflows follows the same pattern, with a
+`<TOOL>_VERSION` and `<TOOL>_SHA256` pair in the step's `env:`: OSV-Scanner,
+Trivy and Hadolint in `security.yml`, Trivy again in `backend-deploy.yml`,
+actionlint in `workflow-lint.yml`, and Planetiler in `data-pipeline.yml`. Tools
+installed through a package manager are pinned to an exact version instead,
+since pipx and a global npm install have no checksum mode here: Semgrep and
+Checkov (`pipx install <tool>==<version>`), wrangler in `data-pipeline.yml`
+(`npm install -g wrangler@<version>`, kept equal to what `pnpm-lock.yaml`
+resolves), and the EAS CLI (`eas-version`). `pnpm run security:tests` fails on a
+`releases/latest` URL, a `/releases/download/` URL with no `sha256sum` check in
+its step, an unpinned `pipx install` or `npm install -g`, or
+`eas-version: latest`. It does not recognise other install forms (`pip install`,
+`npm install --global`, a download from outside GitHub releases, a setup action
+with no version), so review a new tool's install step against this pattern.
+
+Two values have to move together when bumping trufflehog:
 
 ```yaml
 TRUFFLEHOG_VERSION: 3.97.4

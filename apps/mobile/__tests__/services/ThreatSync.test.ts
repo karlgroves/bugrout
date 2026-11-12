@@ -126,10 +126,36 @@ describe("refreshThreats — a failed fetch (#288)", () => {
       fire("alert-0", "nws"),
     ]);
     mockFetchFirePerimeters.mockResolvedValue([fire("fire-7", "usfs")]);
+    // NWS re-reports its alert, so this covers only the swap of the usfs set:
+    // an nws fetch that came back EMPTY would clear alert-0 on its own (#338).
+    mockFetchNWSAlerts.mockResolvedValue([fire("alert-0", "nws")]);
     await refreshThreats(BBOX, "md");
     expect(mockClearThreatsBySource).toHaveBeenCalledWith("usfs");
     const ids = useThreatStore.getState().threatZones.map((t) => t.id);
     expect(ids).toEqual(["alert-0", "fire-7"]);
+  });
+
+  it("clears a source whose fetch succeeded with no threats (#338)", async () => {
+    // USFS perimeters carry expiresAt: null, so clearExpiredThreats never
+    // reaches them. Dropping a source's old threats only on a NON-empty fetch
+    // left last season's perimeters on the map until the next non-empty one.
+    mockGetCachedThreats.mockResolvedValue([
+      fire("fire-1", "usfs"),
+      fire("alert-0", "nws"),
+    ]);
+    mockFetchFirePerimeters.mockResolvedValue([]);
+    mockFetchNWSAlerts.mockResolvedValue([fire("alert-9", "nws")]);
+
+    await refreshThreats(BBOX, "md");
+
+    expect(mockClearThreatsBySource).toHaveBeenCalledWith("usfs");
+    expect(useThreatStore.getState().threatZones.map((t) => t.id)).toEqual([
+      "alert-9",
+    ]);
+    // An empty result is still a successful fetch: current, and not failed.
+    const { lastFetched, failedSources } = useThreatStore.getState();
+    expect(lastFetched.usfs).toEqual(expect.any(Number));
+    expect(failedSources.usfs).toBe(false);
   });
 
   it("still skips a source that succeeded within its TTL", async () => {
