@@ -16,11 +16,19 @@ bash scripts/bootstrap.sh
 Then:
 
 ```bash
-pnpm run security          # audit, OSV, secrets — the fast set
+pnpm run security          # audit, OSV, secrets, tests, Trivy fs, Hadolint, IaC
 pnpm run security:semgrep  # SAST
-pnpm run security:tests    # endpoint regression tests
+pnpm run security:tests    # the security/tests/ regression suite
 pnpm run check:all         # everything, including the above
 ```
+
+`pnpm run security:tests` is **not** part of `pnpm run check`, so neither
+`check` nor the pre-push hook (which runs `check`, `dupes`, `lint:actions`,
+`security:secrets`, `license:check`) ever runs it. It reaches a local shell only
+through `pnpm run security` — and so `pnpm run check:all` — and reaches CI
+through the `regression` job in `.github/workflows/security.yml`, on every pull
+request to and push to `main` or `develop`. A green pre-push therefore says
+nothing about this suite.
 
 Every one of these runs the same command CI runs. That is deliberate and it is
 enforced structurally rather than by convention: the Semgrep ruleset lives in
@@ -117,6 +125,13 @@ protected data. Those tests live in `security/tests/`:
 | `headers.security.test.ts`          | §10.6/§5.10 — headers on every path, error leakage   |
 | `helpers.ts`                        | Fakes for R2, KV, Redis, and a `node:http` driver    |
 
+Those are the §10 files only, not an index of the directory: `security/tests/`
+holds more suites than this, and `ls security/tests/` is the authoritative list.
+`pnpm run security:tests` prints the file and test counts itself — no count is
+written down here, because every doc in this directory that kept one had a stale
+one. `security-test-matrix.md` maps WSTG categories to the files that cover
+them, and does not have a row for every file here.
+
 To add one, drive the real handler and assert the response. Do not assert on
 source text — a test that greps for a function name passes when the function is
 called and does nothing.
@@ -154,8 +169,11 @@ A false positive is a finding that is wrong, not one that is inconvenient.
 1. **Confirm it locally** and work out why the rule fired.
 2. Prefer the **narrowest possible suppression at the site**: an inline
    `// nosemgrep: <rule-id> -- <reason>` on the line, with the reason written
-   out. `backend/services/route-tracker/src/index.ts:132` is the pattern to copy
-   — it explains why the CORS origin is not attacker-controlled.
+   out. The `cors-misconfiguration` suppression inside `setStandardHeaders()` in
+   `backend/services/route-tracker/src/index.ts` is the pattern to copy — it
+   explains why the CORS origin is not attacker-controlled. It is named rather
+   than cited by line on purpose: this paragraph said `index.ts:132` until
+   2026-11-09, by which point the line was 216.
 3. Only when a rule is wrong _everywhere_ does it belong in
    `security/config/semgrep.yml` under `excludeRules`, with a reason and an
    issue number.

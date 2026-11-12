@@ -34,37 +34,81 @@ writing a team name in the column would be a fiction.
 | — Unlinkability of telemetry token   | Token minted from a CSPRNG only                                                                                                                                                                                                                                                                                                                                                                         | jest                             | `apps/mobile/__tests__/`                                                                                                                             | every PR                             | block                         |
 | — Privacy policy accuracy            | Policy claims asserted against the code                                                                                                                                                                                                                                                                                                                                                                 | jest                             | `apps/mobile/__tests__/services/privacyPolicy.test.ts`                                                                                               | every PR                             | block                         |
 
+Rows are WSTG categories, not files, and this table is **not exhaustive**:
+several of the suites in `security/tests/` — mostly the ones that assert on
+workflow and release-pipeline structure rather than on an endpoint — have no
+category row here yet. `ls security/tests/` is the authoritative list of what
+exists; this table says only which WSTG categories are claimed as covered. An
+earlier revision of this paragraph enumerated the uncovered files by name and
+was wrong within three days, so it names none.
+
 ## The mutation check
 
 Every endpoint control in the table above was verified to **fail** when the
 control is removed. A test that still passes with the control deleted pins
 nothing and is indistinguishable from one that does.
 
-| Control removed                                           | Result          |
-| --------------------------------------------------------- | --------------- |
-| route-tracker auth middleware deleted                     | 6 tests fail    |
-| tile-server rate-limit outcome ignored                    | 3 tests fail    |
-| tile-server `API_KEY` guard reintroduced                  | 1 test fails    |
-| `regionId` allowlist removed                              | 1 test fails    |
-| 64 KB body cap removed                                    | 1 test fails    |
-| crowd-signal coordinate range checks removed              | 1 test fails    |
-| `X-Content-Type-Options` removed                          | 3 tests fail    |
-| route-tracker limiter keyed on leftmost `X-Forwarded-For` | 1 test fails    |
-| route-tracker limiter keyed on the whole IPv6 /128        | 4 tests fail    |
-| route-tracker Redis-failure 503 handlers removed          | 2 tests fail    |
-| crowd-signal body counted on Content-Length only          | 2 tests fail    |
-| crowd-signal declared Content-Length early reject removed | 1 test fails    |
-| crowd-signal UUID token check removed                     | 1 test fails    |
-| crowd-signal limiter bypassed                             | 2 tests fail    |
-| crowd-signal limiter keyed on a constant                  | 1 test fails    |
-| crowd-signal signal key not bucketed per 10 s             | 1 test fails    |
-| alert-aggregator TTL reverted to 1 hour                   | 1 test fails    |
-| alert-aggregator NWS non-2xx returns `[]`                 | 2 tests fail    |
-| alert-aggregator empty store answers 200                  | 2 tests fail    |
-| alert-aggregator partial answer cached                    | 1 test fails    |
-| alert-aggregator bbox filter removed                      | 1 test fails    |
-| alert-aggregator bbox span cap removed                    | 1 test fails    |
-| _(nothing removed)_                                       | 40 pass, 0 fail |
+The baseline these rows are read against is the whole suite, green: run
+`pnpm run security:tests` on the Node version in `.nvmrc` (the machine default
+may be newer) and read the totals it prints for itself. Deliberately no count is
+written here — the suite grew from 40 tests to over 150 while this paragraph
+claimed three different figures, each stale within days of being measured.
+Compare the count the command prints before your change with the count after it.
+
+Run the whole suite rather than one file: several of these controls are asserted
+from more than one, and the per-file split moves whenever a file gains a test.
+
+Each "n tests fail" figure below is what was observed when that row was added.
+They have not all been re-measured in one pass since, so treat a figure as a
+record of one past run, not as a current assertion — re-measure the row you
+touch, and record the delta rather than a total.
+
+### What the mutation check cannot see
+
+The rows above cover controls that some test asserts **by name**. Two blind
+spots are not reachable this way and are recorded instead of being left to be
+rediscovered:
+
+- **Deleting a security header is invisible to this suite.**
+  `headers.security.test.ts` derives its required set from
+  `Object.keys(SECURITY_HEADERS)`, so a header removed from the table is also
+  removed from what the suite demands, and the suite stays green — verified by
+  removing `Permissions-Policy` and seeing every test still pass. Only
+  `X-Content-Type-Options` is asserted literally there, which is why it has a
+  row above and the other eight do not. What actually catches a deletion is the
+  exhaustive `assert.deepEqual(SECURITY_HEADERS, {...})` in
+  `packages/worker-utils/src/http.test.ts`, which failed twice in that probe,
+  and that runs under `pnpm run test` — so inside `pnpm run check` and the
+  pre-push hook, not inside this suite.
+- **`pnpm run security:tests` is not in `pnpm run check`.** A green `check`, and
+  therefore a green pre-push, says nothing about any row in this table. See the
+  local-commands note in `security-automation.md`.
+
+| Control removed                                           | Result                                                |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| route-tracker auth middleware deleted                     | 6 tests fail                                          |
+| tile-server rate-limit outcome ignored                    | 3 tests fail                                          |
+| tile-server `API_KEY` guard reintroduced                  | 1 test fails                                          |
+| `regionId` allowlist removed                              | 1 test fails                                          |
+| 64 KB body cap removed                                    | 1 test fails                                          |
+| crowd-signal coordinate range checks removed              | 1 test fails                                          |
+| `X-Content-Type-Options` removed                          | 3 tests fail                                          |
+| route-tracker limiter keyed on leftmost `X-Forwarded-For` | 1 test fails                                          |
+| route-tracker limiter keyed on the whole IPv6 /128        | 4 tests fail                                          |
+| route-tracker Redis-failure 503 handlers removed          | 2 tests fail                                          |
+| crowd-signal body counted on Content-Length only          | 2 tests fail                                          |
+| crowd-signal declared Content-Length early reject removed | 1 test fails                                          |
+| crowd-signal UUID token check removed                     | 1 test fails                                          |
+| crowd-signal limiter bypassed                             | 2 tests fail                                          |
+| crowd-signal limiter keyed on a constant                  | 1 test fails                                          |
+| crowd-signal signal key not bucketed per 10 s             | 1 test fails                                          |
+| alert-aggregator TTL reverted to 1 hour                   | 1 test fails                                          |
+| alert-aggregator NWS non-2xx returns `[]`                 | 2 tests fail                                          |
+| alert-aggregator empty store answers 200                  | 2 tests fail                                          |
+| alert-aggregator partial answer cached                    | 1 test fails                                          |
+| alert-aggregator bbox filter removed                      | 1 test fails                                          |
+| alert-aggregator bbox span cap removed                    | 1 test fails                                          |
+| _(nothing removed)_                                       | whole suite green, 0 fail (`pnpm run security:tests`) |
 
 Repeat this whenever a test is added. It takes a minute and it is the only thing
 that distinguishes a regression test from decoration.
