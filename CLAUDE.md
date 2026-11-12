@@ -68,7 +68,7 @@ pnpm turbo typecheck
 # Typecheck mobile app only
 cd apps/mobile && npx tsc --noEmit
 
-# Run all tests (102 tests, 14 suites)
+# Run all tests (every workspace with a test task: mobile and worker-utils)
 pnpm turbo test
 
 # Start Expo dev server
@@ -291,13 +291,13 @@ breaks a listed feature, and re-check it before every submission.
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
 (flood zones — **not live**: `FEMAService.loadFloodZones` returns `[]` and
-region packages ship an empty flood GeoJSON), USFS/NIFC (fire perimeters — **not
-live**: the configured NIFC layer returns 400; see the removed claims in
-`docs/store-listing.md`), OSM `amenity=fuel` (fuel stations: packaged with each
-region by `data-pipeline/osm/extract-fuel.sh`, refreshed online through
-Overpass; NREL adds EV/alternative fuels only when a key is set), USGS NWIS
-(water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
-(shelters; source and terms in `services/resources/ShelterService.ts`).
+region packages ship an empty flood GeoJSON), USFS/NIFC (fire perimeters, from
+the WFIGS current-perimeters layer (#356) — the older NIFC layer was withdrawn
+and answered 400), OSM `amenity=fuel` (fuel stations: packaged with each region
+by `data-pipeline/osm/extract-fuel.sh`, refreshed online through Overpass; NREL
+adds EV/alternative fuels only when a key is set), USGS NWIS (water sources),
+FEMA ESF6-SS open shelters, synced from the Red Cross (shelters; source and
+terms in `services/resources/ShelterService.ts`).
 
 ## Reviewing PRs
 

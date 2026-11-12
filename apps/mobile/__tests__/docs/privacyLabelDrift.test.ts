@@ -208,6 +208,19 @@ describe("route endpoints vs. the label", () => {
     expect(onboarding).not.toMatch(onDeviceOnly);
     expect(onboarding).toContain("routing service");
   });
+
+  // The listing copy is the other place the claim was made. #206 moved it to
+  // the removed-claims table rather than deleting it, so the drift to catch is
+  // that row disappearing — reinstating the claim — while routing is remote.
+  it("keeps on-device location a removed claim in the store listing", () => {
+    if (!remoteRouting) return;
+    const listing = readFileSync(
+      join(APP_ROOT, "..", "..", "docs", "store-listing.md"),
+      "utf8",
+    );
+    expect(listing).toContain("## Claims removed until the work lands");
+    expect(listing).toContain('"Location processed on-device only"');
+  });
 });
 
 describe("destination search vs. the label", () => {
