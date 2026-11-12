@@ -16,7 +16,7 @@ bash scripts/bootstrap.sh
 Then:
 
 ```bash
-pnpm run security          # audit, OSV, secrets, security:tests — the fast set
+pnpm run security          # audit, OSV, secrets, tests, Trivy fs, Hadolint, IaC
 pnpm run security:semgrep  # SAST
 pnpm run security:tests    # the security/tests/ regression suite
 pnpm run check:all         # everything, including the above
@@ -27,8 +27,8 @@ pnpm run check:all         # everything, including the above
 `security:secrets`, `license:check`) ever runs it. It reaches a local shell only
 through `pnpm run security` — and so `pnpm run check:all` — and reaches CI
 through the `regression` job in `.github/workflows/security.yml`, on every pull
-request and on every push to `main`. A green pre-push therefore says nothing
-about this suite.
+request to and push to `main` or `develop`. A green pre-push therefore says
+nothing about this suite.
 
 Every one of these runs the same command CI runs. That is deliberate and it is
 enforced structurally rather than by convention: the Semgrep ruleset lives in
@@ -125,10 +125,12 @@ protected data. Those tests live in `security/tests/`:
 | `headers.security.test.ts`          | §10.6/§5.10 — headers on every path, error leakage   |
 | `helpers.ts`                        | Fakes for R2, KV, Redis, and a `node:http` driver    |
 
-Those are the §10 files only. `security/tests/` holds 12 test files in all (119
-tests as of 2026-11-09). `ls security/tests/` is the authoritative list;
-`security-test-matrix.md` maps the WSTG categories to the files that cover them,
-and does not yet have a row for every file here.
+Those are the §10 files only, not an index of the directory: `security/tests/`
+holds more suites than this, and `ls security/tests/` is the authoritative list.
+`pnpm run security:tests` prints the file and test counts itself — no count is
+written down here, because every doc in this directory that kept one had a stale
+one. `security-test-matrix.md` maps WSTG categories to the files that cover
+them, and does not have a row for every file here.
 
 To add one, drive the real handler and assert the response. Do not assert on
 source text — a test that greps for a function name passes when the function is
@@ -146,7 +148,12 @@ does.
 
 Findings are grouped by source — `sast`, `dependencies`, `containers`, `iac` —
 and each severity is mapped through `security-thresholds.json` to one of `fail`,
-`warn` or `ignore`. Only `fail` blocks.
+`warn` or `ignore`. That mapping drives the summary only: the report script
+always exits 0 and both workflows run it as reporting. The scanners block on
+their own exit codes (semgrep `--error`, `osv-scanner`, `trivy --exit-code 1`,
+`checkov`, `pnpm audit --audit-level=high`), which are stricter than the
+thresholds. The `headers` section is the exception: `check-headers.js` reads it
+and does fail on it.
 
 Two things worth attention in a summary:
 

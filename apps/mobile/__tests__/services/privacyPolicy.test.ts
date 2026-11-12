@@ -124,8 +124,10 @@ describe("privacy policy — third-party disclosure", () => {
   });
 
   it("does not assert cryptographic unlinkability of the device token", () => {
-    // Pending #85: the token can be minted from Math.random() on some paths,
-    // so a flat "cannot be linked" guarantee is not one the code provides.
+    // #85 has landed: platform/crypto.ts now throws rather than falling back
+    // to Math.random(), so the code may now support a stronger claim. Whether
+    // the policy should make one is a copy decision; until then it keeps the
+    // flat "cannot be linked" guarantee out.
     expect(PRIVACY_POLICY).not.toContain(
       "Cannot be linked to your identity, device, or account",
     );

@@ -29,7 +29,11 @@ import { timeoutSignal } from "@/utils/abort";
 import { fetchWithRetry } from "@/utils/retry";
 
 import { downloadSizeBytes, packagedFuelSize } from "./regionSize";
-import { isRegionStale, publishedVersionsFrom } from "./TileVersions";
+import {
+  INCOMPLETE_VERSION,
+  isRegionStale,
+  publishedVersionsFrom,
+} from "./TileVersions";
 
 import type { Region, DownloadedRegion } from "@bugrout/shared";
 
@@ -168,26 +172,22 @@ export async function downloadRegion(
       downloaded = bytes;
       reportProgress("downloading");
     },
+    { bytes: region.pmtilesSize, md5: region.pmtilesMd5 },
   );
 
   downloaded = region.pmtilesSize;
 
-  // Download Valhalla tiles (optional — skip if size is 0 or server 404s,
-  // since we route via remote Valhalla on Fly.io)
-  if (region.valhallaSize > 0) {
-    try {
-      await downloadFileResumable(
-        `${TILE_SERVER_BASE}/v1/tiles/${region.id}/valhalla`,
-        valhallaPath,
-        (bytes) => {
-          downloaded = region.pmtilesSize + bytes;
-          reportProgress("downloading");
-        },
-      );
-    } catch {
-      // Valhalla tiles not available — routing will use remote service
-    }
-  }
+  // Routing tiles, when the package has them. A package that lists them but
+  // whose archive fails is recorded without a routing path and as incomplete
+  // (#292), so it is offered for update instead of passing as current.
+  const routingTiles = await downloadRoutingTiles(
+    region,
+    valhallaPath,
+    (bytes) => {
+      downloaded = region.pmtilesSize + bytes;
+      reportProgress("downloading");
+    },
+  );
 
   // Fuel stations (#200), so the fuel layer works with no network at all. A
   // package built before fuel was packaged has none; the layer is then
@@ -218,10 +218,10 @@ export async function downloadRegion(
     name: region.name,
     bbox: region.bbox,
     pmtilesPath,
-    valhallaTilesPath: valhallaPath,
+    valhallaTilesPath: routingTiles === "downloaded" ? valhallaPath : "",
     downloadedAt: Date.now(),
     sizeBytes: totalSize,
-    version: region.version,
+    version: routingTiles === "failed" ? INCOMPLETE_VERSION : region.version,
   };
 
   await insertDownloadedRegion(result);
@@ -232,6 +232,38 @@ export async function downloadRegion(
   });
 
   return result;
+}
+
+/**
+ * Download a region's routing tiles, when its package has them (none ships
+ * one yet; routing then uses the remote service).
+ *
+ * @returns `"none"` when the package has no routing archive, `"downloaded"`
+ *   when it is in place at `valhallaPath`, or `"failed"` when it would not
+ *   download or did not match the manifest's size or MD5 — reported, so a bad
+ *   package is seen, and left to the caller to record as incomplete (#292).
+ */
+async function downloadRoutingTiles(
+  region: Region,
+  valhallaPath: string,
+  onProgress: (bytesWritten: number) => void,
+): Promise<"none" | "downloaded" | "failed"> {
+  if (region.valhallaSize <= 0) return "none";
+  try {
+    await downloadFileResumable(
+      `${TILE_SERVER_BASE}/v1/tiles/${region.id}/valhalla`,
+      valhallaPath,
+      onProgress,
+      { bytes: region.valhallaSize, md5: region.valhallaMd5 },
+    );
+    return "downloaded";
+  } catch (error) {
+    captureError(error instanceof Error ? error : new Error(String(error)), {
+      regionId: region.id,
+      stage: "routing-tiles",
+    });
+    return "failed";
+  }
 }
 
 /**
@@ -272,13 +304,19 @@ async function downloadPackagedFuel(
  * `downloadAsync` overwrites rather than appends, which kept only the tail of
  * the file; a restart is the only correct option until real resume data is used.
  *
- * @throws When the download fails or the server answers with anything but a
- *   2xx; the `.part` file is removed and `destPath` is untouched.
+ * When the manifest gives the file's size and MD5, the downloaded file must
+ * match both before it replaces anything, so a truncated, corrupted or
+ * substituted file never becomes the live copy (#292).
+ *
+ * @throws When the download fails, the server answers with anything but a
+ *   2xx, or the file does not match `expected` (or its size or MD5 can't be
+ *   read); the `.part` file is removed and `destPath` is untouched.
  */
 async function downloadFileResumable(
   url: string,
   destPath: string,
   onProgress?: (bytesWritten: number) => void,
+  expected: ExpectedFile = {},
 ): Promise<void> {
   const partPath = `${destPath}.part`;
   await FileSystem.deleteAsync(partPath, { idempotent: true });
@@ -306,7 +344,55 @@ async function downloadFileResumable(
     );
   }
 
+  const mismatch = await checkDownloadedFile(partPath, expected);
+  if (mismatch) {
+    await FileSystem.deleteAsync(partPath, { idempotent: true });
+    throw new Error(`Download for ${url} ${mismatch}`);
+  }
+
   await FileSystem.moveAsync({ from: partPath, to: destPath });
+}
+
+/** What the manifest says a downloaded file must be; unset parts go unchecked. */
+interface ExpectedFile {
+  /** Exact size in bytes; checked when above zero. */
+  bytes?: number | undefined;
+  /** MD5 as hex; checked when present. */
+  md5?: string | undefined;
+}
+
+/**
+ * Compare a downloaded file with what the manifest says it must be (#292).
+ * The MD5 is computed natively, so the file is never read into JS.
+ *
+ * @returns `null` when it matches, otherwise how it differs. A size or MD5
+ *   that can't be read counts as a mismatch: the check fails closed.
+ */
+async function checkDownloadedFile(
+  path: string,
+  expected: ExpectedFile,
+): Promise<string | null> {
+  const bytes = expected.bytes ?? 0;
+  const md5 = expected.md5 ?? "";
+  if (bytes <= 0 && md5 === "") return null;
+
+  const info = await FileSystem.getInfoAsync(
+    path,
+    md5 === "" ? undefined : { md5: true },
+  );
+  return sizeMismatch(info.size, bytes) ?? md5Mismatch(info.md5, md5);
+}
+
+/** How a file's size differs from `bytes`, or `null`; `bytes` 0 skips it. */
+function sizeMismatch(size: number | undefined, bytes: number): string | null {
+  if (bytes <= 0 || size === bytes) return null;
+  return `is ${String(size ?? "of unknown size")} bytes, expected ${String(bytes)}`;
+}
+
+/** How a file's MD5 differs from `md5` (any hex case), or `null`; "" skips it. */
+function md5Mismatch(actual: string | undefined, md5: string): string | null {
+  if (md5 === "" || actual?.toLowerCase() === md5.toLowerCase()) return null;
+  return `has MD5 ${actual ?? "unknown"}, expected ${md5}`;
 }
 
 /**

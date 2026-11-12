@@ -140,6 +140,13 @@ describe("useRouteStore", () => {
     useRouteStore.getState().setDeviated(true);
     expect(useRouteStore.getState().hasDeviated).toBe(true);
   });
+
+  it("clears deviation when a new route is set, so a reroute starts on route (#298)", () => {
+    useRouteStore.getState().setDeviated(true);
+    useRouteStore.getState().setStatus("rerouting");
+    useRouteStore.getState().setRoute({ ...mockRoute, id: "r2" });
+    expect(useRouteStore.getState().hasDeviated).toBe(false);
+  });
 });
 
 describe("useConnectivityStore", () => {

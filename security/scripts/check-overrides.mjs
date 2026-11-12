@@ -32,6 +32,10 @@ const repoRoot = path.resolve(import.meta.dirname, "../..");
 
 /** "1.2.3" or "1.2.3-rc.1" -> [1, 2, 3, prerelease] ; partial "9" -> [9, 0, 0]. */
 function parseVersion(text) {
+  // safe-regex counts star height 2 below because `+` sits inside an optional
+  // group, but `?` bounds each group at one repetition and the pattern is
+  // anchored at both ends, so there is nothing to backtrack over.
+  // eslint-disable-next-line security/detect-unsafe-regex -- bounded, anchored
   const m = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?$/.exec(text);
   if (!m) throw new Error(`unsupported version "${text}"`);
   return [Number(m[1]), Number(m[2] ?? 0), Number(m[3] ?? 0), m[4] ?? ""];
@@ -42,7 +46,33 @@ function compare(a, b) {
   if (a[3] === b[3]) return 0;
   if (a[3] === "") return 1;
   if (b[3] === "") return -1;
-  return a[3] < b[3] ? -1 : 1;
+  return comparePrerelease(a[3], b[3]);
+}
+
+/**
+ * SemVer precedence (spec rule 11) for two non-empty prerelease strings.
+ *
+ * Dot-separated identifiers compare one at a time: numeric ones numerically,
+ * others in ASCII order, and a numeric identifier always sorts below a
+ * non-numeric one. When every shared identifier ties, the longer list wins.
+ * A plain `<` over the whole string instead read `beta.10` as below `beta.2`,
+ * which can report a dead override as live (#351).
+ */
+function comparePrerelease(a, b) {
+  const left = a.split(".");
+  const right = b.split(".");
+  const shared = Math.min(left.length, right.length);
+  for (let i = 0; i < shared; i++) {
+    const x = left[i];
+    const y = right[i];
+    if (x === y) continue;
+    const xIsNumber = /^\d+$/.test(x);
+    const yIsNumber = /^\d+$/.test(y);
+    if (xIsNumber && yIsNumber) return Number(x) - Number(y);
+    if (xIsNumber !== yIsNumber) return xIsNumber ? -1 : 1;
+    return x < y ? -1 : 1;
+  }
+  return left.length - right.length;
 }
 
 const OPS = {

@@ -21,11 +21,13 @@ security/
     check-overrides.mjs         pnpm override expiry/justification check
     check-store-urls.mjs        store-listing URL check
     generate-security-report.mjs  §21 — security-summary.{md,json}
-  tests/                        12 *.security.test.ts files (119 tests as of
-                                2026-11-09) plus helpers.ts — fakes for R2, KV
-                                and Redis, and a node:http driver. WSTG
-                                mapping in docs/security-test-matrix.md;
-                                run with `pnpm run security:tests`
+  tests/                        every *.security.test.ts the regression suite
+                                runs, plus helpers.ts — fakes for R2, KV and
+                                Redis, and a node:http driver. `ls` is the
+                                list and `pnpm run security:tests` prints the
+                                count; neither is restated here, because the
+                                hand-kept version of both was wrong. Partial
+                                WSTG mapping in docs/security-test-matrix.md
   docs/
     security-automation.md      §22
     security-exceptions.md      §22

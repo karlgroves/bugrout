@@ -3,9 +3,11 @@
  *
  * Three input modes:
  * 1. Saved plans, then destinations saved in Settings (quick-select, #187)
- * 2. Address search via Nominatim (online only, debounced) — see
- *    services/geocoding/Geocoder.ts, which owns the request and refuses to
- *    make it before the disclaimer is accepted
+ * 2. Address search via Nominatim (online only, sent when the search is
+ *    submitted, never while typing — see services/geocoding/Geocoder.ts, which
+ *    owns the request and refuses to make it before the disclaimer is
+ *    accepted). Nominatim's usage policy forbids client-side auto-complete
+ *    outright, so the request is tied to an explicit submit (#208).
  * 3. Recent destinations from SQLite
  *
  * Tapping a destination routes to it and opens the route preview, whose Go is
@@ -16,7 +18,7 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity -- pre-existing oversized destination picker with inline search/scenario/recent list rendering; tracked in docs/tech-debt.md (decompose destination picker) */
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -31,6 +33,7 @@ import {
 import { LoadingOverlay } from "@/components/common/LoadingOverlay";
 import { withScreenTitle } from "@/components/common/ScreenTitle";
 import { RouteUnavailableNotice } from "@/components/routing/RouteUnavailableNotice";
+import { GEOCODER_ATTRIBUTION } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import {
   getRecentDestinations,
@@ -49,7 +52,7 @@ import {
   SearchSupersededError,
 } from "@/services/geocoding/Geocoder";
 import { useScenarioStore } from "@/stores/useScenarioStore";
-import { placeKey } from "@/utils/geo";
+import { placeKey, pointFromStrings } from "@/utils/geo";
 
 import type { LatLng, Scenario } from "@bugrout/shared";
 
@@ -60,7 +63,8 @@ interface GeocodingResult {
   lng: number;
 }
 
-const SEARCH_DEBOUNCE_MS = 400;
+/** Shortest query that is worth sending to the geocoder. */
+const MIN_QUERY_LENGTH = 3;
 
 /** How many recent destinations the picker lists. */
 const RECENTS_SHOWN = 5;
@@ -95,7 +99,6 @@ function DestinationScreen(): React.JSX.Element {
     dest: LatLng;
     label: string;
   } | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setGettingLocation(true);
@@ -120,36 +123,49 @@ function DestinationScreen(): React.JSX.Element {
       });
 
     // Auto-select pin dropped from map
-    if (params.pinLat && params.pinLng) {
-      const lat = parseFloat(params.pinLat);
-      const lng = parseFloat(params.pinLng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        const label = `Map pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-        setSelectedDest({ lat, lng });
-        setPinDest({ dest: { lat, lng }, label });
-      }
+    // The params are also reachable as a bugrout:// deep link, so they are
+    // outside input: parseFloat accepted "39abc", "Infinity" and lat 1e9 (#307).
+    const pin = pointFromStrings(params.pinLat, params.pinLng);
+    if (pin) {
+      const label = `Map pin (${pin.lat.toFixed(4)}, ${pin.lng.toFixed(4)})`;
+      setSelectedDest(pin);
+      setPinDest({ dest: pin, label });
     }
   }, [getPosition, params.pinLat, params.pinLng]);
 
-  // Debounced search
-  const handleSearchChange = useCallback(
+  /**
+   * Typing sends nothing. Nominatim's usage policy lists client-side
+   * auto-complete under "strictly forbidden", so the request waits for an
+   * explicit submit rather than for a pause in typing (#208).
+   */
+  const handleSearchChange = useCallback((text: string) => {
+    setQuery(text);
+    setResults([]);
+    setNoResults(false);
+  }, []);
+
+  /**
+   * Run the search the user asked for.
+   *
+   * Takes the text rather than reading the `query` state so that the keyboard's
+   * submit uses the text the field actually submitted, which is the authority
+   * on what the user typed.
+   *
+   * Refuses while a search is already in flight. A second submit is never
+   * "superseded" by the geocoder's one-per-second gate — it waits its turn and
+   * then sends an identical request — and the cap that matters is the
+   * application's, shared by every install, so a double-tap must not spend it
+   * twice (#208).
+   */
+  const runSearch = useCallback(
     (text: string) => {
-      setQuery(text);
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      if (text.length < 3) {
-        setResults([]);
-        setNoResults(false);
-        return;
-      }
-
-      debounceRef.current = setTimeout(() => {
-        void searchAddress(text);
-      }, SEARCH_DEBOUNCE_MS);
+      if (searching) return;
+      const q = text.trim();
+      if (q.length < MIN_QUERY_LENGTH) return;
+      void searchAddress(q);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- searchAddress is stable (memoized below) and including it would create a declaration-order cycle
-    [],
+    [searching],
   );
 
   const searchAddress = useCallback(async (q: string) => {
@@ -206,11 +222,17 @@ function DestinationScreen(): React.JSX.Element {
         return;
       }
 
+      // Bookkeeping must never block the route. Unguarded, a rejected write
+      // (a full disk is plausible after multi-GB map downloads) escaped this
+      // un-awaited callback with `calculating` still true, leaving the screen
+      // behind an undismissable "Calculating route…" overlay (#307).
       await addRecentDestination({
         label: label || `${dest.lat.toFixed(4)}, ${dest.lng.toFixed(4)}`,
         lat: dest.lat,
         lng: dest.lng,
         usedAt: Date.now(),
+      }).catch((err: unknown) => {
+        console.error("Failed to save recent destination", err);
       });
 
       const avoid =
@@ -238,6 +260,9 @@ function DestinationScreen(): React.JSX.Element {
     [position, getPosition, calculateRoute, calculateRouteWithStops, router],
   );
 
+  // Too short to be worth a request, or one is already on its way.
+  const searchDisabled = query.trim().length < MIN_QUERY_LENGTH || searching;
+
   const isSelected = (lat: number, lng: number): boolean =>
     selectedDest !== null &&
     selectedDest.lat === lat &&
@@ -249,20 +274,31 @@ function DestinationScreen(): React.JSX.Element {
 
       {/* Search input */}
       <View style={styles.searchRow}>
-        <FontAwesome
-          name="search"
-          size={16}
-          color={colors.textMuted}
-          style={styles.searchIcon}
-        />
+        <Pressable
+          onPress={() => {
+            runSearch(query);
+          }}
+          disabled={searchDisabled}
+          style={[styles.searchButton, searchDisabled && styles.searchDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Search"
+          accessibilityHint="Looks up the address you typed"
+          accessibilityState={{ disabled: searchDisabled }}
+          testID="destination-search-submit"
+        >
+          <FontAwesome name="search" size={16} color={colors.textMuted} />
+        </Pressable>
         <TextInput
           style={styles.searchInput}
           placeholder="Search address or city..."
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={handleSearchChange}
+          onSubmitEditing={(e) => {
+            runSearch(e.nativeEvent.text);
+          }}
           accessibilityLabel="Search for an address"
-          accessibilityHint="Type at least three characters to look up matching addresses and cities"
+          accessibilityHint="Type at least three characters, then search to look up matching addresses and cities"
           returnKeyType="search"
           testID="destination-search-input"
         />
@@ -288,6 +324,12 @@ function DestinationScreen(): React.JSX.Element {
 
       {searching ? (
         <ActivityIndicator style={styles.spinner} color={colors.accent} />
+      ) : null}
+
+      {results.length > 0 ? (
+        <Text style={styles.attribution} testID="search-attribution">
+          {GEOCODER_ATTRIBUTION}
+        </Text>
       ) : null}
 
       {noResults && !searching ? (
@@ -602,8 +644,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: spacing.md,
   },
-  searchIcon: {
+  searchButton: {
     marginRight: spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: touchTarget.minHeight,
+    minHeight: touchTarget.minHeight,
+  },
+  // The only visual cue that the control is inert; the icon itself is already
+  // drawn in the muted colour, so colour alone cannot carry the state.
+  searchDisabled: {
+    opacity: 0.4,
+  },
+  attribution: {
+    ...typography.caption,
+    color: colors.textMuted,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   searchInput: {
     flex: 1,
