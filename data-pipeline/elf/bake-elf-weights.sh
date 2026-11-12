@@ -103,14 +103,19 @@ cat > "${WEIGHT_TABLE}" << 'JSONEOF'
 }
 JSONEOF
 
-# Replace placeholders
-if [[ "$(uname)" == "Darwin" ]]; then
-  sed -i '' "s/REGION_ID/${REGION_ID}/g" "$WEIGHT_TABLE"
-  sed -i '' "s/TIMESTAMP/$(date +%s)000/g" "$WEIGHT_TABLE"
-else
-  sed -i "s/REGION_ID/${REGION_ID}/g" "$WEIGHT_TABLE"
-  sed -i "s/TIMESTAMP/$(date +%s)000/g" "$WEIGHT_TABLE"
-fi
+# Replace placeholders. The values go in as argv and the region id is written
+# as a JSON string, rather than spliced into a `sed s///` replacement where a
+# `/`, `&` or GNU sed's `e` flag in the value would change the command.
+python3 -c '
+import json, sys
+path, region_id, timestamp = sys.argv[1:4]
+with open(path) as f:
+    text = f.read()
+text = text.replace("\"REGION_ID\"", json.dumps(region_id))
+text = text.replace("TIMESTAMP", str(int(timestamp)))
+with open(path, "w") as f:
+    f.write(text)
+' "$WEIGHT_TABLE" "$REGION_ID" "$(date +%s)000"
 
 echo "  Weight table written to: ${WEIGHT_TABLE}"
 
@@ -149,7 +154,7 @@ echo ""
 echo "Step 4: Validation..."
 
 # Verify weight table is valid JSON
-if python3 -c "import json; json.load(open('${WEIGHT_TABLE}'))" 2>/dev/null; then
+if python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$WEIGHT_TABLE" 2>/dev/null; then
   echo "  Weight table: valid JSON ✓"
 else
   echo "  Weight table: INVALID JSON ✗"

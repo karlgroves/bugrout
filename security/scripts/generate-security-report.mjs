@@ -27,7 +27,7 @@ const SEVERITIES = ["critical", "high", "medium", "low"];
  * Read and parse a JSON report, returning null when absent or unreadable.
  *
  * @param {string} name - File name inside reports/security.
- * @returns {unknown|null} Parsed content, or null.
+ * @returns {any} Parsed scanner JSON (shape varies by scanner), or null.
  */
 function readReport(name) {
   const path = join(REPORT_DIR, name);

@@ -58,7 +58,16 @@ would deploy three Cloudflare Workers and a Fly service.
 That workflow now triggers on `workflow_run` of CI completing, refuses to
 proceed unless CI concluded `success`, waits for the Security workflow to finish
 for the same commit and requires that too, and checks out the exact SHA the
-checks ran against rather than whatever the branch tip happens to be by then.
+checks ran against rather than whatever the branch tip happens to be by then. It
+also checks provenance itself: it ignores CI runs that were not a push from this
+repository (a fork pull request's CI run also fires `workflow_run`), and it
+refuses any commit `main` does not contain, including on a manual dispatch,
+which skips the CI and Security waits. Those checks bind only the copy of the
+workflow on `main`: a dispatch runs the workflow file from the ref it names, so
+anyone with write access can dispatch an edited copy from another branch, and
+the deploy secrets are repository-wide. Closing that needs a `deploy`
+environment whose deployment branches are limited to `main`, which only the
+owner can create.
 
 Two independent gates, because they fail differently: branch protection can be
 edited in a web UI by anyone with admin rights, and a workflow cannot. Neither

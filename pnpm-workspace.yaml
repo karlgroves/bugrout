@@ -3,6 +3,7 @@ packages:
   - "packages/*"
   - "backend/workers/*"
   - "backend/services/*"
+  - "security"
 
 # --- Install-time supply-chain hardening -------------------------------------
 #

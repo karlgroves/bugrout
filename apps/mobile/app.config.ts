@@ -102,7 +102,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       "ACCESS_COARSE_LOCATION",
       "ACCESS_BACKGROUND_LOCATION",
       "FOREGROUND_SERVICE",
-      "SEND_SMS",
+      // No SEND_SMS: platform/sms.ts uses expo-sms, which hands the message to
+      // the user's SMS app through an ACTION_SENDTO/ACTION_SEND intent and needs
+      // no permission. SEND_SMS is for sending with no user interaction, is a
+      // Play restricted permission, and contradicts the store copy that nothing
+      // is sent until the user taps Send (#307).
     ],
   },
   web: {
@@ -132,12 +136,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // Wires Detox's native test harness into the prebuilt Android/iOS projects:
     // the androidTest DetoxTest runner, testInstrumentationRunner, the
-    // com.wix:detox test dependency and a debug network-security-config allowing
+    // com.wix:detox test dependency and a network-security-config allowing
     // the app to reach Detox's local server. Without it `expo prebuild` produces
     // a default (empty) androidTest APK, so the app launches but never opens the
     // instrumentation WebSocket back to Detox and every test times out at
-    // launchApp(). Prebuild-time only; no effect on the shipped app.
-    "@config-plugins/detox",
+    // launchApp().
+    //
+    // It is NOT prebuild-only in effect: the plugin writes the cleartext
+    // network-security-config to src/main (not src/debug) and sets it on the
+    // main <application>, and EAS Build installs devDependencies, so it would
+    // ship cleartext to 10.0.2.2 and localhost in release builds. An empty
+    // `subdomains` makes the plugin skip that manifest mod, so production
+    // builds get the platform default (no cleartext) (#307).
+    process.env.EAS_BUILD_PROFILE === "production"
+      ? ["@config-plugins/detox", { subdomains: [] }]
+      : "@config-plugins/detox",
     // Bundles the map's label glyphs so labels render offline (#183).
     "./plugins/withMapGlyphs",
     // Valhalla in-process routing (Approach A). Enable after building native

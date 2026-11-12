@@ -13,10 +13,13 @@ const square = {
   ],
 };
 
+const BBOX = { west: -79.5, south: 37.9, east: -75.0, north: 39.8 };
+
 function mockFeed(features: unknown[]): void {
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: () => Promise.resolve({ features }),
+    headers: { get: () => null },
+    text: () => Promise.resolve(JSON.stringify({ features })),
   });
 }
 
@@ -34,7 +37,7 @@ describe("fetchFirePerimeters ids", () => {
       { properties: {}, geometry: square },
     ]);
 
-    const threats = await fetchFirePerimeters();
+    const threats = await fetchFirePerimeters(BBOX);
 
     expect(threats).toHaveLength(4);
     expect(new Set(threats.map((t) => t.id)).size).toBe(4);
@@ -53,7 +56,7 @@ describe("fetchFirePerimeters ids", () => {
       { id: 102, properties: {}, geometry: square },
     ]);
 
-    const ids = (await fetchFirePerimeters()).map((t) => t.id);
+    const ids = (await fetchFirePerimeters(BBOX)).map((t) => t.id);
 
     expect(ids[0]).toBe("fire-101");
     expect(ids[1]).toBe("fire-102");
@@ -63,10 +66,106 @@ describe("fetchFirePerimeters ids", () => {
   it("requests OBJECTID, which ArcGIS needs to set each feature id", async () => {
     mockFeed([]);
 
-    await fetchFirePerimeters();
+    await fetchFirePerimeters(BBOX);
 
     const fetchMock = global.fetch as jest.Mock<unknown, [string]>;
     const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(url.searchParams.get("outFields")?.split(",")).toContain("OBJECTID");
+  });
+});
+
+describe("fetchFirePerimeters endpoint", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  /**
+   * Returns the URL `fetchFirePerimeters` requested.
+   *
+   * @returns The parsed request URL.
+   */
+  async function requestedUrl(): Promise<URL> {
+    mockFeed([]);
+    await fetchFirePerimeters(BBOX);
+    const fetchMock = global.fetch as jest.Mock<unknown, [string]>;
+    return new URL(String(fetchMock.mock.calls[0]?.[0]));
+  }
+
+  // The withdrawn NIFC_Perimeters layer answered 400 "Invalid URL" to every
+  // request, so the feed silently yielded no perimeters at all and avoidance
+  // routing had no fires to route around (#336).
+  it("queries the live WFIGS layer, not the withdrawn NIFC_Perimeters one", async () => {
+    const url = await requestedUrl();
+
+    expect(url.hostname).toBe("services3.arcgis.com");
+    expect(url.pathname).toContain("/WFIGS_Interagency_Perimeters_Current/");
+    expect(url.pathname).not.toContain("/NIFC_Perimeters/");
+  });
+
+  // ArcGIS rejects the whole query when an outField names a field the layer
+  // does not define: HTTP 200 carrying an error object and no `features`
+  // array, so the fetch fails outright rather than returning perimeters with
+  // one attribute missing. Requested names and read names must therefore stay
+  // the same set.
+  it("requests exactly the attribute names the parser reads", async () => {
+    const url = await requestedUrl();
+
+    expect(url.searchParams.get("outFields")?.split(",")).toEqual([
+      "OBJECTID",
+      "poly_IncidentName",
+      "attr_PercentContained",
+    ]);
+  });
+});
+
+describe("fetchFirePerimeters containment", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  // Reads WFIGS's attr_PercentContained. Against the old irwin_* name these
+  // both came back undefined, so a 90%-contained fire read as 0% and severe.
+  it("reads containment from attr_PercentContained", async () => {
+    mockFeed([
+      {
+        id: 1,
+        properties: { poly_IncidentName: "Held", attr_PercentContained: 90 },
+        geometry: square,
+      },
+      {
+        id: 2,
+        properties: { poly_IncidentName: "Running", attr_PercentContained: 10 },
+        geometry: square,
+      },
+    ]);
+
+    const threats = await fetchFirePerimeters(BBOX);
+
+    expect(threats.map((t) => t.severity)).toEqual(["moderate", "severe"]);
+    expect(threats.map((t) => t.description)).toEqual([
+      "90% contained",
+      "10% contained",
+    ]);
+  });
+
+  // The live layer leaves containment null on some perimeters, so unknown
+  // containment must stay on the cautious side rather than read as contained.
+  it("treats unreported containment as severe", async () => {
+    mockFeed([
+      {
+        id: 3,
+        properties: {
+          poly_IncidentName: "Unknown",
+          attr_PercentContained: null,
+        },
+        geometry: square,
+      },
+    ]);
+
+    const threats = await fetchFirePerimeters(BBOX);
+
+    expect(threats[0]?.severity).toBe("severe");
   });
 });
