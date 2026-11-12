@@ -69,4 +69,9 @@ it("passes up a station further off the road than the detour allows", async () =
     { type: "fuel", maxDetour: 1_000, enabled: true },
   ]);
   expect(plan.waypoints).toEqual([]);
+  // The stop was asked for and is not on the route, so the driver is owed a
+  // reason: nothing in range rather than nothing routable (#341).
+  expect(plan.dropped).toEqual([
+    { type: "fuel", reason: "none-nearby", name: null, detourMeters: null },
+  ]);
 });

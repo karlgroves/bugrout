@@ -9,11 +9,16 @@
  * believing fuel is on the way.
  *
  * It follows the ThreatStatusNotice pattern (#288): a pure message function
- * and a thin component that reads the store and announces politely, shown on
- * the route preview, where the driver commits to the road.
+ * and a thin component that reads the store, shown on the route preview, where
+ * the driver commits to the road. It announces the way the other notices on
+ * this screen do (RouteUnavailableNotice, FuelRangeWarning) rather than by
+ * live region alone: accessibilityLiveRegion is Android-only, and iOS
+ * VoiceOver does not announce a view just because it appeared, so a notice
+ * that is only rendered is a notice a blind driver never gets.
  */
 
-import { StyleSheet, Text } from "react-native";
+import { useEffect, useRef } from "react";
+import { AccessibilityInfo, StyleSheet, Text } from "react-native";
 
 import { colors, spacing, typography } from "@/constants/theme";
 import { useRouteStore } from "@/stores/useRouteStore";
@@ -79,10 +84,26 @@ export function DroppedStopNotice(): React.JSX.Element | null {
   const droppedStops = useRouteStore((s) => s.droppedStops);
   const { units } = useSettingsStore();
   const message = droppedStopMessage(droppedStops, units);
+  const announced = useRef<string | null>(null);
+
+  // Announced once per message, not on every render: announceForAccessibility
+  // speaks without moving the screen reader's cursor, so the driver hears it
+  // while keeping their place on the screen. The live region covers Android.
+  useEffect(() => {
+    if (message === null) {
+      announced.current = null;
+      return;
+    }
+    if (announced.current === message) return;
+    announced.current = message;
+    AccessibilityInfo.announceForAccessibility(message);
+  }, [message]);
+
   if (message === null) return null;
   return (
     <Text
       style={styles.text}
+      accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       testID="dropped-stops"
     >

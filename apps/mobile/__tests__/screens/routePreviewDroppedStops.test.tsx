@@ -13,6 +13,7 @@
  */
 
 import { render } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
 
 import RoutePreviewScreen from "@/app/route-preview/index";
 import { droppedStopMessage } from "@/components/routing/DroppedStopNotice";
@@ -121,6 +122,21 @@ function route(id: string): Route {
   };
 }
 
+/**
+ * Spy on the screen-reader announcement.
+ *
+ * React Native's jest preset already mocks `announceForAccessibility`, so
+ * `jest.spyOn` hands back that same mock and its calls accumulate across
+ * tests; clearing it is what makes a per-test count mean anything.
+ */
+function spyOnAnnounce(): jest.SpyInstance<void, [string]> {
+  const spy = jest
+    .spyOn(AccessibilityInfo, "announceForAccessibility")
+    .mockImplementation(jest.fn());
+  spy.mockClear();
+  return spy;
+}
+
 beforeEach(() => {
   mockTable.length = 0;
   calculateRoute.mockReset();
@@ -197,6 +213,45 @@ describe("a fuel stop lost to a threat zone", () => {
     expect(notice).toHaveTextContent(/inside an active threat zone/);
     expect(notice).toHaveTextContent(/Fill up before you set off/);
     expect(notice.props.accessibilityLiveRegion).toBe("polite");
+  });
+
+  it("says it out loud, not only on the screen", async () => {
+    // accessibilityLiveRegion is Android-only and iOS VoiceOver does not
+    // announce a view just because it appeared, so a rendered-only notice is
+    // one a blind driver never gets. Same shape as RouteUnavailableNotice on
+    // this screen and FuelRangeWarning during navigation.
+    const announce = spyOnAnnounce();
+    mockTable.push(IN_THREAT);
+    useThreatStore.setState({ threatZones: [WILDFIRE] });
+    calculateRoute.mockResolvedValue(route("base"));
+
+    const calculated = await calculateSmartRoute(ROAD[0]!, ROAD[15]!, FUEL);
+    useRouteStore.getState().setRoute(calculated);
+
+    const screen = await render(<RoutePreviewScreen />);
+    expect(screen.getByTestId("dropped-stops").props.accessibilityRole).toBe(
+      "alert",
+    );
+    expect(announce).toHaveBeenCalledWith(
+      expect.stringContaining("No fuel stop on this route"),
+    );
+    // Once per message, not once per render.
+    expect(announce).toHaveBeenCalledTimes(1);
+    announce.mockRestore();
+  });
+
+  it("says nothing out loud when the route carries every stop", async () => {
+    const announce = spyOnAnnounce();
+    mockTable.push(IN_THREAT, SAFE);
+    useThreatStore.setState({ threatZones: [WILDFIRE] });
+    calculateRoute.mockResolvedValue(route("with-stop"));
+
+    const calculated = await calculateSmartRoute(ROAD[0]!, ROAD[15]!, FUEL);
+    useRouteStore.getState().setRoute(calculated);
+
+    await render(<RoutePreviewScreen />);
+    expect(announce).not.toHaveBeenCalled();
+    announce.mockRestore();
   });
 
   it("says nothing when a usable station was found instead", async () => {
