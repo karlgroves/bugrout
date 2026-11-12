@@ -10,6 +10,7 @@
 
 import { getDownloadedRegion } from "@/db/queries/regions";
 import * as FileSystem from "@/platform/fileSystem";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type {
   ThreatZone,
@@ -71,7 +72,7 @@ export function parseFloodFeatures(
   features: FloodFeature[],
   regionId: string,
 ): ThreatZone[] {
-  return features
+  const threats = features
     .filter((f) => {
       const zone = f.properties.FLD_ZONE ?? "";
       return HIGH_RISK_ZONES.has(zone);
@@ -94,4 +95,6 @@ export function parseFloodFeatures(
         expiresAt: null, // Static data, never expires
       };
     });
+  // A zone that cannot be drawn or avoided is left out (#287).
+  return withUsableGeometry(threats);
 }

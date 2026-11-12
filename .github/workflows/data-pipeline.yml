@@ -66,14 +66,35 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y valhalla-bin osmium-tool python3
 
-      - name: Install Planetiler
+      # Pinned by release and verified by SHA-256 before it runs, like every
+      # other downloaded binary here (docs/dependency-upgrade-policy.md, "Pinned
+      # scanner binaries"). It writes the .pmtiles basemap that ships, so
+      # `releases/latest` meant the published map silently changed builder
+      # between runs, and a substituted jar would have gone unnoticed.
+      - name: Install Planetiler (pinned + checksum-verified)
+        env:
+          PLANETILER_VERSION: "0.10.2"
+          PLANETILER_SHA256: "f310bd0413e2e4512b27f4046d418664e8e1d3bf31603c2a70e23de06c167e4d"
         run: |
-          curl -L -o data-pipeline/osm/planetiler.jar \
-            https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar
+          set -euo pipefail
+          jar=data-pipeline/osm/planetiler.jar
+          curl -sSLf -o "$jar" \
+            "https://github.com/onthegomap/planetiler/releases/download/v${PLANETILER_VERSION}/planetiler.jar"
+          echo "${PLANETILER_SHA256}  ${jar}" | sha256sum --check --strict -
 
+      # The region goes through `env:`, never straight into the script. It
+      # comes from the `regions` dispatch input by way of the matrix, and the
+      # matrix hop hides it from Semgrep's run-shell-injection rule: a
+      # `${{ matrix.region }}` here would be pasted into the shell before
+      # build-region.sh validates anything, so `md,x;<command>` ran the command.
+      # Quoted, the value is one argument whatever it holds, and
+      # build-region.sh's allowlist (regions/resolve-region.sh) rejects it —
+      # naming the id to use when handed a Geofabrik slug.
       - name: Build regional package
         working-directory: data-pipeline
-        run: ./build-region.sh ${{ matrix.region }}
+        env:
+          REGION: ${{ matrix.region }}
+        run: ./build-region.sh "$REGION"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -101,8 +122,11 @@ jobs:
         with:
           node-version: 22
 
+      # Pinned to the version pnpm-lock.yaml resolves for the workers. A bare
+      # `npm install -g` sits outside pnpm's minimumReleaseAge, and this job
+      # holds CLOUDFLARE_API_TOKEN.
       - name: Install wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4.147.0
 
       - name: Download all artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

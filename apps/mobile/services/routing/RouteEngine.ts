@@ -11,7 +11,7 @@
 /* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (calculateSmartRoute: two-pass threat-avoidance + waypoint routing) */
 
 import { useThreatStore } from "@/stores/useThreatStore";
-import { haversineDistance } from "@/utils/geo";
+import { haversineDistance, projectOntoPolyline } from "@/utils/geo";
 
 import * as Valhalla from "../valhalla/ValhallaModule";
 
@@ -52,22 +52,39 @@ export async function calculateSmartRoute(
 
   // Find resource waypoints along the base route corridor
   let waypoints: LatLng[] = extraOptions?.waypoints ?? [];
+  let resourceWaypoints: LatLng[] = [];
 
   if (resourcePreferences?.some((p) => p.enabled)) {
-    const resourceWaypoints = await getResourceWaypoints(
+    resourceWaypoints = await getResourceWaypoints(
       baseRoute.coordinates,
       resourcePreferences,
+      threatZones,
     );
     waypoints = [...waypoints, ...resourceWaypoints];
   }
 
   // If we have waypoints, recalculate with them
   if (waypoints.length > 0) {
-    return Valhalla.calculateRoute(origin, destination, {
-      ...extraOptions,
-      avoidPolygons: [...(extraOptions?.avoidPolygons ?? []), ...avoidPolygons],
-      waypoints,
-    });
+    try {
+      return await Valhalla.calculateRoute(origin, destination, {
+        ...extraOptions,
+        avoidPolygons: [
+          ...(extraOptions?.avoidPolygons ?? []),
+          ...avoidPolygons,
+        ],
+        waypoints,
+      });
+    } catch (err) {
+      // An optional resource stop must never cost the user the route they
+      // already have (#295). The base route carries the caller's own
+      // waypoints, so only the resource stops are lost.
+      if (resourceWaypoints.length === 0) throw err;
+      console.warn(
+        "[BugRout] routing with resource stops failed; using the route without them:",
+        err,
+      );
+      return baseRoute;
+    }
   }
 
   return baseRoute;
@@ -75,17 +92,20 @@ export async function calculateSmartRoute(
 
 /**
  * Check if the user has deviated from the active route.
- * Returns true if current position is more than 500m from the route polyline.
+ *
+ * Returns true if the current position is more than 500m from the route
+ * polyline — measured to the nearest point on the line, not the nearest
+ * vertex, so a driver mid-way along a long straight segment is on route
+ * (#298). A route with no geometry has nothing to deviate from, so it
+ * returns false rather than latching the driver as off route.
  */
 export function hasDeviated(
   currentPosition: LatLng,
   routeCoordinates: LatLng[],
 ): boolean {
-  const minDistance = getMinDistanceToPolyline(
-    currentPosition,
-    routeCoordinates,
-  );
-  return minDistance > DEVIATION_THRESHOLD_METERS;
+  const projection = projectOntoPolyline(currentPosition, routeCoordinates);
+  if (!projection) return false;
+  return projection.offMeters > DEVIATION_THRESHOLD_METERS;
 }
 
 /**
@@ -139,36 +159,4 @@ export function estimateRemaining(
     distance: remainingDistance,
     duration: remainingDuration,
   };
-}
-
-/**
- * Calculate minimum distance from a point to a polyline in meters.
- */
-function getMinDistanceToPolyline(point: LatLng, polyline: LatLng[]): number {
-  if (polyline.length === 0) return Infinity;
-  const first = polyline[0];
-  if (polyline.length === 1 && first) return haversineDistance(point, first);
-
-  let minDist = Infinity;
-
-  for (let i = 0; i < polyline.length - 1; i++) {
-    const a = polyline[i];
-    const b = polyline[i + 1];
-    if (!a || !b) continue;
-    const dist = pointToSegmentDistance(point, a, b);
-    if (dist < minDist) {
-      minDist = dist;
-    }
-  }
-
-  return minDist;
-}
-
-/**
- * Approximate the distance (meters) from point p to the segment a→b.
- */
-function pointToSegmentDistance(p: LatLng, a: LatLng, b: LatLng): number {
-  const dA = haversineDistance(p, a);
-  const dB = haversineDistance(p, b);
-  return Math.min(dA, dB);
 }
