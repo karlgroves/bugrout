@@ -137,7 +137,14 @@ const COUNTY_GROUPS: Record<string, CountyGroup[]> = {
 
 /**
  * Get county groups for a state.
+ *
+ * `stateId` comes from the downloaded region manifest, so it is outside input.
+ * A plain index would walk the prototype chain: `"__proto__"` returned
+ * `Object.prototype` (truthy, so `?? []` never fired) and the downloads
+ * screen's `.map` threw (#307). Only own keys count.
  */
 export function getCountyGroups(stateId: string): CountyGroup[] {
-  return COUNTY_GROUPS[stateId] ?? [];
+  return Object.hasOwn(COUNTY_GROUPS, stateId)
+    ? (COUNTY_GROUPS[stateId] ?? [])
+    : [];
 }

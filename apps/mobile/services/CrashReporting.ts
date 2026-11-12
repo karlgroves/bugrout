@@ -53,6 +53,8 @@ const SENSITIVE_KEY_PATTERNS = [
   "email",
   "phone",
   "contact",
+  // Span attributes carry the query string on its own (`http.query`).
+  "query",
 ] as const;
 
 /**
@@ -98,25 +100,146 @@ export function redactSensitive(value: unknown, depth = 0): unknown {
 }
 
 /**
+ * A URL's query string or fragment, up to the next whitespace.
+ *
+ * The values that matter most travel here, not under a key name: the address
+ * the user typed (`/search?q=`), full-precision coordinates (`/reverse?lat=`)
+ * and API keys (`?api_key=`). Matching key names cannot see them.
+ */
+const URL_QUERY_PATTERN = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s?#]*)[?#]\S*/gi;
+
+/**
+ * Remove the query string and fragment from every URL inside a string.
+ *
+ * Works on bare URLs (`data.url`) and on URLs embedded in text (a span
+ * description such as `GET https://host/search?q=...`), keeping the origin and
+ * path, which are what a crash report needs.
+ *
+ * @param text - Any string.
+ * @returns The string with each URL's `?…` / `#…` removed.
+ */
+export function stripUrlQueries(text: string): string {
+  return text.replace(URL_QUERY_PATTERN, "$1");
+}
+
+/**
+ * A decimal latitude,longitude pair (at least three decimal places each).
+ *
+ * Query stripping cannot see coordinates that sit in a URL path, such as the
+ * NWS points lookup (`/points/38.8977,-77.0365`). Three decimals (~110 m) is
+ * coarse enough to leave version strings and ordinary numbers alone.
+ */
+const COORDINATE_PAIR_PATTERN = /-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/g;
+
+/**
+ * Strip URL queries and redact coordinate pairs from a string.
+ *
+ * @param text - Any string.
+ * @returns The string with queries removed and coordinate pairs redacted.
+ */
+function scrubString(text: string): string {
+  return stripUrlQueries(text).replace(COORDINATE_PAIR_PATTERN, REDACTED);
+}
+
+/**
+ * {@link redactSensitive}, plus query-string removal and coordinate-pair
+ * redaction on every string value.
+ *
+ * Needed chiefly for the parts of an event Sentry's own integrations fill in
+ * — breadcrumbs and spans — where the sensitive value sits inside a URL rather
+ * than under a sensitive key; applied to every scrubbed field.
+ *
+ * @param value - The value to sanitize.
+ * @param depth - Current recursion depth; callers pass nothing.
+ * @returns A structurally similar value with sensitive data removed.
+ */
+function scrubDeep(value: unknown, depth = 0): unknown {
+  if (depth > MAX_REDACT_DEPTH) {
+    return REDACTED;
+  }
+  if (typeof value === "string") {
+    return scrubString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => scrubDeep(item, depth + 1));
+  }
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+    out[key] = isSensitiveKey(key) ? REDACTED : scrubDeep(inner, depth + 1);
+  }
+  return out;
+}
+
+/**
+ * Event fields scrubbed before transmission.
+ *
+ * `breadcrumbs` and `spans` are the ones Sentry populates itself: the default
+ * fetch/XHR integration records each request's full URL as a breadcrumb, and
+ * with tracing on each request also becomes a span carrying that URL.
+ *
+ * `transaction` is the transaction event's own name, which is the root span's
+ * description — the same `"GET <url>"` string that a child span carries under
+ * `spans[].description`, so it needs the same treatment. A request recorded as
+ * its own segment rather than as a child span puts that URL here, where no
+ * sensitive key name appears for {@link isSensitiveKey} to match.
+ */
+const SCRUBBED_EVENT_FIELDS = [
+  "contexts",
+  "extra",
+  "tags",
+  "request",
+  "user",
+  "breadcrumbs",
+  "spans",
+  "transaction",
+] as const;
+
+/**
  * Scrub a Sentry event immediately before transmission.
  *
  * The last line of defence: it runs on every event regardless of which code
  * path produced it, including events Sentry generates itself rather than ones
- * this module passes in.
+ * this module passes in. Installed as both `beforeSend` (errors) and
+ * `beforeSendTransaction` (performance events, which is where `spans` live —
+ * Sentry does not pass transactions through `beforeSend`).
  *
  * @param event - The outbound Sentry event.
- * @returns The same event with `contexts`, `extra` and `request` sanitized.
+ * @returns The same event with {@link SCRUBBED_EVENT_FIELDS} sanitized.
  */
 export function scrubEvent(
   event: Record<string, unknown>,
 ): Record<string, unknown> {
   const scrubbed: Record<string, unknown> = { ...event };
-  for (const field of ["contexts", "extra", "tags", "request", "user"]) {
+  for (const field of SCRUBBED_EVENT_FIELDS) {
     if (field in scrubbed) {
-      scrubbed[field] = redactSensitive(scrubbed[field]);
+      scrubbed[field] = scrubDeep(scrubbed[field]);
     }
   }
   return scrubbed;
+}
+
+/**
+ * Scrub a breadcrumb as Sentry records it.
+ *
+ * Console breadcrumbs are dropped outright: they carry whatever the app
+ * logged, and their diagnostic value does not justify the risk. Every other
+ * breadcrumb keeps its shape with URL query strings and sensitive keys
+ * removed. {@link scrubEvent} repeats this on the event's breadcrumb list as a
+ * backstop.
+ *
+ * @param crumb - The breadcrumb Sentry is about to record.
+ * @returns The sanitized breadcrumb, or `null` to discard it.
+ */
+export function scrubBreadcrumb(
+  crumb: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (crumb.category === "console") {
+    return null;
+  }
+  return scrubDeep(crumb) as Record<string, unknown>;
 }
 
 /**
@@ -153,6 +276,8 @@ export function initCrashReporting(optIn: boolean): void {
     // Sentry attaches IP address and user identifiers by default.
     sendDefaultPii: false,
     beforeSend: scrubEvent,
+    beforeSendTransaction: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
   });
 }
 

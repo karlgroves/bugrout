@@ -17,6 +17,13 @@ import type { DownloadedRegion, Region } from "@bugrout/shared";
 /** Published tile version per region id, from the tile manifest. */
 export type PublishedVersions = Readonly<Record<string, string>>;
 
+export /**
+ * The version recorded for a download that is missing a file its package
+ * lists — routing tiles that failed to download or verify (#292). No
+ * published version equals it, so the region is offered for update.
+ */
+const INCOMPLETE_VERSION = "";
+
 /** Age past which a region counts as stale when its published version is unknown. */
 const STALE_THRESHOLD_DAYS = 90;
 
@@ -39,14 +46,16 @@ export function publishedVersionsFrom(regions: Region[]): PublishedVersions {
  * @param published - Published versions from the manifest, or `null` when it
  *   could not be fetched.
  * @param now - Current time in ms; injectable for tests.
- * @returns `true` when a different version is published, or — when the
- *   published version is unknown — when the download is over 90 days old.
+ * @returns `true` when the download is incomplete, when a different version
+ *   is published, or — when the published version is unknown — when the
+ *   download is over 90 days old.
  */
 export function isRegionStale(
   region: DownloadedRegion,
   published: PublishedVersions | null,
   now: number = Date.now(),
 ): boolean {
+  if (region.version === INCOMPLETE_VERSION) return true;
   const current = published ? publishedVersionOf(published, region.id) : null;
   if (current !== null) return current !== region.version;
   return (now - region.downloadedAt) / MS_PER_DAY > STALE_THRESHOLD_DAYS;

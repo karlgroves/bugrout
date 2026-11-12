@@ -40,6 +40,20 @@ import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 import type { NavigationEvent } from "@/services/navigation/NavigationController";
 import type { LatLng } from "@bugrout/shared";
 
+/**
+ * Tell the driver turn-by-turn guidance has stopped because location is
+ * unavailable, and where to turn instead.
+ *
+ * @param onDismiss - Called when the alert is dismissed.
+ */
+function alertLocationUnavailable(onDismiss: () => void): void {
+  Alert.alert(
+    "Location unavailable",
+    "BugRout cannot track your location, so navigation has stopped. Turn on location services and start again, and follow official evacuation routes.",
+    [{ text: "OK", onPress: onDismiss }],
+  );
+}
+
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
@@ -121,13 +135,19 @@ function NavigationScreen(): React.JSX.Element {
           ]);
           break;
 
+        case "tracking_lost":
+          alertLocationUnavailable(() => {
+            router.back();
+          });
+          break;
+
         case "voice":
           // Voice prompts are spoken by NavigationController; no view update needed.
           break;
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStop is declared after this callback and is stable; including it would create a declaration-order cycle, and it is only invoked from a one-shot arrival alert
-    [activeRoute],
+    [activeRoute, router],
   );
 
   // Start navigation when screen mounts
@@ -142,7 +162,16 @@ function NavigationScreen(): React.JSX.Element {
     }
 
     syncedRouteId.current = activeRoute.id;
-    void NavController.start(activeRoute, handleNavEvent);
+    let unmounted = false;
+    NavController.start(activeRoute, handleNavEvent).catch(() => {
+      // No GPS: the controller has released keep-awake. Do not show guidance
+      // for a trip that is not being tracked (#300). If the screen is already
+      // gone, going back would pop whatever screen replaced it.
+      if (unmounted) return;
+      alertLocationUnavailable(() => {
+        router.back();
+      });
+    });
 
     // Initialize remaining from full route
     setRemaining({
@@ -151,6 +180,7 @@ function NavigationScreen(): React.JSX.Element {
     });
 
     return () => {
+      unmounted = true;
       void NavController.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation must start exactly once on mount; re-running on activeRoute/handleNavEvent/router changes would restart GPS and voice. Route updates are handled by the separate activeRoute.id effect below.
@@ -311,23 +341,22 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      {/* Low battery warning; renders nothing unless the level is known and low */}
-      {!hasDeviated ? <BatteryWarning battery={battery} /> : null}
+      {/* Low battery warning; renders nothing unless the level is known and
+          low. Shown off route too: a low battery matters more there (#298). */}
+      <BatteryWarning battery={battery} />
 
       {/* Fuel range; renders nothing unless a range was given and is running
           short of the next station on the route (#203) */}
-      {!hasDeviated ? (
-        <FuelRangeWarning
-          stop={fuel.stop}
-          rangeRemaining={fuel.rangeRemaining}
-          warn={fuel.warn}
-          stopAdded={fuelStopAdded}
-          units={units}
-          onAddFuelStop={() => {
-            void handleAddFuelStop();
-          }}
-        />
-      ) : null}
+      <FuelRangeWarning
+        stop={fuel.stop}
+        rangeRemaining={fuel.rangeRemaining}
+        warn={fuel.warn}
+        stopAdded={fuelStopAdded}
+        units={units}
+        onAddFuelStop={() => {
+          void handleAddFuelStop();
+        }}
+      />
 
       {/* The essentials stay outside the switch: the advisory badge and
           status above, the ETA and Stop below (#192, #189). */}

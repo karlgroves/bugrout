@@ -30,4 +30,7 @@ by Turborepo.
 
 - `pnpm run check` is Turbo-cached and fast; `pnpm run check:all` adds the
   global scanners.
-- Dependabot's npm ecosystem entry covers pnpm lockfiles natively.
+- Dependabot's npm ecosystem entry covered pnpm lockfiles natively. Superseded:
+  `.github/dependabot.yml` has since been removed (see
+  [`docs/dependency-upgrade-policy.md`](../dependency-upgrade-policy.md)), and
+  upgrades are deliberate, human-initiated PRs.
