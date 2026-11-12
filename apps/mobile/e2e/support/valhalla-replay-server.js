@@ -110,11 +110,15 @@ function startReplayServer(options = {}) {
     }
 
     let raw = "";
+    let bytes = 0;
     let tooLarge = false;
     req.on("data", (chunk) => {
       if (tooLarge) return;
+      // Counted on the Buffer, not the decoded string: `raw.length` is UTF-16
+      // code units, so multi-byte characters would slip past the cap.
+      bytes += chunk.length;
       raw += chunk;
-      if (raw.length > MAX_BODY_BYTES) {
+      if (bytes > MAX_BODY_BYTES) {
         tooLarge = true;
         raw = "";
         reply(413, { error: "request body too large" });

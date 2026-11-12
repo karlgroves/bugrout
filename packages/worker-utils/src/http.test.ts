@@ -255,6 +255,7 @@ describe("SECURITY_HEADERS — the required set", () => {
       "Permissions-Policy",
       "Referrer-Policy",
       "Strict-Transport-Security",
+      "Vary",
       "X-Content-Type-Options",
       "X-Frame-Options",
     ]);
@@ -264,7 +265,8 @@ describe("SECURITY_HEADERS — the required set", () => {
     // Literal on purpose. assertAllSecurityHeaders compares responses against
     // SECURITY_HEADERS itself, so without this the table only vouches for
     // itself: X-Frame-Options: ALLOWALL or Referrer-Policy: unsafe-url would
-    // keep every other test here green.
+    // keep every other test here green. It is exhaustive, so a header added to
+    // the table has to be added here too.
     assert.deepEqual(SECURITY_HEADERS, {
       "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
       "Strict-Transport-Security":
@@ -275,7 +277,12 @@ describe("SECURITY_HEADERS — the required set", () => {
       "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Resource-Policy": "same-origin",
+      Vary: "Origin",
     });
+  });
+
+  test("varies on Origin, because Allow-Origin echoes it on cacheable responses", () => {
+    assert.equal(SECURITY_HEADERS.Vary, "Origin");
   });
 
   test("HSTS covers subdomains and is preload-eligible", () => {

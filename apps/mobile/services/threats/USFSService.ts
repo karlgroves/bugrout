@@ -1,26 +1,47 @@
 /**
  * USFS (US Forest Service) Fire Perimeter Service
  *
- * Fetches active fire perimeters from NIFC GeoJSON feed.
+ * Fetches active fire perimeters from the NIFC GeoJSON feed.
  * Updated approximately every 12 hours.
  * Cached in SQLite with 12-hour TTL.
  */
 
 import { timeoutSignal } from "@/utils/abort";
+import { withUsableGeometry } from "@/utils/geo";
 
 import type { ThreatZone } from "@bugrout/shared";
 
+// The NIFC_Perimeters layer this used to query was withdrawn: every request
+// to it, query or metadata, answers an ArcGIS 400 "Invalid URL", and the name
+// is absent from the org's service list, so the feed fetched nothing at all
+// (#336). WFIGS_Interagency_Perimeters_Current is the same org's live
+// current-perimeters layer and the supported replacement.
+//
+// Its schema is WFIGS's, not the old NIFC one: containment is
+// `attr_PercentContained`, and the old `irwin_PercentContained` does not
+// exist on this layer. Asking for a field the layer does not define is not a
+// soft failure: measured against this endpoint, it answers HTTP **200** with
+// `{"error":{"code":400,"details":["'outFields' parameter is invalid"]}}` and
+// no `features` array at all, so the whole fetch fails rather than returning
+// perimeters with one attribute missing. Keep the names requested here and
+// the names read in `NIFCResponse` identical; `USFSService.test.ts` pins both.
 const NIFC_URL =
-  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/NIFC_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,irwin_PercentContained&f=geojson";
+  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query?where=1%3D1&outFields=OBJECTID,poly_IncidentName,attr_PercentContained&f=geojson";
 
 const CACHE_TTL_MS = 43200000; // 12 hours
 
 /** Shape of the NIFC fire-perimeter GeoJSON response (fields may be absent). */
 interface NIFCResponse {
   features: {
+    /**
+     * The layer's OBJECTID, unique per perimeter. ArcGIS sets the GeoJSON
+     * feature id only when OBJECTID (or *) is in outFields, so NIFC_URL must
+     * keep requesting it; without it every feature arrives with no id.
+     */
+    id?: string | number | null;
     properties: {
       poly_IncidentName?: string;
-      irwin_PercentContained?: number;
+      attr_PercentContained?: number | null;
     };
     geometry: ThreatZone["geometry"];
   }[];
@@ -32,27 +53,41 @@ interface NIFCResponse {
  */
 export async function fetchFirePerimeters(): Promise<ThreatZone[]> {
   const resp = await fetch(NIFC_URL, { signal: timeoutSignal(15000) });
-  if (!resp.ok) return [];
+  // A failed feed must not read as "no active fires" (#288): the caller keeps
+  // the cached perimeters, retries on the next sync, and says it failed.
+  if (!resp.ok) throw new Error(`NIFC perimeters: HTTP ${resp.status}`);
 
   const data = (await resp.json()) as NIFCResponse;
 
-  return data.features.map((f) => {
+  // Key on the feature, never the incident name: one incident can publish
+  // several perimeters and unnamed ones are common, and a shared id makes the
+  // later perimeter silently replace the earlier one in the store and SQLite.
+  // Unusable perimeters are dropped below so they never reach the cache (#287).
+  const seen = new Set<string>();
+  const threats = data.features.map((f, i) => {
     const name = f.properties.poly_IncidentName ?? "Unnamed";
+    let id =
+      f.id === undefined || f.id === null
+        ? `fire-i${String(i)}`
+        : `fire-${String(f.id)}`;
+    if (seen.has(id)) id = `${id}-${String(i)}`;
+    seen.add(id);
     return {
-      id: `fire-${name}`,
+      id,
       type: "wildfire" as const,
       severity:
-        (f.properties.irwin_PercentContained ?? 0) < 50
+        (f.properties.attr_PercentContained ?? 0) < 50
           ? ("severe" as const)
           : ("moderate" as const),
       geometry: f.geometry,
       headline: `Active Fire: ${name}`,
-      description: `${f.properties.irwin_PercentContained ?? 0}% contained`,
+      description: `${f.properties.attr_PercentContained ?? 0}% contained`,
       source: "usfs" as const,
       fetchedAt: Date.now(),
       expiresAt: null,
     };
   });
+  return withUsableGeometry(threats);
 }
 
 export { CACHE_TTL_MS };

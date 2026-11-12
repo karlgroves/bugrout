@@ -27,6 +27,7 @@ import {
   assertNoLeakage,
   emptyR2,
   fakeKv,
+  fakeRateLimiter,
   fakeRedis,
   invokeNodeHandler,
 } from "./helpers";
@@ -41,13 +42,13 @@ const SECRET = "route-tracker-secret";
  * Two different contracts are at play, and this suite owns the second:
  *
  * - *What* the table must contain is §5.10's list. That is asserted in
- *   `packages/worker-utils/src/http.test.ts`, and extending the table to the
- *   full seven headers is issue #86's work, not this one's.
+ *   `packages/worker-utils/src/http.test.ts`, which pins the whole table as a
+ *   literal — necessarily, because the list here is derived from the table and
+ *   so stays green if a header is deleted from it.
  * - *That every response path emits the whole table* is asserted here. Deriving
  *   the list from the table rather than restating it is deliberate: this suite
  *   should catch a path that skips headers, and should strengthen on its own
- *   the moment #86 grows the table, without an edit here that could be
- *   forgotten.
+ *   whenever the table grows, without an edit here that could be forgotten.
  */
 const REQUIRED_HEADERS = Object.keys(SECURITY_HEADERS).map((h) =>
   h.toLowerCase(),
@@ -74,23 +75,27 @@ function assertWorkerHeaders(res: Response, label: string): void {
 }
 
 describe("tile-server — every response path", () => {
-  const env = { TILES_BUCKET: emptyR2(), API_KEY: "a-key" };
-
-  test("health, manifest, 401, 404 and preflight all carry the full set", async () => {
-    const cases: [string, Request][] = [
-      ["health", new Request("https://t.example/health")],
-      ["manifest", new Request("https://t.example/v1/tiles/manifest")],
-      ["401", new Request("https://t.example/v1/tiles/bay-area/pmtiles")],
-      ["404", new Request("https://t.example/nope")],
+  test("health, manifest, 404, 429 and preflight all carry the full set", async () => {
+    const cases: [string, Request, number][] = [
+      ["health", new Request("https://t.example/health"), 1],
+      ["manifest", new Request("https://t.example/v1/tiles/manifest"), 1],
+      ["404", new Request("https://t.example/nope"), 1],
+      ["429", new Request("https://t.example/v1/tiles/bay-area/pmtiles"), 0],
       [
         "preflight",
         new Request("https://t.example/v1/tiles/manifest", {
           method: "OPTIONS",
         }),
+        1,
       ],
     ];
-    for (const [label, request] of cases) {
+    for (const [label, request, allowance] of cases) {
+      const env = {
+        TILES_BUCKET: emptyR2(),
+        RATE_LIMITER: fakeRateLimiter(allowance),
+      };
       const res = await tileServer.fetch(request, env);
+      if (label === "429") assert.equal(res.status, 429);
       assertWorkerHeaders(res, `tile-server ${label}`);
       assertNoLeakage(await res.text(), `tile-server ${label}`);
     }
@@ -98,22 +103,23 @@ describe("tile-server — every response path", () => {
 });
 
 describe("crowd-signal — every response path", () => {
-  const env = { SIGNALS_KV: fakeKv() };
+  const env = { SIGNALS_KV: fakeKv(), RATE_LIMITER: fakeRateLimiter() };
+  const token = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
-  test("204, 400 and 413 all carry the full set", async () => {
+  test("204, 400, 413 and 429 all carry the full set", async () => {
     const cases: [string, Request][] = [
       [
         "204",
         new Request("https://s.example/v1/signal", {
           method: "POST",
-          body: JSON.stringify({ lat: 1, lng: 1, token: "abc" }),
+          body: JSON.stringify({ lat: 1, lng: 1, token }),
         }),
       ],
       [
         "400",
         new Request("https://s.example/v1/signal", {
           method: "POST",
-          body: JSON.stringify({ lat: 999, lng: 1, token: "abc" }),
+          body: JSON.stringify({ lat: 999, lng: 1, token }),
         }),
       ],
       [
@@ -121,7 +127,7 @@ describe("crowd-signal — every response path", () => {
         new Request("https://s.example/v1/signal", {
           method: "POST",
           headers: { "Content-Length": "9999" },
-          body: JSON.stringify({ lat: 1, lng: 1, token: "abc" }),
+          body: JSON.stringify({ lat: 1, lng: 1, token }),
         }),
       ],
       ["404", new Request("https://s.example/nope")],
@@ -131,20 +137,41 @@ describe("crowd-signal — every response path", () => {
       assertWorkerHeaders(res, `crowd-signal ${label}`);
       assertNoLeakage(await res.text(), `crowd-signal ${label}`);
     }
+
+    const limited = await crowdSignal.fetch(
+      new Request("https://s.example/v1/signal", {
+        method: "POST",
+        body: JSON.stringify({ lat: 1, lng: 1, token }),
+      }),
+      { SIGNALS_KV: fakeKv(), RATE_LIMITER: fakeRateLimiter(0) },
+    );
+    assert.equal(limited.status, 429);
+    assertWorkerHeaders(limited, "crowd-signal 429");
+    assertNoLeakage(await limited.text(), "crowd-signal 429");
   });
 });
 
 describe("alert-aggregator — every response path", () => {
-  const env = { ALERTS_KV: fakeKv() };
+  const snapshot = JSON.stringify({ fetchedAt: 0, features: [] });
+  const env = {
+    ALERTS_KV: fakeKv({ "alerts:nws": snapshot, "alerts:usfs": snapshot }),
+  };
+  const emptyEnv = { ALERTS_KV: fakeKv() };
 
-  test("200, 400 and 404 all carry the full set", async () => {
-    const cases: [string, Request][] = [
-      ["200", new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1")],
-      ["400", new Request("https://a.example/v1/alerts")],
-      ["404", new Request("https://a.example/nope")],
+  test("200, 400, 404 and 503 all carry the full set", async () => {
+    const cases: [string, Request, typeof env][] = [
+      ["200", new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1"), env],
+      ["400", new Request("https://a.example/v1/alerts"), env],
+      ["404", new Request("https://a.example/nope"), env],
+      [
+        "503",
+        new Request("https://a.example/v1/alerts?bbox=-1,-1,1,1"),
+        emptyEnv,
+      ],
     ];
-    for (const [label, request] of cases) {
-      const res = await alertAggregator.fetch(request, env);
+    for (const [label, request, caseEnv] of cases) {
+      const res = await alertAggregator.fetch(request, caseEnv);
+      assert.equal(String(res.status), label, `alert-aggregator ${label}`);
       assertWorkerHeaders(res, `alert-aggregator ${label}`);
       assertNoLeakage(await res.text(), `alert-aggregator ${label}`);
     }
@@ -229,9 +256,9 @@ describe("route-tracker — every response path", () => {
   });
 
   test("a rate-limited 429 still carries the headers", async () => {
-    // Fails on `main`: the 429 short-circuit returns before setStandardHeaders
-    // runs, so every rate-limited response goes out bare. Fixed in #86 — this
-    // is the test that will keep it fixed.
+    // The 429 short-circuit used to return before setStandardHeaders ran, so
+    // every rate-limited response went out bare. #86 fixed that; this is the
+    // test that keeps it fixed.
     process.env.API_SECRET = SECRET;
     resetRateLimits();
     let last;
