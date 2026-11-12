@@ -47,6 +47,22 @@ interface NWSAlertsResponse {
   }[];
 }
 
+// The NIFC_Perimeters layer this used to query was withdrawn: the query
+// answers HTTP 400 and a metadata request answers an ArcGIS 400 "Invalid
+// URL", so this worker served no fire perimeters at all while reporting
+// success (#336). WFIGS_Interagency_Perimeters_Current is the same org's live
+// current-perimeters layer.
+//
+// Its schema is WFIGS's: containment is `attr_PercentContained`, and the old
+// `irwin_` name does not exist on it. Asking for a field the layer does not
+// define is not a soft failure — it answers HTTP 200 with
+// `{"error":...,"details":["'outFields' parameter is invalid"]}` and no
+// `features` array — so the names requested here and the names read in
+// `USFSPerimetersResponse` must stay identical. `pnpm run threats:check`
+// reads this literal and asserts both against the live layer.
+const NIFC_URL =
+  "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,attr_PercentContained&f=geojson";
+
 /**
  * Subset of the NIFC/USFS fire-perimeter GeoJSON response that this worker consumes.
  */
@@ -54,7 +70,7 @@ interface USFSPerimetersResponse {
   features: {
     properties: {
       poly_IncidentName: string;
-      irwin_PercentContained?: number;
+      attr_PercentContained?: number | null;
     };
     geometry: unknown;
   }[];
@@ -198,10 +214,7 @@ async function fetchNWSAlerts(): Promise<ThreatZone[]> {
  * Fetch active USFS/NIFC fire perimeters and normalize them into ThreatZones.
  */
 async function fetchUSFSFirePerimeters(): Promise<ThreatZone[]> {
-  const url =
-    "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/NIFC_Perimeters/FeatureServer/0/query?where=1%3D1&outFields=poly_IncidentName,irwin_PercentContained&f=geojson";
-
-  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const resp = await fetch(NIFC_URL, { signal: AbortSignal.timeout(15000) });
   if (!resp.ok) return [];
 
   const data = await resp.json<USFSPerimetersResponse>();
@@ -210,10 +223,10 @@ async function fetchUSFSFirePerimeters(): Promise<ThreatZone[]> {
     id: `fire-${f.properties.poly_IncidentName}`,
     type: "wildfire" as const,
     severity:
-      (f.properties.irwin_PercentContained ?? 0) < 50 ? "severe" : "moderate",
+      (f.properties.attr_PercentContained ?? 0) < 50 ? "severe" : "moderate",
     geometry: f.geometry,
     headline: `Active Fire: ${f.properties.poly_IncidentName}`,
-    description: `${f.properties.irwin_PercentContained ?? 0}% contained`,
+    description: `${f.properties.attr_PercentContained ?? 0}% contained`,
     source: "usfs",
     fetchedAt: Date.now(),
     expiresAt: null,

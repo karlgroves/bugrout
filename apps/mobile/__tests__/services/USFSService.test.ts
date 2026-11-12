@@ -100,10 +100,11 @@ describe("fetchFirePerimeters endpoint", () => {
     expect(url.pathname).not.toContain("/NIFC_Perimeters/");
   });
 
-  // ArcGIS ignores an outField the layer does not define instead of erroring,
-  // so a name the parser reads but the layer never publishes fails silently:
-  // every perimeter arrives with no containment. Requested names and read
-  // names must therefore stay the same set.
+  // ArcGIS rejects the whole query when an outField names a field the layer
+  // does not define: HTTP 200 carrying an error object and no `features`
+  // array, so the fetch fails outright rather than returning perimeters with
+  // one attribute missing. Requested names and read names must therefore stay
+  // the same set.
   it("requests exactly the attribute names the parser reads", async () => {
     const url = await requestedUrl();
 

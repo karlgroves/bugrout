@@ -23,8 +23,9 @@
  *      and no `features` array, which is what the stale
  *      `irwin_PercentContained` name would do now that the schema has moved
  *      to WFIGS's `attr_` prefix. A status-code check alone passes that.
- *      A layer can also keep answering 200 while quietly dropping a field it
- *      used to publish, which leaves the parser reading an absent attribute.
+ *      A layer can also keep a field in its schema — so the request is
+ *      accepted — while no longer populating it, which leaves the parser
+ *      reading an absent attribute on every feature.
  *
  * So this checks all of it: the status, an ArcGIS error inside a 200 body, and
  * that every attribute the service asks for in `outFields` actually comes back
@@ -78,6 +79,18 @@ const FEEDS = [
     ),
     urlConst: "NIFC_URL",
   },
+  {
+    name: "USFS/NIFC wildfire perimeters (alert-aggregator worker)",
+    source: join(
+      ROOT,
+      "backend",
+      "workers",
+      "alert-aggregator",
+      "src",
+      "index.ts",
+    ),
+    urlConst: "NIFC_URL",
+  },
 ];
 
 /**
@@ -114,6 +127,25 @@ function requestedFields(url) {
     .split(",")
     .map((f) => f.trim())
     .filter((f) => f !== "" && f !== "OBJECTID");
+}
+
+/**
+ * Whether a query URL asks ArcGIS for `OBJECTID`.
+ *
+ * ArcGIS only populates a GeoJSON feature's `id` when `OBJECTID` is among the
+ * `outFields`, so a feed that does not request it legitimately returns
+ * id-less features and must not be failed for that.
+ *
+ * @param url - The feed query URL.
+ * @returns True when `OBJECTID` is requested.
+ */
+function requestsObjectId(url) {
+  const raw = new URL(url).searchParams.get("outFields") ?? "";
+  if (raw.trim() === "*") return true;
+  return raw
+    .split(",")
+    .map((f) => f.trim())
+    .includes("OBJECTID");
 }
 
 /**
@@ -197,13 +229,17 @@ async function checkFeed(feed) {
 
   if (missing.length > 0) {
     console.error(
-      `  the layer publishes none of: ${missing.join(", ")} — ArcGIS drops an unknown outField silently, so the parser would read these as absent`,
+      `  the layer answered without any of: ${missing.join(", ")} — it still defines the field (an undefined one is rejected outright, see above) but has stopped populating it, so the parser reads these as absent`,
     );
     return 1;
   }
 
   // A feature id is what the store and SQLite key on, and ArcGIS only sets it
-  // when OBJECTID is requested.
+  // when OBJECTID is requested — so only a feed that asks for OBJECTID is
+  // entitled to ids, and one that does not must not be failed for lacking
+  // them.
+  if (!requestsObjectId(url)) return 0;
+
   const withoutId = features.filter((feat) => feat?.id === undefined).length;
   if (withoutId > 0) {
     console.error(
