@@ -83,8 +83,9 @@ export function nifcQueryUrl(bbox: BBox): string {
  * Fetch the active wildfire perimeters intersecting a region from the NIFC
  * ArcGIS feature service and map them to ThreatZone records.
  *
- * Throws when the feed fails (#288) or the response is larger than the feed
- * bounds allow (#305).
+ * Throws when the feed fails (#288), the response is larger than the feed
+ * bounds allow (#305), or it carried perimeters of which none was usable
+ * (#338).
  */
 export async function fetchFirePerimeters(bbox: BBox): Promise<ThreatZone[]> {
   const resp = await fetch(nifcQueryUrl(bbox), {
@@ -129,7 +130,18 @@ export async function fetchFirePerimeters(bbox: BBox): Promise<ThreatZone[]> {
       };
     },
   );
-  return withUsableGeometry(threats);
+  const usable = withUsableGeometry(threats);
+  // Every NIFC feature is a perimeter polygon, so a response that carried
+  // features but left nothing usable is a broken feed, not "no active fires"
+  // (#338). Resolving to [] here would stamp the source as fetched just now,
+  // suppress the "couldn't update" notice (#288) and drop the cached
+  // perimeters, so the driver would silently lose the fire data.
+  if (usable.length === 0 && data.features.length > 0) {
+    throw new Error(
+      `NIFC perimeters: all ${String(data.features.length)} features have unusable geometry`,
+    );
+  }
+  return usable;
 }
 
 export { CACHE_TTL_MS };

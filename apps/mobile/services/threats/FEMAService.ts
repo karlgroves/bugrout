@@ -37,6 +37,13 @@ const HIGH_RISK_ZONES = new Set(["A", "AE", "AH", "AO", "AR", "V", "VE"]);
 /**
  * Load flood zone polygons from the locally stored regional package.
  * Returns only high-risk flood zones (A and V designations).
+ *
+ * Resolving is a RESULT, so resolving to `[]` means "this region has no
+ * high-risk flood zones" and the sync drops the source's cached zones (#338).
+ * The production implementation below must therefore REJECT when the package
+ * is there but cannot be read or parsed, the way the network feeds do (#288) —
+ * "couldn't read it" must not resolve to `[]`, so the `catch` below has to
+ * rethrow once it wraps a real read rather than the stub.
  */
 export async function loadFloodZones(regionId: string): Promise<ThreatZone[]> {
   const region = await getDownloadedRegion(regionId);

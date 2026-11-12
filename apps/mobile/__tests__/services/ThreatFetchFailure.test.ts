@@ -37,6 +37,14 @@ describe("fetchNWSAlerts", () => {
     await expect(fetchNWSAlerts(BBOX)).rejects.toThrow(/HTTP 503/);
   });
 
+  it("rejects when the points response names no state (#338)", async () => {
+    // The alerts query is never made, so this is a failed fetch. Resolving to
+    // [] would stamp the source as fetched just now and, now that an empty
+    // result clears the source, drop the cached alerts as well.
+    global.fetch = jest.fn().mockResolvedValue(response(200, {}));
+    await expect(fetchNWSAlerts(BBOX)).rejects.toThrow(/no state/);
+  });
+
   it("rejects when the alerts request fails", async () => {
     global.fetch = jest
       .fn()
@@ -70,5 +78,34 @@ describe("fetchFirePerimeters", () => {
   it("resolves to [] when there are no active perimeters", async () => {
     global.fetch = jest.fn().mockResolvedValue(response(200, { features: [] }));
     await expect(fetchFirePerimeters(BBOX)).resolves.toEqual([]);
+  });
+
+  it("rejects when the feed answers with perimeters but none is usable (#338)", async () => {
+    // Every perimeter in the NIFC feed is a polygon, so a response whose
+    // every feature is dropped as malformed (#287) is a broken feed, not
+    // "no active fires": resolving to [] stamped the source as fetched just
+    // now and silently lost the cached perimeters.
+    global.fetch = jest.fn().mockResolvedValue(
+      response(200, {
+        features: [
+          { properties: { poly_IncidentName: "Null" }, geometry: null },
+          {
+            properties: { poly_IncidentName: "Bad" },
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-77, 39],
+                  [null, 39],
+                ],
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    await expect(fetchFirePerimeters(BBOX)).rejects.toThrow(
+      /unusable geometry/,
+    );
   });
 });
