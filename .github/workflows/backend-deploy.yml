@@ -282,8 +282,10 @@ jobs:
       # the version is what makes the action's own pin mean something.
       # The action downloads and extracts the release itself and does not
       # verify a checksum, so this cannot be checksum-gated the way the
-      # scanner binaries in ci.yml are without replacing the action; bump
-      # this deliberately, reading the flyctl release notes in between.
+      # pinned release downloads elsewhere in these workflows are (see
+      # "Pinned scanner binaries" in docs/dependency-upgrade-policy.md)
+      # without replacing the action; bump this deliberately, reading the
+      # flyctl release notes in between.
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         with:
           version: "0.5.5"
