@@ -72,8 +72,9 @@ graph. It already contains Maryland, Delaware, DC and Virginia, so it is one
 extract, with no merge step. US South plus US Northeast needs an `osmium merge`
 stage first and is a separate change.
 
-Nothing in this directory changes to do it, but the steps above are not enough
-on their own:
+No script or config logic in this directory changes to do it — only `fly.toml`'s
+`GRAPH_VERSION`, and its volume and memory sizing — but the steps above are not
+enough on their own:
 
 1. **Build it locally.** The extract is
    `https://download.geofabrik.de/north-america/us-south-latest.osm.pbf` (3,945
@@ -84,13 +85,34 @@ on their own:
    secrets; check `gh secret list` before relying on it.
 2. **Record the build** for the PR that sets `GRAPH_VERSION`: wall-clock build
    time and the size of each of the five files.
-3. **Size the volume from those figures.** `[mounts]` creates a 5 GB volume. The
-   first boot of a version holds its `.partial` download and every version
-   already cached, so the volume needs room for the new tar plus any version
-   kept for rollback. Extend an existing volume with `flyctl volumes extend`;
-   `initial_size` applies only when the volume is created.
+3. **Size the volume and the machine from those figures.** `[mounts]` creates a
+   5 GB volume. The first boot of a version holds its `.partial` download and
+   every version already cached, so the volume needs room for the new tar plus
+   any version kept for rollback. Extend an existing volume with
+   `flyctl volumes extend`; `initial_size` applies only when the volume is
+   created. `[[vm]]` is still `shared-cpu-1x` / `1024mb`, sized for Maryland —
+   ADR 0008 lists more memory among R1's costs, so raise it with the graph
+   rather than discovering it as a failed start.
 4. **Publish** the five files under `server/us-south/<build-date>/`,
    `SHA256SUMS` last, set `GRAPH_VERSION = 'us-south/<build-date>'` and deploy.
+   A local build publishes them by hand, and two things that the workflow
+   handles for you will otherwise bite: `wrangler r2 object put` refuses objects
+   over 300 MiB, which this tar passes, and R2 rejects the AWS CLI's default
+   integrity checksums. Use the S3 API with the same settings as the workflow's
+   Publish step:
+
+   ```bash
+   export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... R2_ENDPOINT=...
+   export AWS_DEFAULT_REGION=auto
+   export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+   export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+   prefix=s3://bugrout-tiles/server/us-south/<build-date>
+   for f in valhalla.json valhalla_tiles.tar timezones.sqlite admins.sqlite \
+     SHA256SUMS; do
+     aws s3 cp --endpoint-url "$R2_ENDPOINT" "out/$f" "$prefix/$f"
+   done
+   ```
+
 5. **Check the acceptance cases** against the deployed service:
 
    ```bash
@@ -108,19 +130,27 @@ on their own:
    route. Time a cold start too: the first `/status` after the machine has
    stopped.
 
-Once the US South graph is live, these go stale and need changing (paths under
-`apps/mobile/`):
+Once the US South graph is live, these go stale and need changing:
 
-- The exclude-polygon limit in `build-graph.sh` was timed on Maryland and must
-  be re-timed on the wider graph (#269).
-- `services/tiles/Neighbors.ts`, `components/downloads/NearbyStates.tsx` and
-  `NearbyStates.test.tsx` say the routing graph is Maryland-only. The copy shown
-  to users is about needing a connection, which stays true; the reasons given in
-  the comments do not.
-- `e2e/routing-unavailable.test.ts` (and the table in `e2e/support/coverage.ts`)
-  uses Louisville as the out-of-coverage destination. The replay server still
-  answers it with 171, so the spec keeps passing, but it no longer describes the
-  live server. Move it to a destination outside US South.
+- The exclude-polygon limit in `build-graph.sh` (this directory) was timed on
+  Maryland and must be re-timed on the wider graph (#269). The app's
+  `MAX_EXCLUDE_POLYGONS_PERIMETER_M`
+  (`apps/mobile/services/routing/AvoidanceBudget.ts`) has to move with it:
+  `apps/mobile/__tests__/services/ExcludePolygonLimitSync.test.ts` asserts the
+  two are equal, so changing one alone turns `pnpm run check` red. ADR 0008
+  makes this re-timing mandatory with R1.
+- `apps/mobile/services/tiles/Neighbors.ts`,
+  `apps/mobile/components/downloads/NearbyStates.tsx` and
+  `apps/mobile/__tests__/components/NearbyStates.test.tsx` say the routing graph
+  is Maryland-only. The copy shown to users is about needing a connection, which
+  stays true; the reasons given in the comments do not.
+- `apps/mobile/e2e/routing-unavailable.test.ts` uses Louisville as the
+  out-of-coverage destination. The replay server still answers it with 171, so
+  the spec keeps passing, but it no longer describes the live server. Move it to
+  a destination outside US South, and update the coordinate table in
+  `apps/mobile/e2e/support/coverage.ts` to match — that table is about the
+  save-time map-coverage alert, which R1 does not change, so it goes stale only
+  as a consequence of this move.
 
 ## Roll back
 
