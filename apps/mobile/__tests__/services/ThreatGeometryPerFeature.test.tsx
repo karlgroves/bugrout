@@ -88,13 +88,25 @@ const POINT = {
 };
 const originalFetch = global.fetch;
 
-/** A fetch response with a status and JSON body. */
+/**
+ * A fetch response with a status and JSON body.
+ *
+ * `/alerts/active` is read through `readJsonBounded` (#328), which checks the
+ * declared `content-length` and then buffers the body with `text()`, so the
+ * stub has to carry both rather than `json()` alone.
+ */
 function response(status: number, body: unknown = {}): Response {
+  const text = JSON.stringify(body);
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: {
+      get: (name: string) =>
+        name.toLowerCase() === "content-length" ? String(text.length) : null,
+    },
     json: () => Promise.resolve(body),
-  } as Response;
+    text: () => Promise.resolve(text),
+  } as unknown as Response;
 }
 
 /** One feature of an NWS `/alerts/active` GeoJSON response. */
@@ -106,8 +118,9 @@ function alertFeature(id: string, event: string, geometry: unknown) {
 }
 
 /**
- * Drive `fetchNWSAlerts` against a stubbed feed carrying `features`, so the
- * private `parseNWSResponse` is exercised on its real path.
+ * Drive `fetchNWSAlerts` against a stubbed feed carrying `features`, so
+ * `parseNWSResponse` is exercised on its real path — through the bounded read
+ * and the bbox filter — rather than called directly.
  */
 async function alertsFrom(features: unknown[]): Promise<ThreatZone[]> {
   global.fetch = jest
