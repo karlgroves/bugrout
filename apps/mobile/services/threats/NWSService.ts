@@ -49,8 +49,13 @@ interface NWSAlertResponse {
 }
 
 /**
- * Fetch active NWS alerts for a geographic area.
- * Uses area (state code) for broad queries, or point for localized queries.
+ * Fetch the active NWS alerts that fall in a geographic area.
+ *
+ * NWS is asked for the whole state at the area's centre, and the answer is
+ * narrowed to the area. Resolves to `[]` when the state has alerts but none
+ * reaches the area: handing back the state's full list instead (#359) stored
+ * and drew out-of-area alerts as this area's, and only when no alert was
+ * in-area, so one nearby alert was enough to make the others disappear.
  */
 export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
   // NWS API works best with area (state) queries.
@@ -58,19 +63,10 @@ export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
   const centerLat = (bbox.south + bbox.north) / 2;
   const centerLng = (bbox.west + bbox.east) / 2;
 
-  // Try area-based query first (more reliable)
   const stateAlerts = await fetchByArea(centerLat, centerLng);
-  if (stateAlerts.length > 0) {
-    // Filter to bbox
-    const filtered = stateAlerts.filter((a) => alertIntersectsBBox(a, bbox));
-    if (filtered.length > 0) {
-      await upsertThreatZones(filtered);
-      return filtered;
-    }
-    return stateAlerts;
-  }
-
-  return [];
+  const inArea = stateAlerts.filter((a) => alertIntersectsBBox(a, bbox));
+  if (inArea.length > 0) await upsertThreatZones(inArea);
+  return inArea;
 }
 
 /**
@@ -204,22 +200,31 @@ function mapSeverity(nwsSeverity: string | undefined): ThreatZone["severity"] {
 }
 
 /**
- * Check if a threat zone's geometry roughly intersects a bbox.
- * Simplified: checks if any part of the threat geometry overlaps the bbox.
+ * Whether a threat zone may reach a bbox: its own extent overlaps the bbox.
+ *
+ * Deliberately errs towards keeping an alert. Testing for a vertex inside the
+ * bbox missed a polygon that covers the area, or crosses a corner of it, with
+ * every vertex outside (#359); this can only keep a near miss, never drop an
+ * alert that does reach the area. A geometry with no coordinates is dropped.
  */
 function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
-  // Extract all coordinates from the geometry
-  const coords = extractRingCoordinates(threat.geometry);
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (const [lng, lat] of extractRingCoordinates(threat.geometry)) {
+    if (lng === undefined || lat === undefined) continue;
+    west = Math.min(west, lng);
+    east = Math.max(east, lng);
+    south = Math.min(south, lat);
+    north = Math.max(north, lat);
+  }
 
-  // Check if any coordinate falls within the bbox
-  return coords.some(
-    ([lng, lat]) =>
-      lng !== undefined &&
-      lat !== undefined &&
-      lat >= bbox.south &&
-      lat <= bbox.north &&
-      lng >= bbox.west &&
-      lng <= bbox.east,
+  return (
+    west <= bbox.east &&
+    east >= bbox.west &&
+    south <= bbox.north &&
+    north >= bbox.south
   );
 }
 
