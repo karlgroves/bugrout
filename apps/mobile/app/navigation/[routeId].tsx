@@ -189,7 +189,10 @@ function NavigationScreen(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation must start exactly once on mount; re-running on activeRoute/handleNavEvent/router changes would restart GPS and voice. Route updates are handled by the separate activeRoute.id effect below.
   }, []);
 
-  // Update controller if route changes (after reroute)
+  // Update controller if route changes (after reroute). This is the only
+  // place a changed route reaches the controller: each updateRoute speaks
+  // "Route updated", so a second call from the code that calculated the route
+  // says it twice (#344).
   useEffect(() => {
     // An instance that refused to start (a link to some other route id) must
     // not drive the trip another instance is running.
@@ -222,8 +225,8 @@ function NavigationScreen(): React.JSX.Element {
     setStatus("rerouting");
     try {
       const newRoute = await calculateSmartRoute(position, dest);
+      // The route-id effect above hands the new route to the controller.
       useRouteStore.getState().setRoute(newRoute);
-      NavController.updateRoute(newRoute);
       deviationAlertShown.current = false;
     } catch (err) {
       // The current route stays; say why a new one isn't available (#190).
@@ -254,8 +257,8 @@ function NavigationScreen(): React.JSX.Element {
       const newRoute = await calculateSmartRoute(position, dest, undefined, {
         waypoints: [{ lat: stop.resource.lat, lng: stop.resource.lng }],
       });
+      // The route-id effect above hands the new route to the controller.
       useRouteStore.getState().setRoute(newRoute);
-      NavController.updateRoute(newRoute);
       setAddedStopId(stop.resource.id);
     } catch (err) {
       // The trip continues on the route it is on; say why the stop could not
