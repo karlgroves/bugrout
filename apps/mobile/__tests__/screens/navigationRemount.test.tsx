@@ -9,6 +9,9 @@
  * `bugrout://navigation/<id>` link arriving while the app is warm. Either used
  * to call NavigationController.start, resetting guidance to the departure
  * maneuver mid-drive, and a link could start a previewed route without Go.
+ *
+ * A screen that closes lets go of the trip; it does not stop it, because a
+ * second instance may still be showing it (#345).
  */
 
 import { act, render } from "@testing-library/react-native";
@@ -31,6 +34,8 @@ const mockStart = jest
   .fn<Promise<void>, [Route, unknown]>()
   .mockResolvedValue(undefined);
 const mockUpdateRoute = jest.fn();
+const mockStop = jest.fn();
+const mockRelease = jest.fn<undefined, [unknown]>();
 let mockActive = false;
 jest.mock("@/services/navigation/NavigationController", () => ({
   start: (route: Route, onEvent: unknown) => {
@@ -39,6 +44,12 @@ jest.mock("@/services/navigation/NavigationController", () => ({
   },
   stop: () => {
     mockActive = false;
+    mockStop();
+    return Promise.resolve();
+  },
+  release: (onEvent: unknown) => {
+    mockActive = false;
+    mockRelease(onEvent);
     return Promise.resolve();
   },
   isActive: () => mockActive,
@@ -100,6 +111,8 @@ beforeEach(() => {
   mockBack.mockReset();
   mockStart.mockClear();
   mockUpdateRoute.mockReset();
+  mockStop.mockReset();
+  mockRelease.mockReset();
   mockActive = false;
   mockRouteId = ROUTE.id;
   useRouteStore.getState().clearRoute();
@@ -172,6 +185,50 @@ describe("navigation screen mount (#294)", () => {
     });
 
     expect(mockUpdateRoute).toHaveBeenCalledWith(rerouted);
+  });
+});
+
+describe("navigation screen closing (#345)", () => {
+  it("lets go of the trip with its own handler instead of stopping it", async () => {
+    const screen = await render(<NavigationScreen />);
+    const onEvent = mockStart.mock.calls[0]?.[1];
+
+    await screen.unmount();
+
+    // stop() ends the trip for every screen showing it. With two instances on
+    // one trip, closing either used to leave the other with no guidance.
+    expect(mockRelease).toHaveBeenCalledTimes(1);
+    expect(mockRelease).toHaveBeenCalledWith(onEvent);
+    expect(mockStop).not.toHaveBeenCalled();
+  });
+
+  it("releases one handler per instance when two share the trip", async () => {
+    const first = await render(<NavigationScreen />);
+    const second = await render(<NavigationScreen />);
+    const [firstHandler, secondHandler] = mockStart.mock.calls.map(
+      ([, onEvent]) => onEvent,
+    );
+    expect(firstHandler).not.toBe(secondHandler);
+
+    await second.unmount();
+
+    expect(mockRelease.mock.calls).toEqual([[secondHandler]]);
+    expect(mockStop).not.toHaveBeenCalled();
+
+    await first.unmount();
+
+    expect(mockRelease.mock.calls).toEqual([[secondHandler], [firstHandler]]);
+    expect(mockStop).not.toHaveBeenCalled();
+  });
+
+  it("does not let go of a trip it never started", async () => {
+    mockRouteId = "x";
+    const screen = await render(<NavigationScreen />);
+
+    await screen.unmount();
+
+    expect(mockRelease).not.toHaveBeenCalled();
+    expect(mockStop).not.toHaveBeenCalled();
   });
 });
 

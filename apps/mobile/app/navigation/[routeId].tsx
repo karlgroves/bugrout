@@ -181,7 +181,10 @@ function NavigationScreen(): React.JSX.Element {
 
     return () => {
       unmounted = true;
-      void NavController.stop();
+      // Let go of the trip rather than stop it: another instance of this
+      // screen may still be showing it, and stopping here left that one with
+      // no guidance (#345). The controller ends the trip with its last screen.
+      void NavController.release(handleNavEvent);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation must start exactly once on mount; re-running on activeRoute/handleNavEvent/router changes would restart GPS and voice. Route updates are handled by the separate activeRoute.id effect below.
   }, []);
