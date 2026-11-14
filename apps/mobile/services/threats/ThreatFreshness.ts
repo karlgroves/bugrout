@@ -62,6 +62,8 @@ export async function recordThreatFetch(
  * A source with neither stays unset: it has never been fetched, which is not
  * the same as stale, and nothing is said about it.
  *
+ * A time already in the store is never moved backwards.
+ *
  * @param cached - The cached threats just read from SQLite.
  */
 export async function loadThreatFetchTimes(
@@ -71,7 +73,12 @@ export async function loadThreatFetchTimes(
     const at =
       (await savedFetchTime(source)) ??
       newestFetch(cached.filter((t) => t.source === source));
-    if (at !== null) useThreatStore.getState().setDataAsOf(source, at);
+    // Only ever forwards: a fetch applied while these reads were in flight
+    // has already set a newer time, and an older one must not replace it.
+    const known = useThreatStore.getState().dataAsOf[source] ?? 0;
+    if (at !== null && at > known) {
+      useThreatStore.getState().setDataAsOf(source, at);
+    }
   }
 }
 

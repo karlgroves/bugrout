@@ -241,6 +241,18 @@ describe("a source's last successful fetch survives a restart", () => {
     expect(screen.queryByTestId("threat-stale")).toBeNull();
   });
 
+  it("keeps a newer time when an older saved one is read late", async () => {
+    // A fetch applied while the saved times were being read: the store
+    // already holds the new time, and the read comes back with the old one.
+    mockPreferences.set("threat_fetched_at_usfs", String(NOW - 3 * DAY));
+    useThreatStore.getState().setDataAsOf("usfs", NOW);
+    await loadCachedThreats();
+
+    expect(useThreatStore.getState().dataAsOf.usfs).toBe(NOW);
+    const screen = await render(<RouteThreatWarnings threats={[]} />);
+    expect(screen.queryByTestId("threat-stale")).toBeNull();
+  });
+
   it("ignores a saved time it cannot read", async () => {
     mockPreferences.set("threat_fetched_at_usfs", "not-a-time");
     await loadCachedThreats();
