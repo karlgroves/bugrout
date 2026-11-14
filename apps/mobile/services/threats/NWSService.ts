@@ -59,7 +59,7 @@ interface NWSAlertResponse {
  */
 export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
   // NWS API works best with area (state) queries.
-  // For bbox, we use the center point to find the forecast zone.
+  // For bbox, we use the center point to find the state.
   const centerLat = (bbox.south + bbox.north) / 2;
   const centerLng = (bbox.west + bbox.east) / 2;
 
