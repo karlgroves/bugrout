@@ -117,6 +117,12 @@ describe("fetchWaterSources Overpass coordinate validation", () => {
     expect(await fetchIds()).toEqual(["osm-1"]);
   });
 
+  it("keeps a source just outside the bounds queried", async () => {
+    // 0.003 degrees north of the bbox is about 330 m: inside the allowance.
+    respondWith([{ type: "node", id: 2, lat: 39.723, lon: -76.6, tags: {} }]);
+    expect(await fetchIds()).toEqual(["osm-2"]);
+  });
+
   it("caches only the usable sources, with numeric coordinates", async () => {
     respondWith([
       GOOD,
