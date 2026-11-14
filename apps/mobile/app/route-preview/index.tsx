@@ -26,6 +26,7 @@ import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
 import { DroppedStopNotice } from "@/components/routing/DroppedStopNotice";
 import { FuelRangeField } from "@/components/routing/FuelRangeField";
 import { RouteThreatWarnings } from "@/components/routing/RouteThreatWarnings";
+import { UnavoidedThreatNotice } from "@/components/routing/UnavoidedThreatNotice";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { routeIntersectsThreat } from "@/services/routing/ThreatAvoidance";
@@ -166,6 +167,9 @@ function RoutePreviewScreen(): React.JSX.Element | null {
 
           {/* Threat warnings */}
           <RouteThreatWarnings threats={threatWarnings} />
+
+          {/* Threat areas the route was not planned around (#337) */}
+          <UnavoidedThreatNotice unavoided={activeRoute.unavoidedThreats} />
 
           {/* Fuel range, for the warning during navigation (#203) */}
           <FuelRangeField

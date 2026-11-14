@@ -11,7 +11,13 @@ import {
   withUsableGeometry,
 } from "../../utils/geo";
 
-import type { ThreatZone, GeoJSONPolygon, LatLng } from "@bugrout/shared";
+import type {
+  GeoJSONPolygon,
+  LatLng,
+  Route,
+  ThreatZone,
+  UnavoidedThreats,
+} from "@bugrout/shared";
 
 /**
  * Convert active threat zones to Valhalla exclude_polygons format.
@@ -55,9 +61,7 @@ export function routeIntersectsThreat(
   threat: ThreatZone,
 ): boolean {
   const geometry = sanitizeThreatGeometry(threat.geometry);
-  if (geometry === null || partCount(geometry) !== partCount(threat.geometry)) {
-    return true;
-  }
+  if (geometry === null || hasUnreadablePart(threat, geometry)) return true;
 
   const outerRings =
     geometry.type === "Polygon"
@@ -71,6 +75,55 @@ export function routeIntersectsThreat(
         pointInPolygon([coord.lng, coord.lat], ring),
       ),
   );
+}
+
+/**
+ * How many fire and flood zones cannot be fully routed around because their
+ * geometry, or a part of it, is unreadable (#337).
+ *
+ * `threatsToAvoidancePolygons` leaves those zones, or those parts, out of the
+ * request, so the route is planned as if they were not there. Where such a
+ * zone lies is unknown, so it is counted wherever it is — the same fail-safe
+ * `routeIntersectsThreat` applies. Weather zones are never avoided and are not
+ * counted.
+ *
+ * Geometry is validated at ingest and on the cache read (#287), so this is
+ * zero unless a zone reached the store some other way.
+ */
+export function countUnreadableThreats(threats: ThreatZone[]): number {
+  return threats.filter((t) => {
+    if (t.type !== "wildfire" && t.type !== "flood") return false;
+    const geometry = sanitizeThreatGeometry(t.geometry);
+    return geometry === null || hasUnreadablePart(t, geometry);
+  }).length;
+}
+
+/**
+ * Record on a route the threat areas it was not planned around (#337).
+ *
+ * Adds to whatever the route already carries, and `"all"` stays `"all"`.
+ * Returns the route itself when there is nothing to add, so a route with
+ * nothing unavoided carries no field at all.
+ */
+export function withUnavoidedThreats(
+  route: Route,
+  unavoided: UnavoidedThreats,
+): Route {
+  if (unavoided === 0) return route;
+  const already = route.unavoidedThreats ?? 0;
+  return {
+    ...route,
+    unavoidedThreats:
+      unavoided === "all" || already === "all" ? "all" : already + unavoided,
+  };
+}
+
+/** Whether sanitizing dropped a whole part of a threat's geometry. */
+function hasUnreadablePart(
+  threat: ThreatZone,
+  usable: ThreatZone["geometry"],
+): boolean {
+  return partCount(usable) !== partCount(threat.geometry);
 }
 
 /** How many polygons a geometry holds: 1 for a Polygon, else its part count. */
