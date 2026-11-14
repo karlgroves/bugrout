@@ -11,15 +11,10 @@
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useRef } from "react";
-import {
-  AccessibilityInfo,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
+import { announcePolitely } from "@/utils/announce";
 import { formatDistance } from "@/utils/geo";
 
 import type { FuelStopAhead } from "@/services/navigation/FuelRange";
@@ -67,9 +62,13 @@ export function FuelRangeWarning({
     ? `Fuel: ${stopAdded ? "stop added" : "next station on route"} in ${toStop} — about ${left} of range left`
     : "";
 
-  // Announced once per crossing, not on every GPS tick. announceForAccessibility
-  // speaks without moving the screen reader's cursor, which is what keeps the
-  // banner non-intrusive; the live region covers Android.
+  // Announced once per crossing, not on every GPS tick. The announcement speaks
+  // without moving the screen reader's cursor, which is what keeps the banner
+  // non-intrusive; the live region covers Android.
+  //
+  // Queued, because the reroute notice in `DirectionsList` announces on this
+  // screen too, and a crossing and a reroute can land together while driving
+  // (#383). Unqueued, whichever spoke second would cut the other off.
   useEffect(() => {
     if (!showing) {
       announced.current = false;
@@ -77,7 +76,7 @@ export function FuelRangeWarning({
     }
     if (announced.current) return;
     announced.current = true;
-    AccessibilityInfo.announceForAccessibility(message);
+    announcePolitely(message);
   }, [showing, message]);
 
   if (!showing) return null;

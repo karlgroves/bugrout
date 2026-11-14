@@ -112,9 +112,13 @@ describe("FuelRangeWarning", () => {
   });
 
   it("announces politely rather than taking focus", async () => {
+    // Queued: the reroute notice in DirectionsList announces on this screen
+    // too, and an unqueued announcement interrupts speech in progress on
+    // iOS (#383).
     const announce = jest
-      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .spyOn(AccessibilityInfo, "announceForAccessibilityWithOptions")
       .mockImplementation(() => undefined);
+    announce.mockClear();
 
     const screen = await render(
       <FuelRangeWarning
@@ -132,14 +136,16 @@ describe("FuelRangeWarning", () => {
     ).toBe("polite");
     expect(announce).toHaveBeenCalledWith(
       "Fuel: next station on route in 42.0 mi — about 50.0 mi of range left",
+      { queue: true },
     );
     announce.mockRestore();
   });
 
   it("announces once, not on every position update", async () => {
     const announce = jest
-      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .spyOn(AccessibilityInfo, "announceForAccessibilityWithOptions")
       .mockImplementation(() => undefined);
+    announce.mockClear();
 
     const screen = await render(
       <FuelRangeWarning
