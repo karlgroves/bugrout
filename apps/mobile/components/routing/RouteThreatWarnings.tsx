@@ -10,12 +10,16 @@
  *
  * Under it, a line when threat data couldn't be updated (#288): no warning box
  * must not read as a confirmed-clear route when the feeds were unreachable.
+ * And a line when the cached data is older than its refresh interval (#340).
  */
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, Text, View } from "react-native";
 
-import { ThreatStatusNotice } from "@/components/map/ThreatStatusNotice";
+import {
+  StaleThreatNotice,
+  ThreatStatusNotice,
+} from "@/components/map/ThreatStatusNotice";
 import { colors, spacing, typography } from "@/constants/theme";
 
 import type { ThreatZone } from "@bugrout/shared";
@@ -44,6 +48,7 @@ export function RouteThreatWarnings({
     <>
       <ThreatWarningBox threats={threats} />
       <ThreatStatusNotice context="route" />
+      <StaleThreatNotice />
     </>
   );
 }

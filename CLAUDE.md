@@ -220,6 +220,9 @@ Key service modules (`services/` directory):
   detour distance
 - `threats/{NWS,FEMA,USFS}Service.ts` — Threat data fetching and caching
 - `threats/ThreatSync.ts` — TTL-based refresh pipeline for all threat sources
+- `threats/ThreatFreshness.ts` — Saves each source's last successful fetch time
+  (SQLite `preferences`); the route preview warns when cached threat data is
+  older than its refresh interval
 - `resources/{NREL,USGS,Shelter}Service.ts` — Resource data fetching with real
   API integration
 - `resources/ResourceSync.ts` — TTL-based resource refresh pipeline

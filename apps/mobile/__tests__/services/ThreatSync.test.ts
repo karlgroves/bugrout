@@ -26,6 +26,11 @@ jest.mock("@/db/queries/threats", () => ({
     mockUpsertThreatZones(...args) as unknown,
 }));
 
+jest.mock("@/db/queries/preferences", () => ({
+  getPreference: jest.fn().mockResolvedValue(null),
+  setPreference: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockFetchNWSAlerts = jest.fn();
 jest.mock("@/services/threats/NWSService", () => ({
   CACHE_TTL_MS: 3_600_000,
