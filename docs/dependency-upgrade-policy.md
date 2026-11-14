@@ -129,7 +129,7 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 39 now, and all 39 are
+sweep that bounded every one of them was #126; there are 40 now, and all 40 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
@@ -258,9 +258,9 @@ backport — `glob@13.0.7`, the `v13-legacy` release, is still reported affected
 so `glob@>=9 <14.0.2` → `>=14.0.2 <15` moves every 13.x copy onto 14.x, outside
 the `^13.0.0` that `@expo/cli`, `@expo/config`, `@expo/config-plugins`,
 `@expo/fingerprint` and `@expo/metro-config` all declare, at their latest
-releases too. That is the one deliberate exception to "same major as its
-replacement" above, and to ADR 0007's current-major bound, made in #302. It is
-still bounded on both sides, so it cannot drift on to 15.
+releases too. That is the first of two deliberate exceptions to "same major as
+its replacement" above, and to ADR 0007's current-major bound, made in #302. It
+is still bounded on both sides, so it cannot drift on to 15.
 
 It was exercised, not argued, because glob 14 changed its API (minimatch 11
 matchers in place of RegExps, `walk()` returning arrays). All five consumers
@@ -271,9 +271,33 @@ resolve 14.0.3 through their own links; `pnpm run doctor` passes 18/18;
 file-walking these packages do still finds the same files. Retire the entry when
 an Expo SDK declares glob 14 itself.
 
-`minimatch` (GHSA-g3hv-75wg-m249) did not get the same treatment because the
-equivalent override breaks ESLint outright; `osv-scanner.toml` records that and
-why the vulnerable path is not reached.
+**A second entry crosses a major on purpose: `minimatch`.** GHSA-g3hv-75wg-m249
+(globparts amplification) covers minimatch 7.0.0 up to the fix in 11.0.1 with no
+9.x or 10.x backport, so `minimatch@>=7 <11.0.1` → `>=11.0.1 <12` moves every
+9.x and 10.x copy onto 11.x. That is outside the range four consumers declare:
+`@typescript-eslint/typescript-estree` (`^10.2.2`), `eslint-plugin-sonarjs`
+(`^10.2.6`), `@expo/fingerprint` on SDK 54 (`^10.2.2`) and `@expo/cli` on SDK 54
+(`^9.0.0`). The repository owner approved it on 2026-11-14 (#350) as the second
+exception to ADR 0007's current-major bound. It is bounded on both sides, so it
+cannot drift on to 12.
+
+It waited for `eslint-plugin-import-x`. Until 4.18.0 the same override took
+ESLint down in every workspace, because minimatch 11 removed `makeRe()` and
+import-x 4.17.1 imported it by name at load; the advisory sat in
+`osv-scanner.toml` as an ignore instead. 4.18.0 declares `^11.0.1` and cleared
+the release-age quarantine on 2026-11-13, so the bump and the override landed
+together and the ignore was deleted.
+
+It was exercised, not argued. Every consumer resolves 11.0.3 through its own
+links and no 9.x or 10.x is left in the lockfile; ESLint over the whole
+repository gives identical output before and after (364 files, the same 78
+messages), which covers typescript-estree, sonarjs and import-x;
+`@expo/fingerprint`'s `createFingerprintAsync` on `apps/mobile` returns the
+**same hash over the same 70 sources** under minimatch 10.2.6 and 11.0.3;
+`@expo/cli` declares minimatch but its build never loads it; and
+`pnpm run doctor` and `pnpm run bundle:check` pass. Retire the entry when
+typescript-estree, eslint-plugin-sonarjs and the Expo SDK packages declare
+minimatch 11 (typescript-estree's 8.72.3-alpha canary already does).
 
 **A dead override says nothing either.** An entry whose package has left the
 tree, or moved to a release line its selector does not cover, matches nothing
@@ -620,16 +644,14 @@ because they retire on different signals:
    and no patch bridges the gap. Retires when the _consumer_ changes, not when
    the vulnerable package does.
 
-**Three packages are in case 2:** `katex`, reached only through markdownlint's
+**Two packages are in case 2:** `katex`, reached only through markdownlint's
 math syntax extension, whose only consumer declares `^0.16.0` against a fix in
-0.18.2; `stream-json`, a devDependency of Detox, with the evidence for all three
-grounds recorded in `osv-scanner.toml`; and `minimatch` (GHSA-g3hv-75wg-m249),
-whose fix in 11.0.1 removed `makeRe()` and so breaks ESLint in every workspace
-through `eslint-plugin-import-x`. Its patch ground is weaker than the other two
-and the entry says so: a patch could bridge import-x, but four other consumers
-still declare 9.x or 10.x at their latest releases, so the finding would stay
-either way. Its retirement trigger is dated — `eslint-plugin-import-x@4.18.0`,
-which accepts minimatch 11, clears the release-age quarantine on 2026-11-13.
+0.18.2; and `stream-json`, a devDependency of Detox, with the evidence for all
+three grounds recorded in `osv-scanner.toml`. `minimatch` (GHSA-g3hv-75wg-m249)
+was a third until #350, and left the way this case says an entry does — the
+consumer changed: `eslint-plugin-import-x@4.18.0` accepts minimatch 11, so the
+override that used to break ESLint now holds (see
+[Unbounded `pnpm` overrides](#unbounded-pnpm-overrides) above).
 `decode-uri-component` was recorded there too, by PR #120, on the grounds that
 `0.5.0` is ESM-only and its only consumer `query-string@7.1.3` is CommonJS. Both
 of those facts hold. The conclusion did not: PR #124 closed the advisory with a
