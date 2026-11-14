@@ -19,7 +19,7 @@
  * 3. **Prioritise.** If the polygons still do not fit, the ones nearest the trip
  *    are kept and the furthest are dropped. A dropped threat is not ignored: the
  *    route preview tests the final route against every active threat and warns
- *    when it passes through one.
+ *    when it passes through one, and says how many were dropped (#337).
  */
 
 import { expandBBox, pointInPolygon } from "../../utils/geo";
