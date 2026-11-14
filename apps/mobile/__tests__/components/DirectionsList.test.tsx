@@ -104,9 +104,16 @@ describe("DirectionsList", () => {
   });
 
   it("announces a reroute, and says so on screen", async () => {
+    // Queued: FuelRangeWarning announces on this screen too, and an unqueued
+    // announcement interrupts speech in progress on iOS (#383).
     const announce = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibilityWithOptions")
+      .mockImplementation(() => undefined);
+    announce.mockClear();
+    const plain = jest
       .spyOn(AccessibilityInfo, "announceForAccessibility")
       .mockImplementation(() => undefined);
+    plain.mockClear();
     const screen = await render(<DirectionsList route={route} now={NOW} />);
     expect(screen.queryByText("Route updated")).toBeNull();
 
@@ -115,8 +122,10 @@ describe("DirectionsList", () => {
     );
 
     expect(screen.getByText("Route updated")).toBeTruthy();
-    expect(announce).toHaveBeenCalledWith("Route updated");
+    expect(announce).toHaveBeenCalledWith("Route updated", { queue: true });
+    expect(plain).not.toHaveBeenCalled();
     announce.mockRestore();
+    plain.mockRestore();
   });
 
   it("clears the notice after a few seconds", async () => {
