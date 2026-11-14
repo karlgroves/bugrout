@@ -10,13 +10,21 @@
 /* eslint-disable complexity, sonarjs/cognitive-complexity -- pre-existing; tracked in docs/tech-debt.md (parseUSGSRdb: tab-delimited RDB parser with header/column detection) */
 
 import { upsertResourcePoints } from "@/db/queries/resources";
-import { overpassQuery } from "@/services/osm/overpass";
+import { elementPosition, overpassQuery } from "@/services/osm/overpass";
 import { timeoutSignal } from "@/utils/abort";
+import { expandBBox, pointInBBox } from "@/utils/geo";
 
 import type { ResourcePoint, BBox } from "@bugrout/shared";
 
 const USGS_BASE = "https://waterservices.usgs.gov/nwis/site/";
 const CACHE_TTL_MS = 86400000; // 24 hours
+
+/**
+ * How far outside the queried bounds an Overpass source may still sit: the
+ * same allowance the fuel stations get. A wrong placement is out by orders of
+ * magnitude more than this.
+ */
+const BOUNDS_TOLERANCE_METERS = 1000;
 
 /**
  * Fetch water sources from both USGS and OSM for a region.
@@ -151,6 +159,11 @@ function parseUSGSRdb(rdbText: string, regionId: string): ResourcePoint[] {
 /**
  * Fetch water sources from OpenStreetMap via Overpass API.
  * Queries for drinking water fountains, springs, and wells.
+ *
+ * A source whose coordinates are unusable, or placed outside the bounds that
+ * were queried, is dropped: Overpass is open data, and a transposed, zeroed or
+ * non-numeric coordinate would otherwise be cached as a routable water stop
+ * (#360). Zero itself is a coordinate, so a source on the equator is kept.
  */
 async function fetchOSMWaterSources(
   bbox: BBox,
@@ -171,25 +184,29 @@ async function fetchOSMWaterSources(
   // Throws when Overpass can't answer; fetchWaterSources keeps USGS's sites.
   const elements = await overpassQuery(query, 30_000);
 
-  return elements
-    .filter((el) => el.lat && el.lon)
-    .map((el) => {
-      const tags = el.tags ?? {};
-      const name =
-        tags.name ??
-        tags.description ??
-        (tags.amenity === "drinking_water"
-          ? "Drinking Water"
-          : tags.natural === "spring"
-            ? "Natural Spring"
-            : "Water Well");
+  const bounds = expandBBox(bbox, BOUNDS_TOLERANCE_METERS);
 
-      return {
+  return elements.flatMap((el) => {
+    const position = elementPosition(el);
+    if (!position || !pointInBBox(position, bounds)) return [];
+
+    const tags = el.tags ?? {};
+    const name =
+      tags.name ??
+      tags.description ??
+      (tags.amenity === "drinking_water"
+        ? "Drinking Water"
+        : tags.natural === "spring"
+          ? "Natural Spring"
+          : "Water Well");
+
+    return [
+      {
         id: `osm-${el.id}`,
         type: "water" as const,
         name,
-        lat: el.lat ?? 0,
-        lng: el.lon ?? 0,
+        lat: position.lat,
+        lng: position.lng,
         address: tags["addr:street"]
           ? `${tags["addr:street"]}, ${tags["addr:city"] ?? ""}`
           : null,
@@ -200,8 +217,9 @@ async function fetchOSMWaterSources(
         source: "osm" as const,
         fetchedAt: Date.now(),
         regionId,
-      };
-    });
+      },
+    ];
+  });
 }
 
 export { CACHE_TTL_MS };

@@ -58,7 +58,17 @@ export interface Route {
   legs: RouteLeg[];
   /** Summary road names */
   summary: string;
+  /**
+   * Threat areas this route was asked to go around and was not planned around
+   * (#337): how many, or `"all"` when avoidance could not be applied to the
+   * request at all. Absent when every area asked for reached the routing
+   * engine. Only areas near the trip count — one far from it changes no route.
+   */
+  unavoidedThreats?: UnavoidedThreats;
 }
+
+/** How many threat areas a route left unavoided, or `"all"` of them. */
+export type UnavoidedThreats = number | "all";
 
 /**
  * Lifecycle state of an active or pending route.

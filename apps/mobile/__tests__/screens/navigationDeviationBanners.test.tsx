@@ -22,6 +22,7 @@ jest.mock("expo-router", () => ({
 jest.mock("@/services/navigation/NavigationController", () => ({
   start: () => Promise.resolve(),
   stop: () => Promise.resolve(),
+  release: () => Promise.resolve(),
   isActive: () => false,
   updateRoute: jest.fn(),
 }));

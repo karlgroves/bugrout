@@ -17,6 +17,7 @@ export type {
   RouteStatus,
   DroppedStopReason,
   DroppedStop,
+  UnavoidedThreats,
 } from "./types/route";
 
 export type {

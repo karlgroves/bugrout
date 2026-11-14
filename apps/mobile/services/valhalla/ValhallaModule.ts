@@ -13,13 +13,14 @@ import { v4 as uuidv4 } from "uuid";
 
 import { timeoutSignal } from "@/utils/abort";
 
-import { boundAvoidancePolygons } from "../routing/AvoidanceBudget";
+import { fitAvoidance, type FittedAvoidance } from "../routing/AvoidanceFit";
 import {
   RouteUnavailableError,
   reasonForValhallaError,
   valhallaDiagnostics,
 } from "../routing/RouteUnavailable";
 import { reportRoutingFailure } from "../routing/RoutingTelemetry";
+import { withUnavoidedThreats } from "../routing/ThreatAvoidance";
 
 import { loadNativeModule, type NativeValhalla } from "./nativeEngine";
 
@@ -152,7 +153,11 @@ async function requestRoute(
     );
   }
 
-  const body = buildValhallaRequest(origin, destination, options);
+  const avoidance = fitAvoidance(origin, destination, options);
+  const body = buildValhallaRequest(origin, destination, options, avoidance);
+  // The route says what it was not planned around, so the preview can (#337).
+  const finish = (route: Route): Route =>
+    withUnavoidedThreats(route, avoidance.unavoided);
 
   // Approach A: in-process native call. Same request body, same response JSON
   // as the HTTP path, so parseValhallaResponse() is shared.
@@ -165,7 +170,7 @@ async function requestRoute(
         cause: err,
       });
     }
-    return parseOrThrow(() => JSON.parse(responseJson));
+    return finish(await parseOrThrow(() => JSON.parse(responseJson)));
   }
 
   // Approach B: HTTP server (local bundled or remote).
@@ -194,7 +199,7 @@ async function requestRoute(
     );
   }
 
-  return parseOrThrow(() => resp.json() as Promise<unknown>);
+  return finish(await parseOrThrow(() => resp.json() as Promise<unknown>));
 }
 
 /**
@@ -223,7 +228,8 @@ async function parseOrThrow(read: () => unknown): Promise<Route> {
 function buildValhallaRequest(
   origin: LatLng,
   destination: LatLng,
-  options?: RouteOptions,
+  options: RouteOptions | undefined,
+  avoidance: FittedAvoidance,
 ): Record<string, unknown> {
   const locations = [{ lat: origin.lat, lon: origin.lng, type: "break" }];
 
@@ -245,54 +251,11 @@ function buildValhallaRequest(
     },
   };
 
-  const excludePolygons = buildExcludePolygons(origin, destination, options);
-  if (excludePolygons.length > 0) {
-    request.exclude_polygons = excludePolygons;
+  if (avoidance.rings.length > 0) {
+    request.exclude_polygons = avoidance.rings;
   }
 
   return request;
-}
-
-/**
- * Avoidance polygons for threat zones, fitted to the engine's exclude_polygons
- * perimeter limit — past it Valhalla rejects the whole request (#168).
- *
- * @param origin - Trip start.
- * @param destination - Trip end.
- * @param options - Route options carrying `avoidPolygons` and `waypoints`.
- * @returns Outer rings to send as `exclude_polygons`; empty when none apply.
- */
-function buildExcludePolygons(
-  origin: LatLng,
-  destination: LatLng,
-  options?: RouteOptions,
-): number[][][] {
-  const polygons = options?.avoidPolygons ?? [];
-  if (polygons.length === 0) return [];
-
-  let bounded;
-  try {
-    bounded = boundAvoidancePolygons(polygons, [
-      origin,
-      ...(options?.waypoints ?? []),
-      destination,
-    ]);
-  } catch (err) {
-    // This runs before calculateRoute's try: a throw here would escape route
-    // calculation entirely. Route without avoidance instead — the preview still
-    // warns when the route crosses a threat.
-    console.warn(
-      "[BugRout] Could not fit threat polygons; routing without avoidance:",
-      err,
-    );
-    return [];
-  }
-  if (bounded.dropped > 0) {
-    console.warn(
-      `[BugRout] ${bounded.dropped} threat polygon(s) exceed the routing engine's avoidance limit and were not avoided.`,
-    );
-  }
-  return bounded.polygons.flatMap((p) => p.coordinates.slice(0, 1));
 }
 
 /**

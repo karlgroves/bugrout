@@ -16,16 +16,15 @@ import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useThreatStore } from "@/stores/useThreatStore";
 
 import { loadFloodZones } from "./FEMAService";
-import { fetchNWSAlerts, CACHE_TTL_MS as NWS_TTL } from "./NWSService";
-import { fetchFirePerimeters, CACHE_TTL_MS as USFS_TTL } from "./USFSService";
+import { fetchNWSAlerts } from "./NWSService";
+import {
+  loadThreatFetchTimes,
+  recordThreatFetch,
+  SOURCE_TTL,
+} from "./ThreatFreshness";
+import { fetchFirePerimeters } from "./USFSService";
 
 import type { ThreatZone, ThreatSource, BBox } from "@bugrout/shared";
-
-const SOURCE_TTL: Record<ThreatSource, number> = {
-  nws: NWS_TTL,
-  usfs: USFS_TTL,
-  fema: Infinity, // Static data, never expires
-};
 
 /**
  * Refresh all threat data sources.
@@ -42,9 +41,10 @@ export async function refreshThreats(
   // Always clean up expired threats first
   await clearExpiredThreats();
 
-  // Load cached threats from SQLite
+  // Load cached threats from SQLite, and how old each source's are (#340)
   const cached = await getCachedThreats();
   store.setThreats(cached);
+  await loadThreatFetchTimes(cached);
 
   if (!isOnline) return;
 
@@ -132,6 +132,8 @@ async function applyResult(
   ]);
   store.setLastFetched(source, now);
   store.setSourceFailed(source, false);
+  // Last: the fetch is applied either way, and this only feeds the notice.
+  await recordThreatFetch(source, now);
 }
 
 /**
@@ -141,4 +143,5 @@ async function applyResult(
 export async function loadCachedThreats(): Promise<void> {
   const cached = await getCachedThreats();
   useThreatStore.getState().setThreats(cached);
+  await loadThreatFetchTimes(cached);
 }

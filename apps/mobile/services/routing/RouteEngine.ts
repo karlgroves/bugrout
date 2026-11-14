@@ -17,7 +17,11 @@ import { haversineDistance, projectOntoPolyline } from "@/utils/geo";
 
 import * as Valhalla from "../valhalla/ValhallaModule";
 
-import { threatsToAvoidancePolygons } from "./ThreatAvoidance";
+import {
+  countUnreadableThreats,
+  threatsToAvoidancePolygons,
+  withUnavoidedThreats,
+} from "./ThreatAvoidance";
 import { getResourceWaypoints } from "./WaypointInsertion";
 
 import type {
@@ -38,6 +42,11 @@ const DEVIATION_THRESHOLD_METERS = 500;
  * Any resource stop the caller asked for and did not get is recorded on the
  * route store for the preview to show (#341). The list is replaced on every
  * calculation, so a reroute never carries the previous route's drops.
+ *
+ * Threat areas the route was not planned around travel on the route itself,
+ * as `unavoidedThreats` (#337): the ones the routing engine's limit left out
+ * (counted by AvoidanceFit as the request is built, and put on the route by
+ * ValhallaModule) plus any zone whose geometry is unreadable.
  */
 export async function calculateSmartRoute(
   origin: LatLng,
@@ -51,6 +60,9 @@ export async function calculateSmartRoute(
   const avoidPolygons = avoidanceEnabled
     ? threatsToAvoidancePolygons(threatZones)
     : [];
+  // Zones threatsToAvoidancePolygons had to leave out. Nothing is "unavoided"
+  // when the driver turned avoidance off: that was their choice.
+  const unreadable = avoidanceEnabled ? countUnreadableThreats(threatZones) : 0;
 
   // First pass: calculate base route (no waypoints) to get a corridor
   const baseRoute = await Valhalla.calculateRoute(origin, destination, {
@@ -88,7 +100,7 @@ export async function calculateSmartRoute(
         waypoints,
       });
       reportDroppedStops(dropped);
-      return withStops;
+      return withUnavoidedThreats(withStops, unreadable);
     } catch (err) {
       // An optional resource stop must never cost the user the route they
       // already have (#295). The base route carries the caller's own
@@ -110,12 +122,12 @@ export async function calculateSmartRoute(
           detourMeters: null,
         })),
       ]);
-      return baseRoute;
+      return withUnavoidedThreats(baseRoute, unreadable);
     }
   }
 
   reportDroppedStops(dropped);
-  return baseRoute;
+  return withUnavoidedThreats(baseRoute, unreadable);
 }
 
 /**

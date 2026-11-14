@@ -14,6 +14,10 @@
  *
  * Lifecycle: start() → running → stop(), arrival or tracking_lost. Every exit
  * releases keep-awake and the GPS subscription (#300).
+ *
+ * The trip owns that lifecycle, not the screen showing it. A screen that closes
+ * calls release(), which ends the trip only when no other caller is still
+ * following it (#345).
  */
 /* eslint-disable complexity, sonarjs/cognitive-complexity -- pre-existing; tracked in docs/tech-debt.md (handleVoiceAnnouncements: layered distance/interval announcement rules) */
 
@@ -33,6 +37,8 @@ import { hasDeviated } from "@/services/routing/RouteEngine";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { haversineDistance, projectOntoPolyline } from "@/utils/geo";
+
+import { createTripFollowers } from "./TripFollowers";
 
 import type { LatLng, Route, RouteManeuver } from "@bugrout/shared";
 
@@ -85,7 +91,11 @@ interface NavigationState {
 }
 
 let state: NavigationState | null = null;
-let eventHandler: NavigationEventHandler | null = null;
+/** Every caller following the running trip; the newest receives its events. */
+const followers = createTripFollowers<NavigationEvent>();
+
+/** Emit a navigation event to the follower receiving them: the newest one. */
+const { emit } = followers;
 
 /**
  * Start active navigation for a given route.
@@ -99,11 +109,8 @@ export async function start(
     // Already driving this route: hand events to the new caller and keep the
     // trip where it is. Restarting would reset guidance to the departure
     // maneuver mid-drive (#294).
-    eventHandler = onEvent;
-    const index = state.currentManeuverIndex;
-    const maneuver = getAllManeuvers(route).at(index);
-    if (index > 0 && maneuver)
-      emit({ type: "maneuver_advance", index, maneuver });
+    followers.follow(onEvent);
+    if (state.currentManeuverIndex > 0) emitCurrentManeuver();
     return;
   }
   if (state?.running) {
@@ -120,7 +127,7 @@ export async function start(
     needsResync: true,
   };
   state = nav;
-  eventHandler = onEvent;
+  followers.follow(onEvent);
 
   // Directions must stay on screen for the whole trip.
   await KeepAwake.activate(KEEP_AWAKE_TAG);
@@ -149,11 +156,39 @@ export async function start(
 }
 
 /**
- * Stop active navigation and clean up all services.
+ * Stop active navigation and clean up all services, for every caller following
+ * the trip. This is "end the trip"; a screen that is only closing calls
+ * {@link release}.
  */
 export async function stop(): Promise<void> {
   if (!state) return;
   await teardown(true);
+}
+
+/**
+ * Stop following the trip with `onEvent`, the handler given to {@link start}.
+ *
+ * The trip ends only when its last follower lets go. Two navigation screens
+ * can share one trip (a link to the running trip opens a second one), and
+ * closing either used to stop guidance for the one still open (#345). If
+ * `onEvent` was receiving the events, the follower before it gets them again
+ * and is told which maneuver guidance has reached.
+ *
+ * Does nothing for a handler that is not following the running trip: one whose
+ * trip already ended, or was replaced by a trip on another route.
+ */
+export async function release(onEvent: NavigationEventHandler): Promise<void> {
+  const released = followers.release(onEvent);
+  if (released === "last") await stop();
+  else if (released === "receiver") emitCurrentManeuver();
+}
+
+/** Tell the receiving handler which maneuver guidance has reached. */
+function emitCurrentManeuver(): void {
+  if (!state) return;
+  const index = state.currentManeuverIndex;
+  const maneuver = getAllManeuvers(state.route).at(index);
+  if (maneuver) emit({ type: "maneuver_advance", index, maneuver });
 }
 
 /**
@@ -167,7 +202,7 @@ export async function stop(): Promise<void> {
 async function teardown(silence: boolean): Promise<void> {
   if (state) state.running = false;
   state = null;
-  eventHandler = null;
+  followers.clear();
 
   const steps: [string, () => Promise<void> | void][] = [
     ["keep-awake", () => KeepAwake.deactivate(KEEP_AWAKE_TAG)],
@@ -484,11 +519,4 @@ function getManeuverInstruction(route: Route, index: number): string | null {
  */
 function getAllManeuvers(route: Route): RouteManeuver[] {
   return route.legs.flatMap((leg) => leg.maneuvers);
-}
-
-/**
- * Emit a navigation event to the handler.
- */
-function emit(event: NavigationEvent): void {
-  eventHandler?.(event);
 }
