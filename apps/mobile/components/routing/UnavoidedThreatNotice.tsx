@@ -1,12 +1,13 @@
 /**
  * Says when the route was not planned around every threat area (#337).
  *
- * Two things leave a fire or flood area out of the routing request, and both
+ * Three things leave a fire or flood area out of the routing request, and all
  * were console-only. The routing engine caps the total outline it will avoid,
  * so when the areas near a trip do not fit, the furthest are left out (#168);
- * and an area whose geometry cannot be read is never sent at all (#287).
- * Either way the driver was shown a route that looks like it avoids danger
- * and does not, at least not all of it.
+ * when fitting them fails, none is sent, which is reported as `"all"`; and an
+ * area whose geometry cannot be read is never sent at all (#287). Each way the
+ * driver was shown a route that looks like it avoids danger and does not, at
+ * least not all of it.
  *
  * The count is of areas near the trip. An area far from it is clipped away
  * before the limit is applied and is not counted: it could not have changed
@@ -63,9 +64,14 @@ export function UnavoidedThreatNotice({
   const message = unavoidedThreatMessage(unavoided);
   const announced = useRef<string | null>(null);
 
-  // Announced once per message, not on every render: announceForAccessibility
-  // speaks without moving the screen reader's cursor, so the driver hears it
-  // while keeping their place on the screen. The live region covers Android.
+  // Announced once per message, not on every render: an announcement speaks
+  // without moving the screen reader's cursor, so the driver hears it while
+  // keeping their place on the screen. The live region covers Android.
+  //
+  // Queued, because DroppedStopNotice announces on this screen too and both
+  // can show for one route. A plain announcement on iOS interrupts speech in
+  // progress, so this one would cut the dropped-stop message off; queued, it
+  // waits its turn. `queue` is iOS-only and ignored on Android.
   useEffect(() => {
     if (message === null) {
       announced.current = null;
@@ -73,7 +79,9 @@ export function UnavoidedThreatNotice({
     }
     if (announced.current === message) return;
     announced.current = message;
-    AccessibilityInfo.announceForAccessibility(message);
+    AccessibilityInfo.announceForAccessibilityWithOptions(message, {
+      queue: true,
+    });
   }, [message]);
 
   if (message === null) return null;

@@ -7,7 +7,7 @@
  * announce a view just because it appeared.
  */
 
-import { render } from "@testing-library/react-native";
+import { act, render } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import RoutePreviewScreen from "@/app/route-preview/index";
@@ -47,12 +47,16 @@ function route(unavoided?: UnavoidedThreats): Route {
 }
 
 /**
- * Spy on the screen-reader announcement. React Native's jest preset already
- * mocks it, so the calls accumulate across tests unless cleared.
+ * Spy on the queued screen-reader announcement the notice makes. React
+ * Native's jest preset already mocks it, so the calls accumulate across tests
+ * unless cleared.
  */
-function spyOnAnnounce(): jest.SpyInstance<void, [string]> {
+function spyOnAnnounce(): jest.SpyInstance<
+  void,
+  [string, { queue?: boolean | undefined }]
+> {
   const spy = jest
-    .spyOn(AccessibilityInfo, "announceForAccessibility")
+    .spyOn(AccessibilityInfo, "announceForAccessibilityWithOptions")
     .mockImplementation(jest.fn());
   spy.mockClear();
   return spy;
@@ -105,14 +109,59 @@ describe("the route preview", () => {
     const announce = spyOnAnnounce();
     useRouteStore.getState().setRoute(route(2));
 
-    await render(<RoutePreviewScreen />);
+    const screen = await render(<RoutePreviewScreen />);
     expect(announce).toHaveBeenCalledWith(
       expect.stringContaining(
         "2 threat areas on this trip could not be avoided",
       ),
+      { queue: true },
     );
     expect(announce).toHaveBeenCalledTimes(1);
+
+    // Once per message, not once per render: a second render of the same
+    // route, and a store write that re-renders the screen, say nothing more.
+    await screen.rerender(<RoutePreviewScreen />);
+    await act(() => {
+      useRouteStore.getState().setFuelRange(120_000);
+    });
+    expect(announce).toHaveBeenCalledTimes(1);
     announce.mockRestore();
+  });
+
+  it("does not talk over the dropped-stop notice", async () => {
+    // Both notices can show for one route. A plain announcement on iOS
+    // interrupts the one before it, so this one is queued behind it: the
+    // dropped stop is announced plainly, and this is not.
+    const plain = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockImplementation(jest.fn());
+    plain.mockClear();
+    const queued = spyOnAnnounce();
+    useRouteStore.getState().setRoute(route(2));
+    useRouteStore.getState().setDroppedStops([
+      {
+        type: "fuel",
+        reason: "routing-failed",
+        name: "Shell",
+        detourMeters: null,
+      },
+    ]);
+
+    await render(<RoutePreviewScreen />);
+    expect(plain).toHaveBeenCalledTimes(1);
+    expect(plain).toHaveBeenCalledWith(
+      expect.stringContaining("No fuel stop on this route"),
+    );
+    expect(plain).not.toHaveBeenCalledWith(
+      expect.stringContaining("could not be avoided"),
+    );
+    expect(queued).toHaveBeenCalledTimes(1);
+    expect(queued).toHaveBeenCalledWith(
+      expect.stringContaining("could not be avoided"),
+      { queue: true },
+    );
+    plain.mockRestore();
+    queued.mockRestore();
   });
 
   it("tells the driver when avoidance could not be applied at all", async () => {

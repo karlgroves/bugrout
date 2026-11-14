@@ -45,7 +45,8 @@ const DEVIATION_THRESHOLD_METERS = 500;
  *
  * Threat areas the route was not planned around travel on the route itself,
  * as `unavoidedThreats` (#337): the ones the routing engine's limit left out
- * (counted by ValhallaModule) plus any zone whose geometry is unreadable.
+ * (counted by AvoidanceFit as the request is built, and put on the route by
+ * ValhallaModule) plus any zone whose geometry is unreadable.
  */
 export async function calculateSmartRoute(
   origin: LatLng,
