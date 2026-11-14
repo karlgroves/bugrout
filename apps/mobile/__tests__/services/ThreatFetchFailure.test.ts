@@ -27,6 +27,34 @@ const POINT = {
   properties: { relativeLocation: { properties: { state: "MD" } } },
 };
 
+/** A closed square ring from its west/south/east/north edges. */
+function square(w: number, s: number, e: number, n: number): number[][] {
+  return [
+    [w, s],
+    [w, n],
+    [e, n],
+    [e, s],
+    [w, s],
+  ];
+}
+
+/** One polygon feature of an NWS `/alerts/active` response. */
+function alert(id: string, ring: number[][]) {
+  return {
+    properties: { id, event: "Flood Warning", severity: "severe" },
+    geometry: { type: "Polygon", coordinates: [ring] },
+  };
+}
+
+/** Run `fetchNWSAlerts(BBOX)` against a feed carrying `features`. */
+async function alertIdsFrom(features: unknown[]): Promise<string[]> {
+  global.fetch = jest
+    .fn()
+    .mockResolvedValueOnce(response(200, POINT))
+    .mockResolvedValueOnce(response(200, { features }));
+  return (await fetchNWSAlerts(BBOX)).map((z) => z.id);
+}
+
 afterEach(() => {
   global.fetch = originalFetch;
 });
@@ -66,6 +94,26 @@ describe("fetchNWSAlerts", () => {
       .mockResolvedValueOnce(response(200, POINT))
       .mockResolvedValueOnce(response(200, { features: [] }));
     await expect(fetchNWSAlerts(BBOX)).resolves.toEqual([]);
+  });
+
+  it("resolves to [] when the state has alerts but none is in the area (#359)", async () => {
+    // It used to hand back every alert in the state here, so alerts from
+    // outside the area were stored and drawn as this area's.
+    await expect(
+      alertIdsFrom([alert("elsewhere", square(-90, 30, -89, 31))]),
+    ).resolves.toEqual([]);
+  });
+
+  it("keeps an alert that covers the area without a vertex inside it (#359)", async () => {
+    // A vertex-in-box test misses this one. The old all-alerts fallback hid
+    // that only while no other alert was in the area.
+    await expect(
+      alertIdsFrom([
+        alert("covering", square(-85, 35, -70, 45)),
+        alert("inside", square(-76.72, 39.37, -76.7, 39.39)),
+        alert("elsewhere", square(-90, 30, -89, 31)),
+      ]),
+    ).resolves.toEqual(["covering", "inside"]);
   });
 });
 
