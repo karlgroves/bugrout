@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { AccessibilityInfo, StyleSheet, Text } from "react-native";
+import { AccessibilityInfo, Platform, StyleSheet, Text } from "react-native";
 
 import { colors, spacing, typography } from "@/constants/theme";
 
@@ -72,6 +72,10 @@ export function UnavoidedThreatNotice({
   // can show for one route. A plain announcement on iOS interrupts speech in
   // progress, so this one would cut the dropped-stop message off; queued, it
   // waits its turn. `queue` is iOS-only and ignored on Android.
+  //
+  // react-native-web has no announceForAccessibilityWithOptions at all, and
+  // calling it would throw and take the web preview down, so web keeps the
+  // plain call (a no-op there; the alert role does the announcing).
   useEffect(() => {
     if (message === null) {
       announced.current = null;
@@ -79,6 +83,10 @@ export function UnavoidedThreatNotice({
     }
     if (announced.current === message) return;
     announced.current = message;
+    if (Platform.OS === "web") {
+      AccessibilityInfo.announceForAccessibility(message);
+      return;
+    }
     AccessibilityInfo.announceForAccessibilityWithOptions(message, {
       queue: true,
     });

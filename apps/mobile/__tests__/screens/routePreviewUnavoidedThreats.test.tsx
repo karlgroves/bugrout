@@ -8,7 +8,7 @@
  */
 
 import { act, render } from "@testing-library/react-native";
-import { AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, Platform } from "react-native";
 
 import RoutePreviewScreen from "@/app/route-preview/index";
 import { unavoidedThreatMessage } from "@/components/routing/UnavoidedThreatNotice";
@@ -162,6 +162,29 @@ describe("the route preview", () => {
     );
     plain.mockRestore();
     queued.mockRestore();
+  });
+
+  it("makes the plain announcement on web, which has no queued one", async () => {
+    // react-native-web's AccessibilityInfo has no
+    // announceForAccessibilityWithOptions: calling it there throws in the
+    // effect and takes the preview down.
+    const os = jest.replaceProperty(Platform, "OS", "web");
+    const plain = jest
+      .spyOn(AccessibilityInfo, "announceForAccessibility")
+      .mockImplementation(jest.fn());
+    plain.mockClear();
+    const queued = spyOnAnnounce();
+    useRouteStore.getState().setRoute(route(2));
+
+    await render(<RoutePreviewScreen />);
+    expect(queued).not.toHaveBeenCalled();
+    expect(plain).toHaveBeenCalledTimes(1);
+    expect(plain).toHaveBeenCalledWith(
+      expect.stringContaining("could not be avoided"),
+    );
+    plain.mockRestore();
+    queued.mockRestore();
+    os.restore();
   });
 
   it("tells the driver when avoidance could not be applied at all", async () => {
