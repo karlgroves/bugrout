@@ -30,6 +30,26 @@ const RANGE_SIZE = 256;
 const RANGE_COUNT = 256;
 
 /**
+ * MapLibre's own default `text-font`, as documented on
+ * `MLNSymbolStyleLayer.textFont`: the two-font stack below. A stack is
+ * requested as one directory name, so this is asked for as
+ * `glyphs/Open Sans Regular,Arial Unicode MS Regular/<range>.pbf`.
+ *
+ * Something under the style asks for it on every launch and logs "Failed to
+ * load glyph range 0-255" when it 404s. It is not this app's style — all
+ * three symbol layers in StyleBuilder name a single font — and it is not the
+ * resource cluster-count layer or the user-location puck: removing each of
+ * those in turn left the error unchanged. The requester was not identified,
+ * so rather than keep hunting it, the stack is made resolvable.
+ *
+ * `Arial Unicode MS Regular` is a fallback for characters the first font
+ * lacks, so serving Open Sans Regular's glyphs under the stack's name is what
+ * a glyph server would return for this map's Latin labels anyway.
+ */
+const DEFAULT_STACK_BASE = "Open Sans Regular";
+const DEFAULT_STACK = `${DEFAULT_STACK_BASE},Arial Unicode MS Regular`;
+
+/**
  * An empty glyph set for one range, as a protobuf `glyphs` message:
  * `stacks { name: <font>, range: "<start>-<end>" }` with no glyphs.
  *
@@ -67,16 +87,24 @@ function materializeGlyphs(sourceDir, targetDir) {
     .readdirSync(sourceDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
-  for (const font of fonts) {
-    const fontTarget = path.join(targetDir, font);
+
+  // Each entry is the stack MapLibre asks for, and the font directory the
+  // glyphs come from. They differ only for DEFAULT_STACK (see its comment).
+  const stacks = fonts.map((font) => ({ stack: font, from: font }));
+  if (fonts.includes(DEFAULT_STACK_BASE)) {
+    stacks.push({ stack: DEFAULT_STACK, from: DEFAULT_STACK_BASE });
+  }
+
+  for (const { stack, from } of stacks) {
+    const fontTarget = path.join(targetDir, stack);
     fs.mkdirSync(fontTarget, { recursive: true });
     for (let i = 0; i < RANGE_COUNT; i++) {
       const range = `${i * RANGE_SIZE}-${i * RANGE_SIZE + RANGE_SIZE - 1}`;
       const file = `${range}.pbf`;
-      const source = path.join(sourceDir, font, file);
+      const source = path.join(sourceDir, from, file);
       const target = path.join(fontTarget, file);
       if (fs.existsSync(source)) fs.copyFileSync(source, target);
-      else fs.writeFileSync(target, emptyRange(font, range));
+      else fs.writeFileSync(target, emptyRange(stack, range));
     }
   }
 }

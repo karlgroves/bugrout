@@ -18,15 +18,51 @@ import type { DownloadedRegion } from "@bugrout/shared";
  */
 type ValhallaApproach = "native" | "http";
 
+/** The slice of expo-constants this module reads. */
+interface ExpoConstantsModule {
+  expoConfig?: { extra?: Record<string, unknown> } | null;
+  default?: { expoConfig?: { extra?: Record<string, unknown> } | null };
+}
+
 /**
- * Approach selected at build time via EXPO_PUBLIC_VALHALLA_APPROACH (mirrors
- * app.config.ts `extra.valhallaApproach`). Defaults to "http" so dev/preview
- * builds without the native binaries keep using the remote Fly service.
+ * `extra.valhallaApproach`, baked into the app config at prebuild.
+ *
+ * @returns The configured approach, or undefined when it is absent.
+ */
+function approachFromAppConfig(): string | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- native module loaded lazily; mocked on web
+    const Constants = require("expo-constants") as ExpoConstantsModule;
+    const extra =
+      Constants.default?.expoConfig?.extra ?? Constants.expoConfig?.extra;
+    const value = extra?.valhallaApproach;
+    return typeof value === "string" ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Approach selected at build time.
+ *
+ * Two sources, because they fail in different situations. EXPO_PUBLIC_* is
+ * inlined by Metro from the environment of whichever dev server bundles the
+ * app, so a bundle served by a Metro started without the variable silently
+ * reports "http" even in a binary that has the native engine linked in.
+ * `extra.valhallaApproach` is written into the app config at prebuild and
+ * travels with the binary, so it is the one that holds for a release build.
+ * Either saying "native" is enough; the tile check below still has the final
+ * say, and ValhallaModule falls back to HTTP if the module is missing.
+ *
+ * Defaults to "http" so builds without the native binaries keep using the
+ * remote service.
  */
 function configuredApproach(): ValhallaApproach {
-  return process.env.EXPO_PUBLIC_VALHALLA_APPROACH === "native"
-    ? "native"
-    : "http";
+  const fromEnv = process.env.EXPO_PUBLIC_VALHALLA_APPROACH;
+  if (fromEnv === "native" || approachFromAppConfig() === "native") {
+    return "native";
+  }
+  return "http";
 }
 
 /** True when the region's Valhalla archive is present and non-empty on disk. */

@@ -105,6 +105,7 @@ export function ResourceMarkers({
           filter={["has", "point_count"]}
           style={{
             textField: ["get", "point_count_abbreviated"],
+            textFont: ["Open Sans Regular"],
             textSize: 14,
             textColor: colors.textPrimary,
           }}

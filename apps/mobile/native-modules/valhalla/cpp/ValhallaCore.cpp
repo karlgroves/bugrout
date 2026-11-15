@@ -2,12 +2,16 @@
 
 #include "ValhallaCore.h"
 
+#include "ValhallaDefaultConfig.h"
+
+#include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <valhalla/tyr/actor.h>
 #include <zlib.h>
 
 #include <cstdio>
 #include <exception>
+#include <sstream>
 #include <sys/stat.h>
 
 namespace bugrout {
@@ -63,12 +67,19 @@ bool gunzipToTar(const std::string& gzPath, const std::string& outTarPath,
   return ok;
 }
 
-// Minimal config sufficient for routing against prebuilt tiles. Valhalla applies
-// sane defaults for everything we omit (costing options, service_limits, etc.).
-// For production parity, point this at the full config emitted by
-// `valhalla_build_config` instead of constructing it inline.
+// Config for routing against prebuilt tiles.
+//
+// This starts from the full config `valhalla_build_config` emits (embedded in
+// ValhallaDefaultConfig.h) rather than a couple of hand-set keys. actor_t
+// reads the whole tree: with only mjolnir.tile_extract and one service_limits
+// entry, construction threw "No such node (service_limits.isochrone.
+// max_contours)" — and satisfying that would only have surfaced the next
+// missing key. The tile source and the route bound are applied on top.
 boost::property_tree::ptree makeConfig(const std::string& path, bool isExtract) {
   boost::property_tree::ptree config;
+  std::istringstream defaults(kValhallaDefaultConfigJson);
+  boost::property_tree::read_json(defaults, config);
+
   if (isExtract) {
     // mmap'd, read-only — no extraction, lowest memory churn on device.
     config.put("mjolnir.tile_extract", path);
@@ -87,6 +98,7 @@ struct ValhallaCore::Impl {
   valhalla::tyr::actor_t actor;
 };
 
+// Defined here, where Impl is complete. See the note in ValhallaCore.h.
 ValhallaCore::ValhallaCore() = default;
 ValhallaCore::~ValhallaCore() = default;
 
