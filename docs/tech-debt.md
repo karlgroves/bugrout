@@ -74,7 +74,9 @@ code gets no exemptions. Remove the disable when the item is resolved.
   Already extracted:
   - CORS/security-header handling and the per-request worker preamble
     (`initWorkerRequest`), formerly duplicated across the three Cloudflare
-    Workers → `@bugrout/worker-utils`.
+    Workers → `@bugrout/worker-utils`. Both the Workers and that package moved
+    to AFixt/bugrout-server on 2026-11-15; the extraction is recorded here
+    because it is what brought this repository's jscpd threshold down.
   - `pointInPolygon` and `extractRingCoordinates`, formerly duplicated across
     `AlertParser`, `ThreatAvoidance` and `NWSService` →
     `apps/mobile/utils/geo.ts`.

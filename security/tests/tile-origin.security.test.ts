@@ -2,16 +2,22 @@
  * The tile origin is one URL, written in several places. They must agree.
  *
  * `apps/mobile/eas.json` sets `EXPO_PUBLIC_TILE_SERVER_URL` for the builds
- * that ship; that is the origin the app calls. Four other places fall back to
- * a literal when the variable is unset — the app config, `TileManager`, the
- * EAS build workflow — and the DAST workflow scans a literal of its own.
+ * that ship; that is the origin the app calls. The other places fall back to a
+ * literal when the variable is unset — the app config, `TileManager`, and the
+ * EAS build workflow.
  *
- * They drifted once. Every fallback and the DAST default named
- * `tiles.bugrout.app`, a hostname that has never resolved: every DAST run
- * failed before ZAP started, so no dynamic scan ever happened, and any build
- * that fell back — the simulator profile, a plain `expo start` — could not
- * download tiles (#158). Nothing reported the disagreement because each file
- * was internally consistent.
+ * They drifted once. Every fallback, and the DAST workflow's own default,
+ * named `tiles.bugrout.app`, a hostname that has never resolved: every DAST
+ * run failed before ZAP started, so no dynamic scan ever happened, and any
+ * build that fell back — the simulator profile, a plain `expo start` — could
+ * not download tiles (#158). Nothing reported the disagreement because each
+ * file was internally consistent.
+ *
+ * `dast.yml` moved to AFixt/bugrout-server on 2026-11-15 with the worker it
+ * scans, so its two literals are no longer checked from here. That repository
+ * pins its own default; this test can only reach the files in this one. The
+ * four app-side literals are the ones that decide what a shipped build calls,
+ * and they are all still here.
  *
  * This reads each literal out of its file as text, rather than importing, so
  * it checks what the build and the workflows will actually see. Each file is
@@ -78,24 +84,6 @@ const literals: readonly {
       "utf8",
     ),
     pattern: /vars\.TILE_SERVER_URL\s*\|\|\s*'([^']+)'/g,
-  },
-  {
-    where: "DAST dispatch input default",
-    file: ".github/workflows/dast.yml",
-    source: readFileSync(
-      path.join(repoRoot, ".github/workflows/dast.yml"),
-      "utf8",
-    ),
-    pattern: /^\s+default:\s*(\S+)\s*$/gm,
-  },
-  {
-    where: "DAST resolved target fallback",
-    file: ".github/workflows/dast.yml",
-    source: readFileSync(
-      path.join(repoRoot, ".github/workflows/dast.yml"),
-      "utf8",
-    ),
-    pattern: /REQUESTED_TARGET:-([^}]+)\}/g,
   },
 ];
 

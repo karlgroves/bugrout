@@ -1,5 +1,12 @@
 # ADR 0010: How published tiles stay current, and where the refresh runs
 
+> **Where this code lives now.** The two Fly apps this ADR weighs (`valhalla`,
+> `route-tracker`) moved to
+> [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on 2026-11-15,
+> and `valhalla` is being retired. The tile-freshness decision itself is
+> unchanged and still governs this repository's data pipeline and app. Nothing
+> below has been rewritten.
+
 - Status: **Accepted** — decided by the product owner 2026-11-06
 - Date: 2026-10-28
 - Context: Issue #151 (keep published tiles current); related #147 (publish more

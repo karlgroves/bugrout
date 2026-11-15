@@ -81,11 +81,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Pinned by version AND verified by SHA-256 before it runs, matching the
-      # trufflehog step in ci.yml. This binary is the dependency gate, and
-      # backend-deploy.yml deploys only after this workflow succeeds, so a
-      # substituted scanner that always exits 0 would retire the gate and
-      # unblock deploys. `releases/latest` also changed the scanner between
-      # runs. 2.7.0 is what Homebrew installs, so local and CI agree.
+      # trufflehog step in ci.yml. This binary is the dependency gate, so a
+      # substituted scanner that always exits 0 would retire it silently.
+      # `releases/latest` also changed the scanner between runs. 2.7.0 is what
+      # Homebrew installs, so local and CI agree.
+      #
+      # It used to gate backend-deploy.yml, which deployed only after this
+      # workflow succeeded. That workflow moved to AFixt/bugrout-server on
+      # 2026-11-15 and takes its own copy of this gate with it; nothing in this
+      # repository deploys a service any more.
       - name: Install OSV-Scanner (pinned + checksum-verified)
         env:
           OSV_SCANNER_VERSION: "2.7.0"
@@ -204,26 +208,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Endpoint behaviour: auth, input allowlists, size caps, headers on every
-      # response path, and §18's error-leakage regex. Each control these pin was
-      # verified to fail the suite when removed — see
+      # App- and pipeline-facing regression tests: the shipped asset budget,
+      # deep-link decoding, store URLs, the Play service account, the secret
+      # scanner wrapper, dead pnpm overrides, the tile origin written in four
+      # places, and the workflows' supply-chain pinning. Each control these pin
+      # was verified to fail the suite when removed — see
       # security/docs/security-test-matrix.md.
-      - name: Endpoint regression tests
+      #
+      # The endpoint suites that used to run here — and the step that started
+      # tile-server under `wrangler dev` and checked the headers a client
+      # actually receives — moved to AFixt/bugrout-server on 2026-11-15, with
+      # the services they test. See that repository's own `security.yml`.
+      - name: Security regression tests
         run: pnpm run security:tests
-
-      # The tests above assert what the handler constructs. This asserts what a
-      # client receives from a running worker, which is a different question.
-      - name: Start tile-server locally
-        working-directory: backend/workers/tile-server
-        run: |
-          npx wrangler dev --port 8787 --local &
-          for _ in $(seq 1 30); do
-            curl -sf http://127.0.0.1:8787/health >/dev/null && break
-            sleep 2
-          done
-
-      - name: Header check against the running worker
-        run: node security/scripts/check-headers.js http://127.0.0.1:8787/health
 
       - name: Generate security summary
         if: always()
