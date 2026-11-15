@@ -59,6 +59,11 @@
         // ("./plugins/withMapGlyphs"), which expo prebuild resolves and knip
         // does not follow. It bundles the map's label glyphs (#183).
         "plugins/withMapGlyphs.js",
+        // Local config plugin, named by path in app.config.ts the same way
+        // ("./plugins/withUISceneLifecycle"). It adopts the UIKit scene
+        // lifecycle Apple's TN3187 requires. Delete it, and this entry, when
+        // this app reaches Expo SDK 58 — the template adopts scenes from there.
+        "plugins/withUISceneLifecycle.js",
       ],
 
       "ignore": [

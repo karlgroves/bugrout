@@ -140,6 +140,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "@config-plugins/detox",
     // Bundles the map's label glyphs so labels render offline (#183).
     "./plugins/withMapGlyphs",
+    // Adopts the UIKit scene lifecycle on iOS. Required by Apple's TN3187: an
+    // app built against the iOS 27 SDK that has not adopted it does not launch.
+    // Expo's own template adopts scenes from SDK 58, so remove this on upgrade.
+    "./plugins/withUISceneLifecycle",
     // Valhalla in-process routing (Approach A). Enable after building native
     // binaries (native-modules/valhalla/build-scripts) — see that dir's SPIKE.md.
     // ["./native-modules/valhalla/config-plugin", { approach: "native" }],
