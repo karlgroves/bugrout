@@ -23,7 +23,7 @@ Pod::Spec.new do |s|
   s.source       = { :path => '.' }
 
   # Objective-C++ binding + shared C++ core, both inside the pod root.
-  s.source_files = 'ios/ValhallaEngine.mm', 'cpp/ValhallaCore.{h,cpp}'
+  s.source_files = 'ios/ValhallaEngine.mm', 'cpp/*.{h,cpp}'
 
   # Prebuilt Valhalla static lib produced by build-scripts/build-ios.sh. The
   # archive inside it already has protobuf and abseil merged in, so there is
