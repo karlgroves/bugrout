@@ -119,7 +119,16 @@ jobs:
           if-no-files-found: warn
 
   containers:
-    name: Containers and IaC (Trivy, Hadolint, Checkov)
+    # Was "Containers and IaC (Trivy, Hadolint, Checkov)". Hadolint left with
+    # the two Dockerfiles on 2026-11-15 (#387): they moved to
+    # AFixt/bugrout-server, `security:docker` went with them, and this job's
+    # step still called it — `ERR_PNPM_NO_SCRIPT`, the one check that failed on
+    # that PR. Nothing here builds an image now.
+    #
+    # No required status check names this job; `required_status_checks` is unset
+    # on `main` and docs/branch-protection.md lists three other job names. So
+    # renaming it strands nothing.
+    name: Filesystem and IaC (Trivy, Checkov)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -147,28 +156,12 @@ jobs:
           rm -f "$archive"
           trivy --version
 
-      - name: Install Hadolint (pinned + checksum-verified)
-        env:
-          HADOLINT_VERSION: "2.15.1"
-          HADOLINT_SHA256: "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
-        run: |
-          set -euo pipefail
-          curl -sSLf -o hadolint \
-            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
-          echo "${HADOLINT_SHA256}  hadolint" | sha256sum --check --strict -
-          sudo install -m 0755 hadolint /usr/local/bin/hadolint
-          rm -f hadolint
-          hadolint --version
-
       # Version-pinned for the same reason as Semgrep above.
       - name: Install Checkov
         run: pipx install checkov==3.3.30
 
       # Each step runs the same script the pre-push hook and a developer's
       # shell run, so a local pass and a CI pass cannot disagree.
-      - name: Dockerfile lint (Hadolint)
-        run: pnpm run security:docker
-
       - name: IaC scan (Checkov + Trivy config)
         run: pnpm run security:iac
 

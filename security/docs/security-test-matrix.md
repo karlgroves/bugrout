@@ -47,6 +47,18 @@ The practice still applies to anything added here: delete the control, run the
 suite, and record that it failed. A test that still passes with the control
 deleted pins nothing.
 
+One probe has been run against what is left, and this is its figure:
+
+| Control removed                                         | Result       |
+| ------------------------------------------------------- | ------------ |
+| a workflow step restored that runs a deleted npm script | 1 test fails |
+
+Measured 2026-11-15 by re-adding the `pnpm run security:docker` step to
+`security.yml` — the exact step whose removal in #387 left the call behind, and
+the one check that failed on that pull request.
+`workflow-script-references.security.test.ts` reports it by name; `actionlint`
+cannot, because it does not know which npm scripts exist.
+
 The baseline a probe is read against is the whole suite, green: run
 `pnpm run security:tests` on the Node version in `.nvmrc` (the machine default
 may be newer) and read the totals it prints for itself. Deliberately no count is
