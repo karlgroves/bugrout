@@ -39,14 +39,12 @@ function addPodfileEntry(config) {
     "ios",
     (cfg) => {
       const podfile = path.join(cfg.modRequest.platformProjectRoot, "Podfile");
+      // The module root, not ios/ — that is where ValhallaEngine.podspec
+      // lives, because CocoaPods drops source_files resolving outside the
+      // podspec's own directory and the pod needs cpp/ValhallaCore.cpp too.
       const podPath = path.relative(
         cfg.modRequest.platformProjectRoot,
-        path.join(
-          cfg.modRequest.projectRoot,
-          "native-modules",
-          "valhalla",
-          "ios",
-        ),
+        path.join(cfg.modRequest.projectRoot, "native-modules", "valhalla"),
       );
       let contents = fs.readFileSync(podfile, "utf8");
       if (!contents.includes(`pod '${POD_NAME}'`)) {

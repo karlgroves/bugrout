@@ -87,6 +87,8 @@ struct ValhallaCore::Impl {
   valhalla::tyr::actor_t actor;
 };
 
+// Defined here, where Impl is complete. See the note in ValhallaCore.h.
+ValhallaCore::ValhallaCore() = default;
 ValhallaCore::~ValhallaCore() = default;
 
 bool ValhallaCore::init(const std::string& tilePath, std::string& outError) {

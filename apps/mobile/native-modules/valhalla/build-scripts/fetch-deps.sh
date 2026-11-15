@@ -41,11 +41,21 @@ fi
 # --- Boost (headers only) ---
 if [[ ! -d "boost" ]]; then
   BOOST_FILE="boost_${BOOST_VERSION}.tar.gz"
-  BOOST_URL="https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION//_/.}/source/${BOOST_FILE}"
+  # archives.boost.io is Boost's own archive. The previous host,
+  # boostorg.jfrog.io, was retired in 2024 and now answers every release URL
+  # with an HTML error page — curl -L saved that page as the tarball and the
+  # script died at `tar` with "Unrecognized archive format", after leaving an
+  # empty boost/ behind that made the next run skip the download entirely.
+  BOOST_URL="https://archives.boost.io/release/${BOOST_VERSION//_/.}/source/${BOOST_FILE}"
   echo "Downloading Boost ${BOOST_VERSION}..."
-  curl -L -o "$BOOST_FILE" "$BOOST_URL"
-  mkdir -p boost
-  tar xzf "$BOOST_FILE" --strip-components=1 -C boost
+  # --fail so an error page is an error here, not a corrupt archive later.
+  curl --fail -L -o "$BOOST_FILE" "$BOOST_URL"
+  # Extract to a temp dir and move it into place only on success, so a failed
+  # run never leaves a boost/ that the guard above reads as "already present".
+  rm -rf boost.tmp
+  mkdir -p boost.tmp
+  tar xzf "$BOOST_FILE" --strip-components=1 -C boost.tmp
+  mv boost.tmp boost
   rm "$BOOST_FILE"
 else
   echo "Boost already present."
