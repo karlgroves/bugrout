@@ -30,12 +30,17 @@ export function init(_options: Record<string, unknown>): void {
 }
 
 /**
- * Reports an exception to Sentry, falling back to console.error when Sentry
- * is unavailable.
+ * Reports an exception to Sentry, falling back to a console warning when
+ * Sentry is unavailable.
+ *
+ * Callers report a handled, non-fatal error on purpose, so the fallback must
+ * not call it uncaught, and must not be console.error: that trips LogBox and
+ * covers the screen with a red banner for a failure the UI has already
+ * explained to the user.
  */
 export function captureException(error: Error): void {
   if (Platform.OS === "web") {
-    console.error("[BugRout] Uncaught error:", error);
+    console.warn("[BugRout] Error report (Sentry unavailable):", error);
     return;
   }
   try {
@@ -43,7 +48,7 @@ export function captureException(error: Error): void {
     const Sentry = require(mod);
     Sentry.captureException(error);
   } catch {
-    console.error("[BugRout] Uncaught error:", error);
+    console.warn("[BugRout] Error report (Sentry unavailable):", error);
   }
 }
 
