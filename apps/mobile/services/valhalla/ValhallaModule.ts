@@ -22,6 +22,7 @@ import {
 import { reportRoutingFailure } from "../routing/RoutingTelemetry";
 
 import { loadNativeModule, type NativeValhalla } from "./nativeEngine";
+import { toFilesystemPath } from "./tilePath";
 
 import type { ValhallaRouteResponse, ValhallaManeuver } from "./types";
 import type {
@@ -84,7 +85,7 @@ export async function initValhalla(cfg: ValhallaConfig): Promise<void> {
     try {
       const native = loadNativeModule();
       if (native) {
-        await native.init(cfg.tileDir);
+        await native.init(toFilesystemPath(cfg.tileDir));
         nativeModule = native;
         activeApproach = "native";
         return;
