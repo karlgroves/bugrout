@@ -144,9 +144,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // app built against the iOS 27 SDK that has not adopted it does not launch.
     // Expo's own template adopts scenes from SDK 58, so remove this on upgrade.
     "./plugins/withUISceneLifecycle",
-    // Valhalla in-process routing (Approach A). Enable after building native
-    // binaries (native-modules/valhalla/build-scripts) — see that dir's SPIKE.md.
-    // ["./native-modules/valhalla/config-plugin", { approach: "native" }],
+    // Valhalla in-process routing (Approach A) — see native-modules/valhalla/SPIKE.md.
+    // Needs bin/ios/valhalla.xcframework, built by build-scripts/build-ios.sh.
+    ["./native-modules/valhalla/config-plugin", { approach: "native" }],
   ],
   experiments: {
     typedRoutes: true,
