@@ -7,7 +7,7 @@
  * and so does `support_url.txt`, which is also the contact URL the app
  * advertises to Nominatim and Overpass (`apps/mobile/utils/userAgent.ts`).
  *
- * The 200 is the whole problem: `lychee` resolves the link, `check-headers.js`
+ * The 200 is the whole problem: `lychee` resolves the link, a header check
  * reads the headers, and both pass. `check-store-urls.mjs` reads the *content*
  * instead, and this pins the rules it reads it by.
  *

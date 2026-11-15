@@ -13,21 +13,28 @@ product specification.
 
 ## Monorepo Structure
 
-pnpm workspaces + Turborepo. Four workspace roots:
+**The server side moved out.** On 2026-11-15 the Cloudflare Workers, the Fly.io
+services, `packages/worker-utils`, their deploy workflows and the eight endpoint
+security suites went to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server), with their git
+history. This repository is the app, the shared types, the ELF model, the data
+pipeline and the release tooling. Nothing here serves HTTP. The app is
+offline-first and needs none of it to route. Issue numbers in that repository's
+docs refer back to issues here.
+
+pnpm workspaces + Turborepo. Workspace roots:
 
 - **`apps/mobile/`** — React Native (Expo SDK 54, New Architecture) app with
   Expo Router
 - **`packages/shared/`** — Shared TypeScript types (route, threat, resource,
   scenario, geo)
 - **`packages/elf-model/`** — ELF weight table training pipeline
-- **`backend/workers/`** — Cloudflare Workers (tile-server, alert-aggregator,
-  crowd-signal)
-- **`backend/services/`** — Fly.io services (route-tracker with Redis)
 - **`security/`** — security regression tests and scanner wrappers; a workspace
   only so `turbo run lint` reaches it (#306). Root `scripts/` and root `*.mjs`
   are linted by `pnpm run lint:root`. `pnpm run typecheck:root` type-checks
-  `security/` and `scripts/` with `tsc -b` over project references: the tests
-  with Node types, the Workers source they import with Workers types
+  `security/` and `scripts/` with `tsc -b`, both with Node types. The second
+  project that checked Workers source with Workers types went to the server
+  repository with those tests
 - **`data-pipeline/`** — Shell scripts for OSM → Valhalla tiles and PMTiles
   builds
 
@@ -68,7 +75,7 @@ pnpm turbo typecheck
 # Typecheck mobile app only
 cd apps/mobile && npx tsc --noEmit
 
-# Run all tests (every workspace with a test task: mobile and worker-utils)
+# Run all tests (mobile is the only workspace with a test task)
 pnpm turbo test
 
 # Start Expo dev server
@@ -93,8 +100,6 @@ npx expo prebuild --platform android --no-install
 pnpm run e2e:build   # gradle assembleDebug + assembleAndroidTest
 pnpm run e2e:smoke   # all nine specs, against a Pixel_6_API_33 AVD
 
-# Run a specific backend worker locally
-cd backend/workers/tile-server && pnpm dev
 
 # Install scanner binaries (trufflehog, semgrep, osv-scanner, lychee)
 bash scripts/bootstrap.sh
@@ -150,9 +155,10 @@ bash scripts/bootstrap.sh
 - **State Management:** Zustand (stores in `apps/mobile/stores/`)
 - **Local Storage:** SQLite via expo-sqlite (schema in
   `apps/mobile/db/schema.ts`)
-- **Backend:** Cloudflare Workers + R2, Fly.io + Redis
-- **CI/CD:** GitHub Actions → EAS Build (mobile), Wrangler (workers), Flyctl
-  (services)
+- **Backend:** Cloudflare Workers + R2, Fly.io + Redis — in
+  [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server), not here
+- **CI/CD:** GitHub Actions → EAS Build (mobile), Wrangler for the R2 region
+  uploads (`data-pipeline.yml`). Service deploys are the server repository's
 
 ## Key Architecture Concepts
 
@@ -350,7 +356,9 @@ a pull request blocks the defect at the point of introduction.
   - SBOM generation runs in the release/publish pipeline — an SBOM is a build
     output, not a periodic report.
   - DAST scans (ZAP and equivalents) run against the PR preview environment or
-    as a post-deploy gate, not against a static URL on a timer.
+    as a post-deploy gate, not against a static URL on a timer. There is no DAST
+    workflow here any more — `dast.yml` moved to the server repository with the
+    worker it scans.
   - End-to-end suites run on `pull_request` and on merge to the default branch —
     never nightly. `e2e.yml` has one job and runs the whole suite in it; there
     is no separate full-matrix run, and the "smoke" in the script and job names

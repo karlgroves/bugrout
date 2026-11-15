@@ -16,7 +16,7 @@ bash scripts/bootstrap.sh
 Then:
 
 ```bash
-pnpm run security          # audit, OSV, secrets, tests, Trivy fs, Hadolint, IaC
+pnpm run security          # audit, OSV, secrets, tests, Trivy fs, IaC
 pnpm run security:semgrep  # SAST
 pnpm run security:tests    # the security/tests/ regression suite
 pnpm run check:all         # everything, including the above
@@ -42,23 +42,11 @@ node security/scripts/semgrep.mjs --print
 
 ### Header checks against a running target
 
-The unit tests assert what the handlers construct. The header check asserts what
-a client actually receives, which is a different question — a platform, proxy or
-CDN in front of a worker can strip or override a header the code set.
-
-```bash
-# a locally running worker
-cd backend/workers/tile-server && pnpm dev &
-node security/scripts/check-headers.js http://127.0.0.1:8787/health
-
-# a deployed origin
-node security/scripts/check-headers.js --production https://bugrout-tile-server.karlgroves.workers.dev/health
-```
-
-Exit codes: `0` clean, `1` blocking failure, `2` target unreachable.
-
-`--production` additionally requires HTTPS and promotes `missing_hsts` from a
-warning to a failure, per `security-thresholds.json`.
+**Moved.** `check-headers.js` and every HTTP surface it checked went to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on 2026-11-15.
+Nothing in this repository serves a response, so there is no running target here
+and no deployed origin to check. The script, its exit codes and the `headers`
+threshold section are documented in that repository's copy of this file.
 
 ## How to update the secrets baseline
 
@@ -104,33 +92,32 @@ so a forgotten one becomes visible rather than permanent.
 
 ## How to configure the staging scan target
 
-The DAST job takes its target from the workflow input, defaulting to the
-deployed worker origins. Rule configuration is in
-`security/config/zap-baseline.conf` and `zap-api.conf`; excluded URL patterns
-are in `zap-exclusions.txt`, which the workflow reads rather than hard-coding.
+**Moved.** `dast.yml`, `zap-baseline.conf`, `zap-api.conf` and
+`zap-exclusions.txt` went to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) with the worker
+they scan. There is no deployed origin in this repository to point a scan at.
 
-The scan runs **after a deploy** or on `workflow_dispatch`. It is not scheduled
-— see the CI policy in `CLAUDE.md`.
+The one part that stays true here: the scan is not scheduled, and must not be —
+see the CI policy in `CLAUDE.md`.
 
 ## How to add project-specific authorization tests
 
 BugRout has no accounts, sessions or roles, so most of §10.2 does not apply.
-What does apply is that a request without a valid credential must not reach
-protected data. Those tests live in `security/tests/`:
+What did apply was that a request without a valid credential must not reach
+protected data — and there is no protected data here any more. The §10 files
+(`auth`, `input-validation`, `headers`, and the `helpers.ts` fakes for R2, KV
+and Redis) moved to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on 2026-11-15.
 
-| File                                | Covers                                               |
-| ----------------------------------- | ---------------------------------------------------- |
-| `auth.security.test.ts`             | §10.1/§10.2 — bearer auth on both protected surfaces |
-| `input-validation.security.test.ts` | §10.4 — allowlists, size caps, type confusion        |
-| `headers.security.test.ts`          | §10.6/§5.10 — headers on every path, error leakage   |
-| `helpers.ts`                        | Fakes for R2, KV, Redis, and a `node:http` driver    |
-
-Those are the §10 files only, not an index of the directory: `security/tests/`
-holds more suites than this, and `ls security/tests/` is the authoritative list.
-`pnpm run security:tests` prints the file and test counts itself — no count is
-written down here, because every doc in this directory that kept one had a stale
-one. `security-test-matrix.md` maps WSTG categories to the files that cover
-them, and does not have a row for every file here.
+What is left in `security/tests/` covers the app, the data pipeline and the
+release workflows: the shipped asset budget, deep-link decoding, store URLs, the
+Play service account, the secret-scanner wrapper, dead pnpm overrides, the tile
+origin written in four places, and the workflows' supply-chain pinning.
+`ls security/tests/` is the authoritative list. `pnpm run security:tests` prints
+the file and test counts itself — no count is written down here, because every
+doc in this directory that kept one had a stale one. `security-test-matrix.md`
+maps WSTG categories to the files that cover them, and does not have a row for
+every file here.
 
 To add one, drive the real handler and assert the response. Do not assert on
 source text — a test that greps for a function name passes when the function is
@@ -152,8 +139,9 @@ and each severity is mapped through `security-thresholds.json` to one of `fail`,
 always exits 0 and both workflows run it as reporting. The scanners block on
 their own exit codes (semgrep `--error`, `osv-scanner`, `trivy --exit-code 1`,
 `checkov`, `pnpm audit --audit-level=high`), which are stricter than the
-thresholds. The `headers` section is the exception: `check-headers.js` reads it
-and does fail on it.
+thresholds. The `headers` section of `security-thresholds.json` is read by
+`check-headers.js`, which moved to AFixt/bugrout-server; the keys stay in the
+file here so the two repositories' thresholds do not drift apart.
 
 Two things worth attention in a summary:
 
@@ -169,11 +157,12 @@ A false positive is a finding that is wrong, not one that is inconvenient.
 1. **Confirm it locally** and work out why the rule fired.
 2. Prefer the **narrowest possible suppression at the site**: an inline
    `// nosemgrep: <rule-id> -- <reason>` on the line, with the reason written
-   out. The `cors-misconfiguration` suppression inside `setStandardHeaders()` in
-   `backend/services/route-tracker/src/index.ts` is the pattern to copy — it
-   explains why the CORS origin is not attacker-controlled. It is named rather
-   than cited by line on purpose: this paragraph said `index.ts:132` until
-   2026-11-09, by which point the line was 216.
+   out. The pattern to copy is the `cors-misconfiguration` suppression inside
+   `setStandardHeaders()` in route-tracker, which moved to
+   [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) — it explains
+   why the CORS origin is not attacker-controlled. Name the function rather than
+   citing a line: this paragraph said `index.ts:132` until 2026-11-09, by which
+   point the line was 216.
 3. Only when a rule is wrong _everywhere_ does it belong in
    `security/config/semgrep.yml` under `excludeRules`, with a reason and an
    issue number.
@@ -186,7 +175,7 @@ belongs in `exceptions.json` with an expiry.
 ## How to update tools
 
 Scanner binaries come from `scripts/bootstrap.sh` and are pinned by version in
-the workflows (Trivy, Hadolint, trufflehog). To move one:
+the workflows (Trivy, trufflehog, OSV-Scanner). To move one:
 
 1. Bump the version in `.github/workflows/security.yml`.
 2. Run the full suite locally on the new version first — a scanner upgrade

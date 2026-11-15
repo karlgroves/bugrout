@@ -11,21 +11,16 @@ security/
                                 both the npm script and the workflow
     security-thresholds.json    §11, verbatim
     exceptions.json             the exception register (empty, and should stay that way)
-    zap-baseline.conf           §19 baseline rules
-    zap-api.conf                §19 API-scan rules
-    zap-exclusions.txt          §19 URL exclusions, read by the DAST workflow
   scripts/
     semgrep.mjs                 builds and runs Semgrep from config/semgrep.yml
     trufflehog.mjs              §5.1 — secrets, with the value withheld
-    check-headers.js            §15 — headers as a client actually receives them
     check-overrides.mjs         pnpm override expiry/justification check
     check-store-urls.mjs        store-listing URL check
     generate-security-report.mjs  §21 — security-summary.{md,json}
   tests/                        every *.security.test.ts the regression suite
-                                runs, plus helpers.ts — fakes for R2, KV and
-                                Redis, and a node:http driver. `ls` is the
-                                list and `pnpm run security:tests` prints the
-                                count; neither is restated here, because the
+                                runs. `ls` is the list and
+                                `pnpm run security:tests` prints the count;
+                                neither is restated here, because the
                                 hand-kept version of both was wrong. Partial
                                 WSTG mapping in docs/security-test-matrix.md
   docs/
@@ -36,6 +31,15 @@ security/
 
 Start with [`docs/security-automation.md`](docs/security-automation.md).
 
+**§15 and §19 moved.** `check-headers.js`, `zap-baseline.conf`, `zap-api.conf`
+and `zap-exclusions.txt` went to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on 2026-11-15
+with the services they test, along with the eight endpoint suites that were in
+`tests/` and the `helpers.ts` fakes for R2, KV and Redis. Nothing in this
+repository serves HTTP any more, so there is no running target to check headers
+against and no deployed origin to scan. The copies in that repository are the
+live ones.
+
 ## Where this diverges from §6, and why
 
 - **Reports go to `reports/security/`, not `security/reports/`.** That is where
@@ -43,17 +47,16 @@ Start with [`docs/security-automation.md`](docs/security-automation.md).
   this directory existed, and where `license:report` writes. One report location
   beats spec fidelity; the path is gitignored as a build output.
 - **`check-cookies.js`, `check-openapi.js` and `check-sensitive-errors.js` are
-  absent.** No surface here sets a cookie, there is no OpenAPI document, and the
-  sensitive-error check is covered by the leakage assertions in
-  `tests/headers.security.test.ts`, which run against real responses rather than
-  by grepping. The cookie rules in `zap-baseline.conf` are deliberately set to
-  FAIL, so if an endpoint ever starts setting a cookie, that gets noticed rather
-  than silently passing an absent check.
+  absent.** There is no HTTP surface in this repository at all since the split,
+  so nothing here can set a cookie, serve an OpenAPI document or leak an error
+  body. The sensitive-error assertions, and the ZAP cookie rules that were
+  deliberately set to FAIL so a new cookie got noticed, are in
+  AFixt/bugrout-server.
 - **`security-local.sh` / `security-ci.sh` / `security-staging.sh` are absent.**
   Their job is done by npm scripts (`security`, `security:tests`,
-  `security:semgrep`, `security:headers`, `security:report`), which is how
-  everything else in this repository is invoked, and which means CI and a
-  developer's shell run the identical command.
+  `security:semgrep`, `security:report`), which is how everything else in this
+  repository is invoked, and which means CI and a developer's shell run the
+  identical command.
 - **`trivy.yaml`, `checkov.yaml` and `detect-secrets.filters` are absent.**
   Trivy and Checkov are configured on the command line in `security.yml`;
   trufflehog is used instead of detect-secrets.
