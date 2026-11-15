@@ -21,6 +21,32 @@ android/
 *.apk
 *.aab
 
+# ...but NOT the hand-written native module bindings. The two patterns above
+# are unanchored, so they match every directory called ios/ or android/ at any
+# depth — which silently excluded the whole platform layer of the in-process
+# Valhalla module (the Objective-C++ binding, its podspec, the Kotlin module
+# and the JNI C++). That is source, not generated output: a fresh clone built
+# libvalhalla with nothing to bind it to. A directory must be un-ignored
+# before files inside it can be, hence both lines per platform.
+!apps/mobile/native-modules/**/ios/
+!apps/mobile/native-modules/**/ios/**
+!apps/mobile/native-modules/**/android/
+!apps/mobile/native-modules/**/android/**
+
+# Valhalla cross-compile working directories: fetched sources (~1.2 GB),
+# object trees and the built xcframework. All reproducible from
+# build-scripts/fetch-deps.sh and build-ios.sh.
+apps/mobile/native-modules/valhalla/deps/
+apps/mobile/native-modules/valhalla/build/
+apps/mobile/native-modules/valhalla/bin/
+
+# Data-pipeline output: downloaded OSM extracts, built PMTiles and Valhalla
+# routing tiles, and the generated valhalla.json. All produced by the scripts
+# in data-pipeline/, several GB, and none of it belongs in the repo. It was
+# untracked but not ignored, so `prettier --check` scanned the generated JSON
+# and failed the gate.
+data-pipeline/osm/output/
+
 # Environment
 .env
 .env.local
