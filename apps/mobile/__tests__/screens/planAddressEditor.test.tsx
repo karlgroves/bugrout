@@ -26,7 +26,7 @@ jest.mock("@/db/queries/scenarios", () => ({
 // Coverage warnings are #190's concern and have their own suite; let every
 // destination through so these cases are about the lookup alone.
 jest.mock("@/services/routing/coverage", () => ({
-  confirmCoverage: () => Promise.resolve(true),
+  confirmCoverage: () => Promise.resolve("save"),
 }));
 
 const mockPush = jest.fn();
@@ -143,6 +143,28 @@ describe("the plan editor's destination field", () => {
     });
     expect(savedPlan().destination).toEqual({ lat: 42.1, lng: -72.59 });
     expect(mockLookupAddress).not.toHaveBeenCalled();
+  });
+
+  it("attributes the matches it offers to OpenStreetMap", async () => {
+    // The destination picker's result list carries this line; these rows are
+    // the same geocoder's results, shown on a different screen (#208).
+    mockLookupAddress.mockResolvedValue({
+      kind: "many",
+      matches: [SPRINGFIELD_IL, SPRINGFIELD_MA],
+    });
+
+    const screen = await render(<ScenarioEditScreen />);
+    expect(screen.queryByTestId("plan-match-attribution")).toBe(null);
+
+    await fireEvent.changeText(screen.getByLabelText("Plan name"), "Family");
+    await fireEvent.changeText(
+      screen.getByLabelText("Destination address"),
+      "Springfield",
+    );
+    await fireEvent.press(screen.getByLabelText("Save Plan"));
+
+    const attribution = await screen.findByTestId("plan-match-attribution");
+    expect(attribution.props.children).toContain("OpenStreetMap");
   });
 
   it("saves nothing when the address matches nothing", async () => {

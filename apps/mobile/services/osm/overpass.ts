@@ -62,11 +62,35 @@ export async function overpassQuery(
   return data.elements;
 }
 
-/** Where an element is: a node's own position, or a way's centre. */
+/**
+ * Whether an answer's coordinate is usable: a finite number within `limit` of
+ * zero. Overpass is open data read straight from JSON, so a field typed here
+ * as a number can arrive as `null`, as a string, or out of range, and an
+ * unusable coordinate reaches the map and the router as a waypoint (#342).
+ *
+ * @param value - The raw coordinate from the answer.
+ * @param limit - 90 for a latitude, 180 for a longitude.
+ * @returns `true` when the coordinate can be used.
+ */
+function isCoordinate(value: unknown, limit: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Math.abs(value) <= limit
+  );
+}
+
+/**
+ * Where an element is: a node's own position, or a way's centre.
+ *
+ * @param el - The element from an Overpass answer.
+ * @returns Its position, or null when it has none that can be used.
+ */
 export function elementPosition(
   el: OverpassElement,
 ): { lat: number; lng: number } | null {
-  const lat = el.lat ?? el.center?.lat;
-  const lng = el.lon ?? el.center?.lon;
-  return lat === undefined || lng === undefined ? null : { lat, lng };
+  const lat: unknown = el.lat ?? el.center?.lat;
+  const lng: unknown = el.lon ?? el.center?.lon;
+  if (!isCoordinate(lat, 90) || !isCoordinate(lng, 180)) return null;
+  return { lat, lng };
 }

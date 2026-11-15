@@ -33,8 +33,13 @@ import type { Scenario } from "@bugrout/shared";
  */
 export function ScenarioChips(): React.JSX.Element | null {
   const router = useRouter();
-  const { scenarios } = useScenarioStore();
-  const { setRoute, setStatus, setDestination } = useRouteStore();
+  const scenarios = useScenarioStore((s) => s.scenarios);
+  // Setters only, through selectors: this sits on the map tab, which stays
+  // mounted during navigation, and a whole-store subscription re-rendered the
+  // chips on every GPS tick for state they never read (#189).
+  const setRoute = useRouteStore((s) => s.setRoute);
+  const setStatus = useRouteStore((s) => s.setStatus);
+  const setDestination = useRouteStore((s) => s.setDestination);
   const [activating, setActivating] = useState<string | null>(null);
 
   const activateScenario = useCallback(

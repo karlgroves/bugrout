@@ -8,6 +8,7 @@
 import { act, renderHook } from "@testing-library/react-native";
 
 import { useTileManager } from "@/hooks/useTileManager";
+import * as TileManager from "@/services/tiles/TileManager";
 import { useMapStore } from "@/stores/useMapStore";
 
 import type { DownloadedRegion, Region } from "@bugrout/shared";
@@ -139,5 +140,83 @@ describe("useTileManager.downloadRegion", () => {
     });
 
     expect(mockCancelReminder).toHaveBeenCalled();
+  });
+});
+
+// #292: a download must match the manifest's exact size. When the manifest
+// couldn't be loaded the screen lists DEFAULT_REGIONS, whose sizes are hand
+// estimates, so a download started from that list would always fail, and
+// only after the whole file had come down.
+describe("useTileManager.downloadRegion from the fallback list (#292)", () => {
+  const fetchManifest = jest.mocked(TileManager.fetchManifest);
+  const download = jest.mocked(TileManager.downloadRegion);
+
+  /** Render the hook with the manifest unreachable, so the list is the fallback. */
+  async function fallbackMaryland(): Promise<{
+    result: { current: ReturnType<typeof useTileManager> };
+    region: Region;
+  }> {
+    fetchManifest.mockRejectedValueOnce(new Error("offline"));
+    const { result } = await renderHook(() => useTileManager());
+    const region = result.current.availableRegions.find((r) => r.id === "md");
+    if (!region) throw new Error("Maryland missing from the fallback list");
+    return { result, region };
+  }
+
+  beforeEach(() => {
+    useMapStore.setState({ activeRegion: null, tilesLoaded: false });
+    fetchManifest.mockClear();
+    download.mockClear();
+  });
+
+  it("downloads the manifest's entry, not the estimate, once the manifest loads", async () => {
+    const { result, region } = await fallbackMaryland();
+    expect(region.pmtilesSize).not.toBe(PUBLISHED.pmtilesSize);
+    fetchManifest.mockResolvedValueOnce([PUBLISHED]);
+
+    await act(async () => {
+      await result.current.downloadRegion(region);
+    });
+
+    expect(download).toHaveBeenCalledWith(PUBLISHED, expect.any(Function));
+    expect(result.current.availableRegions).toEqual([PUBLISHED]);
+  });
+
+  it("fails before downloading anything when the manifest still can't be loaded", async () => {
+    const { result, region } = await fallbackMaryland();
+    fetchManifest.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(result.current.downloadRegion(region)).rejects.toThrow(
+        "couldn't be loaded",
+      );
+    });
+
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("fails before downloading anything when the region isn't published", async () => {
+    const { result, region } = await fallbackMaryland();
+    fetchManifest.mockResolvedValueOnce([{ ...PUBLISHED, id: "va" }]);
+
+    await act(async () => {
+      await expect(result.current.downloadRegion(region)).rejects.toThrow(
+        "The offline map for Maryland isn't published yet.",
+      );
+    });
+
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("downloads a manifest entry as it is, without fetching the manifest again", async () => {
+    const { result } = await renderHook(() => useTileManager());
+    fetchManifest.mockClear();
+
+    await act(async () => {
+      await result.current.downloadRegion(PUBLISHED);
+    });
+
+    expect(fetchManifest).not.toHaveBeenCalled();
+    expect(download).toHaveBeenCalledWith(PUBLISHED, expect.any(Function));
   });
 });

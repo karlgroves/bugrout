@@ -52,13 +52,30 @@ describe("FuelRangeField", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
-  it("ignores anything that is not a number", async () => {
+  it("keeps only the digits of mixed input", async () => {
     const onChange = jest.fn();
     const screen = await render(
       <FuelRangeField value={null} units="km" onChange={onChange} />,
     );
     fireEvent.changeText(screen.getByTestId("fuel-range-input"), "1a2b");
     expect(onChange).toHaveBeenCalledWith(12000);
+  });
+
+  it("caps a pasted range, which number-pad does not stop", async () => {
+    // Uncapped, 20 pasted digits made a range so large the fuel warning could
+    // never fire for the whole trip (#307).
+    const onChange = jest.fn();
+    const screen = await render(
+      <FuelRangeField value={null} units="mi" onChange={onChange} />,
+    );
+    const input = screen.getByTestId("fuel-range-input");
+    expect(input.props.maxLength).toBe(4);
+    await fireEvent.changeText(input, "99999999999999999999");
+    expect(onChange).toHaveBeenLastCalledWith(2000 * 1609.344);
+    await fireEvent.changeText(input, "2500");
+    expect(onChange).toHaveBeenLastCalledWith(2000 * 1609.344);
+    await fireEvent.changeText(input, "1999");
+    expect(onChange).toHaveBeenLastCalledWith(1999 * 1609.344);
   });
 
   it("names the units and says it can be skipped", async () => {

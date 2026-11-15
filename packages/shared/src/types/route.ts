@@ -1,4 +1,5 @@
 import type { LatLng, GeoJSONPolygon } from "./geo";
+import type { ResourceType } from "./resource";
 
 /**
  * Caller-supplied options influencing route calculation.
@@ -57,7 +58,17 @@ export interface Route {
   legs: RouteLeg[];
   /** Summary road names */
   summary: string;
+  /**
+   * Threat areas this route was asked to go around and was not planned around
+   * (#337): how many, or `"all"` when avoidance could not be applied to the
+   * request at all. Absent when every area asked for reached the routing
+   * engine. Only areas near the trip count — one far from it changes no route.
+   */
+  unavoidedThreats?: UnavoidedThreats;
 }
+
+/** How many threat areas a route left unavoided, or `"all"` of them. */
+export type UnavoidedThreats = number | "all";
 
 /**
  * Lifecycle state of an active or pending route.
@@ -75,3 +86,30 @@ export type RouteStatus =
   | "rerouting"
   | "completed"
   | "error";
+
+/**
+ * Why a resource stop the driver asked for is not on the previewed route.
+ *
+ * - `in-threat` — every stop of that type within the allowed detour sits
+ *   inside an active threat zone, so none of them was routable (#295).
+ * - `none-nearby` — no stop of that type was found within the allowed detour.
+ * - `routing-failed` — a stop was found, but no route could be built through
+ *   it, so the route without resource stops is the one shown (#295).
+ */
+export type DroppedStopReason = "in-threat" | "none-nearby" | "routing-failed";
+
+/**
+ * A requested resource stop that the previewed route does not include.
+ *
+ * A dropped stop is a normal outcome, not an error, but it changes the plan
+ * the driver is about to commit to, so the preview says so (#341).
+ */
+export interface DroppedStop {
+  /** The kind of stop that was asked for. */
+  type: ResourceType;
+  reason: DroppedStopReason;
+  /** The stop this is about, when one is known; `null` when none was found. */
+  name: string | null;
+  /** Estimated there-and-back detour to that stop, in metres, when known. */
+  detourMeters: number | null;
+}

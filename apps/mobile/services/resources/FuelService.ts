@@ -16,6 +16,7 @@ import {
   upsertResourcePoints,
 } from "@/db/queries/resources";
 import { elementPosition, overpassQuery } from "@/services/osm/overpass";
+import { expandBBox, pointInBBox } from "@/utils/geo";
 
 import type { OverpassElement } from "@/services/osm/overpass";
 import type { BBox, ResourcePoint } from "@bugrout/shared";
@@ -23,14 +24,27 @@ import type { BBox, ResourcePoint } from "@bugrout/shared";
 const CACHE_TTL_MS = 86_400_000; // 24 hours: stations rarely change
 
 /**
+ * How far outside the queried bounds a station may still sit. `out center`
+ * gives a way's centre, which for a station whose footprint straddles the
+ * edge can fall just outside; a wrong placement is out by orders of magnitude
+ * more than this.
+ */
+const BOUNDS_TOLERANCE_METERS = 1000;
+
+/**
  * Fetch a region's fuel stations and replace its cached OSM ones (NREL's are
  * left alone).
  *
+ * Stations whose coordinates are unusable, or placed outside the region that
+ * was queried, are dropped before the cached ones are replaced, so a bad
+ * coordinate never reaches the map or the router (#342).
+ *
  * @param bbox - The region's bounds.
  * @param regionId - The region they are stored under.
- * @returns The stations, possibly none.
- * @throws When Overpass can't answer: the caller must say so, never show an
- *   empty layer as "no fuel nearby".
+ * @returns The stations, possibly none when the region genuinely has none.
+ * @throws When Overpass can't answer, or answered with stations of which none
+ *   are usable: the caller must say so, never show an empty layer as "no fuel
+ *   nearby", and the stations already cached are kept.
  */
 export async function fetchOsmFuelStations(
   bbox: BBox,
@@ -42,10 +56,25 @@ export async function fetchOsmFuelStations(
     120_000,
   );
   const fetchedAt = Date.now();
+  const bounds = expandBBox(bbox, BOUNDS_TOLERANCE_METERS);
   const stations = elements.flatMap((el) => {
     const station = toStation(el, fetchedAt, regionId);
-    return station ? [station] : [];
+    if (!station) return [];
+    // Overpass was asked for this bbox, so a station outside it is not the
+    // answer to the question asked: a transposed, zeroed or otherwise wrong
+    // coordinate, which #295 showed becoming a mandatory routing waypoint.
+    return pointInBBox({ lat: station.lat, lng: station.lng }, bounds)
+      ? [station]
+      : [];
   });
+  // Stations came back but none can be used: that is a bad answer, not an
+  // empty region, and the packaged stations already cached are better than
+  // nothing. Fail before deleting them, as a failed fetch does.
+  if (elements.length > 0 && stations.length === 0) {
+    throw new Error(
+      `Overpass: no usable fuel station among ${String(elements.length)} returned`,
+    );
+  }
   await deleteResourcesByType(regionId, "fuel", "osm");
   if (stations.length > 0) await upsertResourcePoints(stations);
   return stations;

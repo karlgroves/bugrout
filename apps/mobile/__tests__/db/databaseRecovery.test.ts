@@ -15,6 +15,7 @@ const mockDeleteAsync = jest.fn(
   (_path: string, _options?: { idempotent?: boolean }) => Promise.resolve(),
 );
 const mockOpenDatabaseAsync = jest.fn();
+const mockOpenInMemoryDatabaseAsync = jest.fn();
 
 jest.mock("@/platform/fileSystem", () => ({
   documentDirectory: "file:///docs/",
@@ -24,6 +25,7 @@ jest.mock("@/platform/fileSystem", () => ({
 jest.mock("@/platform/sqlite", () => ({
   openDatabaseAsync: (...args: unknown[]) =>
     mockOpenDatabaseAsync(...args) as unknown,
+  openInMemoryDatabaseAsync: () => mockOpenInMemoryDatabaseAsync() as unknown,
   isUsingMockDatabase: () => false,
 }));
 
@@ -86,5 +88,36 @@ describe("getDatabase recovery", () => {
       `${DOCS}SQLite/bugrout.db-wal`,
       `${DOCS}SQLite/bugrout.db-shm`,
     ]);
+  });
+
+  // #299: the shim no longer swallows open failures, so they reach here.
+  it("deletes a corrupt file that fails to open, then reopens it", async () => {
+    const database = { execAsync: jest.fn(() => Promise.resolve()) };
+    mockOpenDatabaseAsync
+      .mockRejectedValueOnce(new Error("SQLITE_NOTADB: file is not a database"))
+      .mockResolvedValueOnce(database);
+
+    await expect(loadDatabase().getDatabase()).resolves.toBe(database);
+
+    expect(mockDeleteAsync).toHaveBeenCalledWith(`${DOCS}SQLite/bugrout.db`, {
+      idempotent: true,
+    });
+    expect(mockOpenInMemoryDatabaseAsync).not.toHaveBeenCalled();
+  });
+
+  it("falls back to an in-memory database, not a second file, when opening keeps failing", async () => {
+    const memory = { execAsync: jest.fn(() => Promise.resolve()) };
+    mockOpenDatabaseAsync.mockRejectedValue(
+      new Error("SQLITE_CANTOPEN: unable to open database file"),
+    );
+    mockOpenInMemoryDatabaseAsync.mockResolvedValue(memory);
+
+    await expect(loadDatabase().getDatabase()).resolves.toBe(memory);
+
+    const opened = mockOpenDatabaseAsync.mock.calls.map(
+      ([name]) => name as string,
+    );
+    expect(opened).toEqual(["bugrout.db", "bugrout.db"]);
+    expect(mockDeleteAsync).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,10 @@ import {
 import { SECURITY_HEADERS } from "@bugrout/worker-utils";
 import Redis from "ioredis";
 
+import { isRateLimited, resolveClientIp, sweepRateLimits } from "./rateLimit";
+
+export { resetRateLimits, sweepRateLimits } from "./rateLimit";
+
 const EDGE_TTL = 7200; // 2 hours
 const PORT = parseInt(process.env.PORT ?? "8080", 10);
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -37,10 +41,13 @@ const MAX_EDGE_IDS = 1000;
 const REGION_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/;
 const EDGE_ID_PATTERN = /^[a-zA-Z0-9_:-]{1,128}$/;
 
-// Simple in-memory rate limiter: max 120 requests per minute per IP
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 120;
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+/**
+ * Most edges one density response may carry. Edge ids are caller-chosen and
+ * never checked against a road network, so the keyspace a region can hold is
+ * bounded only by the TTL. Without a cap, one GET builds that whole keyspace
+ * into a single object inside a 256 MB machine.
+ */
+const MAX_DENSITY_EDGES = 10_000;
 
 let redisClient: Redis | null = null;
 
@@ -79,8 +86,34 @@ const JSON_CONTENT_TYPE = { "Content-Type": "application/json" };
 
 /**
  * Top-level HTTP request handler: rate-limiting, CORS, auth, then route dispatch.
+ *
+ * Never rejects. A failure anywhere below — a Redis command that rejects
+ * because Redis is down, or a bug — becomes a 500 for this request. The
+ * server used to discard this promise with `void`, so any rejection was an
+ * unhandled rejection, which Node 22 treats as fatal: one Redis blip killed
+ * the process and every other in-flight request with it.
+ *
+ * @param req - The incoming request.
+ * @param res - The response to write.
  */
 async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  try {
+    await processRequest(req, res);
+  } catch (err: unknown) {
+    console.error("[route-tracker] request failed:", err);
+    if (!res.headersSent) res.writeHead(500, JSON_CONTENT_TYPE);
+    if (!res.writableEnded)
+      res.end(JSON.stringify({ error: "Internal error" }));
+  }
+}
+
+/**
+ * Rate-limit, CORS, auth, then route dispatch. May reject; see {@link handleRequest}.
+ */
+async function processRequest(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
@@ -104,12 +137,32 @@ async function handleRequest(
     return;
   }
 
-  // Authenticate all non-health endpoints
-  if (req.url !== "/health" && !authenticate(req, res)) {
+  // Authenticate all non-health endpoints. The exemption is an exact match on
+  // the path, so `/health/`, `//health` and `/healthz` are all authenticated.
+  const path = requestPath(req);
+  if (path !== "/health" && !authenticate(req, res)) {
     return;
   }
 
-  await routeRequest(req, res);
+  await routeRequest(req, path, res);
+}
+
+/**
+ * The request target without its query string.
+ *
+ * `req.url` is the verbatim request target, query included, so comparing it
+ * with `===` sent `POST /v1/assignment?x=1` to the 404 — its assignments were
+ * silently never recorded — and `GET /health?probe=1` through authentication.
+ * Only the query is removed; the path is not normalised, so the auth exemption
+ * above still matches exactly one spelling.
+ *
+ * @param req - The incoming request.
+ * @returns The path part of the request target.
+ */
+function requestPath(req: IncomingMessage): string {
+  const url = req.url ?? "/";
+  const query = url.indexOf("?");
+  return query === -1 ? url : url.slice(0, query);
 }
 
 /**
@@ -117,25 +170,24 @@ async function handleRequest(
  */
 async function routeRequest(
   req: IncomingMessage,
+  path: string,
   res: ServerResponse,
 ): Promise<void> {
   // POST /v1/assignment — report route edge usage
-  if (req.method === "POST" && req.url === "/v1/assignment") {
+  if (req.method === "POST" && path === "/v1/assignment") {
     await handleAssignment(req, res);
     return;
   }
 
   // GET /v1/density/:regionId — get edge assignment counts
-  const densityMatch = req.url?.match(
-    /^\/v1\/density\/([a-z][a-z0-9-]{0,63})$/,
-  );
+  const densityMatch = /^\/v1\/density\/([a-z][a-z0-9-]{0,63})$/.exec(path);
   if (req.method === "GET" && densityMatch) {
     await handleDensity(densityMatch[1] ?? "", res);
     return;
   }
 
   // Health check
-  if (req.url === "/health") {
+  if (path === "/health") {
     res.writeHead(200);
     res.end("ok");
     return;
@@ -143,17 +195,6 @@ async function routeRequest(
 
   res.writeHead(404);
   res.end("Not Found");
-}
-
-/**
- * Resolve the client IP, preferring the first X-Forwarded-For entry.
- */
-function resolveClientIp(req: IncomingMessage): string {
-  return (
-    req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ??
-    req.socket.remoteAddress ??
-    "unknown"
-  );
 }
 
 /**
@@ -297,47 +338,93 @@ async function handleAssignment(
     pipeline.incr(key);
     pipeline.expire(key, EDGE_TTL);
   }
-  await pipeline.exec();
+  try {
+    await pipeline.exec();
+  } catch (err: unknown) {
+    redisUnavailable(res, err);
+    return;
+  }
 
   res.writeHead(204);
   res.end();
 }
 
 /**
+ * Answer 503 for a Redis command that rejected.
+ *
+ * @param res - The response to write.
+ * @param err - The rejection, logged server-side only.
+ */
+function redisUnavailable(res: ServerResponse, err: unknown): void {
+  console.error("[route-tracker] redis command failed:", err);
+  res.writeHead(503, JSON_CONTENT_TYPE);
+  res.end(JSON.stringify({ error: "Service unavailable" }));
+}
+
+/**
  * Handle GET /v1/density/:regionId: return per-edge assignment counts.
+ *
+ * Returns at most {@link MAX_DENSITY_EDGES} edges, with `truncated: true` when
+ * the region may hold more.
  */
 async function handleDensity(
   regionId: string,
   res: ServerResponse,
 ): Promise<void> {
-  const pattern = `density:${regionId}:*`;
+  let result: { edges: Record<string, number>; truncated: boolean };
+  try {
+    result = await readDensity(regionId);
+  } catch (err: unknown) {
+    redisUnavailable(res, err);
+    return;
+  }
 
-  // Use SCAN instead of KEYS to avoid blocking Redis
-  const edges: Record<string, number> = {};
+  res.writeHead(200, JSON_CONTENT_TYPE);
+  res.end(JSON.stringify(result));
+}
+
+/**
+ * Collect up to {@link MAX_DENSITY_EDGES} edge counts for a region.
+ *
+ * @param regionId - A validated region id.
+ * @returns The counts, and whether the region may hold more than were returned.
+ */
+async function readDensity(
+  regionId: string,
+): Promise<{ edges: Record<string, number>; truncated: boolean }> {
+  const prefix = `density:${regionId}:`;
+
+  // A Map, turned into an object only at the end: Object.fromEntries defines
+  // own properties, so an edge id of `__proto__` lands as a key instead of
+  // hitting the inherited setter and vanishing.
+  const edges = new Map<string, number>();
+  let count = 0;
+  let truncated = false;
   let cursor = "0";
+  // Use SCAN instead of KEYS to avoid blocking Redis
   do {
-    const [nextCursor, keys] = await redisConn().scan(
+    const [nextCursor, scanned] = await redisConn().scan(
       cursor,
       "MATCH",
-      pattern,
+      `${prefix}*`,
       "COUNT",
       200,
     );
     cursor = nextCursor;
 
+    const keys = scanned.slice(0, MAX_DENSITY_EDGES - count);
+    if (keys.length < scanned.length) truncated = true;
     if (keys.length > 0) {
       const values = await redisConn().mget(keys);
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        if (key === undefined) continue;
-        const edgeId = key.replace(`density:${regionId}:`, "");
-        edges[edgeId] = parseInt(values[i] ?? "0", 10);
-      }
+      keys.forEach((key, i) => {
+        edges.set(key.slice(prefix.length), parseInt(values[i] ?? "0", 10));
+      });
+      count += keys.length;
     }
-  } while (cursor !== "0");
+    if (count >= MAX_DENSITY_EDGES && cursor !== "0") truncated = true;
+  } while (cursor !== "0" && !truncated);
 
-  res.writeHead(200, JSON_CONTENT_TYPE);
-  res.end(JSON.stringify({ edges }));
+  return { edges: Object.fromEntries(edges), truncated };
 }
 
 /**
@@ -383,44 +470,6 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Track and enforce the per-IP request rate limit; returns true when exceeded.
- */
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now >= entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
-  }
-
-  entry.count++;
-  return entry.count > RATE_LIMIT_MAX;
-}
-
-/**
- * Drop rate-limit entries whose window has closed.
- *
- * Exported so a test can reset the limiter between cases without waiting out
- * the real five-minute sweep.
- */
-export function sweepRateLimits(): void {
-  const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now >= entry.resetAt) {
-      rateLimitMap.delete(ip);
-    }
-  }
-}
-
-/**
- * Forget every rate-limit entry. Test-only.
- */
-export function resetRateLimits(): void {
-  rateLimitMap.clear();
-}
-
-/**
  * Start the HTTP server and the rate-limit sweeper.
  *
  * Separated from module load so importing this file has no side effects: no
@@ -431,7 +480,11 @@ export function resetRateLimits(): void {
  */
 export function start(): ReturnType<typeof createServer> {
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-    void handleRequest(req, res);
+    // handleRequest never rejects; the catch is a last line of defence so a
+    // rejection can never become a fatal unhandled rejection.
+    handleRequest(req, res).catch((err: unknown) => {
+      console.error("[route-tracker] unhandled request failure:", err);
+    });
   });
 
   setInterval(sweepRateLimits, 300_000).unref();

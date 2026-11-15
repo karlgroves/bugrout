@@ -84,6 +84,7 @@ describe("Valhalla maneuver positions", () => {
   });
 
   it("positions no maneuver at (0, 0)", () => {
+    expect(route.legs.flatMap((l) => l.maneuvers)).toHaveLength(12);
     for (const m of route.legs.flatMap((l) => l.maneuvers)) {
       expect(m.position).not.toEqual({ lat: 0, lng: 0 });
     }
@@ -149,6 +150,7 @@ describe("Valhalla maneuver positions", () => {
     // driving the drawn line passes through every maneuver point — which is
     // what lets NavigationController's 30 m threshold fire.
     const vertices = new Set(route.coordinates.map((c) => `${c.lat},${c.lng}`));
+    expect(route.legs.flatMap((l) => l.maneuvers)).toHaveLength(12);
     for (const m of route.legs.flatMap((l) => l.maneuvers)) {
       expect(vertices.has(`${m.position.lat},${m.position.lng}`)).toBe(true);
     }

@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   extract-fuel:
-    name: Fuel extraction (osmium)
+    name: OSM extraction (osmium)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -39,3 +39,6 @@ jobs:
 
       - name: Test extract-fuel.sh
         run: bash data-pipeline/osm/test-extract-fuel.sh
+
+      - name: Test extract-geocode.sh
+        run: bash data-pipeline/osm/test-extract-geocode.sh

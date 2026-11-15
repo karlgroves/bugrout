@@ -91,6 +91,7 @@ describe("parseFloodFeatures", () => {
 
   it("sets source to fema and expiresAt to null", () => {
     const result = parseFloodFeatures(features, "ca");
+    expect(result.length).toBeGreaterThan(0);
     for (const t of result) {
       expect(t.source).toBe("fema");
       expect(t.expiresAt).toBeNull();

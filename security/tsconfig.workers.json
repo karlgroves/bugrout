@@ -1,0 +1,21 @@
+{
+  // The Workers source the security tests import, checked with Workers types
+  // and nothing else. tsconfig.json references this project, so the tests see
+  // only the declarations it emits to .tsbuild/ (gitignored) and
+  // @cloudflare/workers-types never enters the Node-typed test program (#306).
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "rootDir": "..",
+    "outDir": "./.tsbuild/workers",
+    "tsBuildInfoFile": "./.tsbuild/workers.tsbuildinfo"
+  },
+  "include": ["../backend/workers/*/src/**/*.ts", "../packages/worker-utils/src/**/*.ts"],
+  "exclude": ["../**/*.test.ts"]
+}

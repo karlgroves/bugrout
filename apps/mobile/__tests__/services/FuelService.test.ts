@@ -225,6 +225,7 @@ describe("loadPackagedFuelStations", () => {
 
   it("dates the stations by their OSM data, so the map's 'as of' is honest", async () => {
     await loadPackagedFuelStations(PACKAGE, "md", BUILT_AT);
+    expect(upserted().length).toBeGreaterThan(0);
     expect(upserted().every((s) => s.fetchedAt === DATA_DATE)).toBe(true);
   });
 

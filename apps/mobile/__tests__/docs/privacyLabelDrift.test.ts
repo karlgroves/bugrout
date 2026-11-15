@@ -195,6 +195,32 @@ describe("route endpoints vs. the label", () => {
     );
     expect(PRIVACY_POLICY).toContain("routing service");
   });
+
+  // #206 corrected the labels and the policy but not the product spec or the
+  // onboarding screen, both of which still said location stays on-device.
+  it("does not say location stays on the device in spec.md or onboarding", () => {
+    if (!remoteRouting) return;
+    const onDeviceOnly = /processed on-device only/i;
+    const spec = readFileSync(join(APP_ROOT, "..", "..", "spec.md"), "utf8");
+    expect(spec).not.toMatch(onDeviceOnly);
+    expect(spec).toContain("routing service");
+    const onboarding = readSource("app", "onboarding", "index.tsx");
+    expect(onboarding).not.toMatch(onDeviceOnly);
+    expect(onboarding).toContain("routing service");
+  });
+
+  // The listing copy is the other place the claim was made. #206 moved it to
+  // the removed-claims table rather than deleting it, so the drift to catch is
+  // that row disappearing — reinstating the claim — while routing is remote.
+  it("keeps on-device location a removed claim in the store listing", () => {
+    if (!remoteRouting) return;
+    const listing = readFileSync(
+      join(APP_ROOT, "..", "..", "docs", "store-listing.md"),
+      "utf8",
+    );
+    expect(listing).toContain("## Claims removed until the work lands");
+    expect(listing).toContain('"Location processed on-device only"');
+  });
 });
 
 describe("destination search vs. the label", () => {

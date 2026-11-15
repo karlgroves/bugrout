@@ -13,6 +13,7 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import DestinationScreen from "@/app/destination/index";
+import { addRecentDestination } from "@/db/queries/preferences";
 import { RouteUnavailableError } from "@/services/routing/RouteUnavailable";
 
 import type { RouteUnavailableReason } from "@/services/routing/RouteUnavailable";
@@ -140,6 +141,29 @@ describe("destination picker — no route", () => {
 
     await screen.findByTestId("route-unavailable");
     expect(screen.queryByTestId("route-unavailable-downloads")).toBeNull();
+  });
+
+  it("still routes when saving the recent destination fails", async () => {
+    // A rejected bookkeeping write used to escape routeTo with the
+    // "Calculating route…" overlay still up, forever (#307).
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    jest
+      .mocked(addRecentDestination)
+      .mockRejectedValueOnce(new Error("database or disk is full"));
+    mockCalculateRoute.mockResolvedValue({ id: "real" });
+
+    await routeToLouisville();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/route-preview");
+    });
+    expect(error).toHaveBeenCalledWith(
+      "Failed to save recent destination",
+      expect.any(Error),
+    );
+    error.mockRestore();
   });
 
   it("opens the preview when the route is real", async () => {

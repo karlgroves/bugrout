@@ -31,6 +31,23 @@ got="$("$RESOLVE" slug md)"
 got="$("$RESOLVE" slug ca)"
 [[ "$got" == "california" ]] || fail "slug ca: expected 'california', got '$got'"
 
+# Multi-word slugs are hyphenated in Geofabrik's URLs, never spaced or joined.
+got="$("$RESOLVE" slug dc)"
+[[ "$got" == "district-of-columbia" ]] ||
+  fail "slug dc: expected 'district-of-columbia', got '$got'"
+
+got="$("$RESOLVE" slug wv)"
+[[ "$got" == "west-virginia" ]] || fail "slug wv: expected 'west-virginia', got '$got'"
+
+# --- The launch set (ADR 0009 Decision 1, L2) is defined -------------------
+#
+# Maryland and its land neighbours. Each must be defined before the pipeline
+# can build it; this is what #147's first credentialed publish runs over.
+
+for id in md dc de pa va wv; do
+  "$RESOLVE" slug "$id" > /dev/null || fail "launch region '$id' is not defined"
+done
+
 # --- A slug is rejected, and the message names the id to use ---------------
 
 if out="$("$RESOLVE" slug maryland 2>&1)"; then

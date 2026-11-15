@@ -6,9 +6,10 @@ set -euo pipefail
 # End-to-end pipeline:
 # 1. Download OSM PBF extract from Geofabrik
 # 2. Build Valhalla routing tiles
-# 3. Bake ELF weights into tiles
+# 3. Write the ELF weight table (not applied to tiles yet -- #195)
 # 4. Build PMTiles for map rendering
-# 5. Extract fuel stations from OSM; pre-fetch water sources
+# 5. Extract fuel stations and the destination search index from OSM;
+#    pre-fetch water sources
 # 6. Extract FEMA flood zone data
 # 7. Assemble regional package
 # 8. Upload to Cloudflare R2
@@ -62,8 +63,8 @@ echo "=== Step 2/7: Build Valhalla routing tiles ==="
 "$SCRIPT_DIR/osm/build-routing-tiles.sh" "$REGION_ID"
 echo ""
 
-# --- Step 3: Bake ELF weights ---
-echo "=== Step 3/7: Bake ELF weights ==="
+# --- Step 3: Write the ELF weight table ---
+echo "=== Step 3/7: Write ELF weight table (not applied, #195) ==="
 "$SCRIPT_DIR/elf/bake-elf-weights.sh" "$REGION_ID"
 echo ""
 
@@ -81,6 +82,10 @@ echo "=== Step 5/7: Pre-fetch resource data ==="
 # fuels at runtime when a key is configured.
 FUEL_FILE="$PACKAGE_DIR/${REGION_ID}.fuel.json"
 "$SCRIPT_DIR/osm/extract-fuel.sh" "$REGION_ID" "$FUEL_FILE"
+# Addresses and places for on-device destination search (#208), so search
+# works offline and stops depending on the public Nominatim server.
+GEOCODE_FILE="$PACKAGE_DIR/${REGION_ID}.geocode.sqlite"
+"$SCRIPT_DIR/osm/extract-geocode.sh" "$REGION_ID" "$GEOCODE_FILE"
 # The region id is the postal code, so USGS's stateCd is just its uppercase.
 # This used to re-read region-definitions.json and swallow every error with
 # `2>/dev/null || echo ""`, which turned an unknown region into a silently
@@ -152,6 +157,27 @@ VALHALLA_SIZE=$(stat -f%z "$PACKAGE_DIR/${REGION_ID}.valhalla.tar.gz" 2>/dev/nul
 FUEL_SIZE=$(stat -f%z "$FUEL_FILE" 2>/dev/null || stat --format=%s "$FUEL_FILE" 2>/dev/null || echo "0")
 # The app checks the fuel file against this before loading it.
 FUEL_SHA256=$(python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$FUEL_FILE")
+GEOCODE_SIZE=$(stat -f%z "$GEOCODE_FILE" 2>/dev/null || stat --format=%s "$GEOCODE_FILE" 2>/dev/null || echo "0")
+GEOCODE_SHA256=$(python3 -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$GEOCODE_FILE")
+# The app checks the map and routing archives against these before either
+# replaces a copy on the device (#292). MD5 because expo-file-system can hash
+# a multi-hundred-MB file natively only with MD5. Read in chunks; empty when
+# the package has no such file (no routing archive yet), and the manifest
+# then publishes none.
+md5_of() {
+  if [[ -f "$1" ]]; then
+    python3 -c "
+import hashlib, sys
+h = hashlib.md5()
+with open(sys.argv[1], 'rb') as f:
+    for chunk in iter(lambda: f.read(1 << 20), b''):
+        h.update(chunk)
+print(h.hexdigest())
+" "$1"
+  fi
+}
+PMTILES_MD5=$(md5_of "$PACKAGE_DIR/${REGION_ID}.pmtiles")
+VALHALLA_MD5=$(md5_of "$PACKAGE_DIR/${REGION_ID}.valhalla.tar.gz")
 
 cat > "$PACKAGE_DIR/manifest.json" << EOF
 {
@@ -165,15 +191,22 @@ cat > "$PACKAGE_DIR/manifest.json" << EOF
     "elfWeights": "elf-weights.json",
     "flood": "${REGION_ID}.flood.geojson",
     "fuel": "${REGION_ID}.fuel.json",
+    "geocode": "${REGION_ID}.geocode.sqlite",
     "water": "${REGION_ID}.water.rdb"
   },
   "sizes": {
     "pmtiles": $PMTILES_SIZE,
     "valhalla": $VALHALLA_SIZE,
-    "fuel": $FUEL_SIZE
+    "fuel": $FUEL_SIZE,
+    "geocode": $GEOCODE_SIZE
   },
   "sha256": {
-    "fuel": "$FUEL_SHA256"
+    "fuel": "$FUEL_SHA256",
+    "geocode": "$GEOCODE_SHA256"
+  },
+  "md5": {
+    "pmtiles": "$PMTILES_MD5",
+    "valhalla": "$VALHALLA_MD5"
   }
 }
 EOF
@@ -206,6 +239,11 @@ if [[ "$UPLOAD" == "--upload" ]]; then
   wrangler r2 object put "$BUCKET/${REGION_ID}/${REGION_ID}.flood.geojson" \
     --file "$PACKAGE_DIR/${REGION_ID}.flood.geojson" \
     --content-type "application/geo+json"
+
+  echo "  Uploading search index..."
+  wrangler r2 object put "$BUCKET/${REGION_ID}/${REGION_ID}.geocode.sqlite" \
+    --file "$GEOCODE_FILE" \
+    --content-type "application/vnd.sqlite3"
 
   echo "  Uploading resource data..."
   for f in "${REGION_ID}.fuel.json" "${REGION_ID}.water.rdb" "elf-weights.json"; do

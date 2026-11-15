@@ -11,17 +11,18 @@ import { join } from "node:path";
 
 import { MAX_EXCLUDE_POLYGONS_PERIMETER_M } from "@/services/routing/AvoidanceBudget";
 
-const DOCKERFILE = join(
+// The graph build writes the limit into the artifact's valhalla.json (#266).
+const BUILD_GRAPH = join(
   __dirname,
-  "../../../../backend/services/valhalla/Dockerfile",
+  "../../../../backend/services/valhalla/build-graph.sh",
 );
 
 describe("exclude-polygon limit", () => {
-  it("matches the limit the Valhalla image is built with", () => {
+  it("matches the limit the Valhalla graph is built with", () => {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- a fixed path inside the repo, built from __dirname
-    const dockerfile = readFileSync(DOCKERFILE, "utf8");
+    const script = readFileSync(BUILD_GRAPH, "utf8");
     const match = /--service-limits-max-exclude-polygons-length\s+(\d+)/.exec(
-      dockerfile,
+      script,
     );
 
     expect(match).not.toBeNull();

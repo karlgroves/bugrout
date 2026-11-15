@@ -5,3 +5,17 @@ compatibility_date = "2025-04-01"
 [[r2_buckets]]
 binding = "TILES_BUCKET"
 bucket_name = "bugrout-tiles"
+
+# Per-IP request limit (#293). Tile packages are public by design, so this,
+# not a key, is what bounds abuse. namespace_id is an arbitrary integer chosen
+# here, unique per account; it needs no provisioning and holds no secret.
+# period must be 10 or 60 seconds. The limit is generous because a phone
+# downloads at most six files per region, and many evacuees can share one
+# carrier-NAT or shelter Wi-Fi address.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "2930"
+
+  [ratelimits.simple]
+  limit = 120
+  period = 60

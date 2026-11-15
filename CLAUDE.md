@@ -7,8 +7,9 @@ code in this repository.
 
 BugRout is a survival-focused mobile navigation app for emergency evacuation
 scenarios. It optimizes for mission completion (safe arrival at destination)
-rather than speed, using predictive congestion modeling and full offline
-capability. See `spec.md` for the full product specification.
+rather than speed, using predictive congestion modeling (designed for; not yet
+applied to routes, #195) and full offline capability. See `spec.md` for the full
+product specification.
 
 ## Monorepo Structure
 
@@ -22,6 +23,11 @@ pnpm workspaces + Turborepo. Four workspace roots:
 - **`backend/workers/`** — Cloudflare Workers (tile-server, alert-aggregator,
   crowd-signal)
 - **`backend/services/`** — Fly.io services (route-tracker with Redis)
+- **`security/`** — security regression tests and scanner wrappers; a workspace
+  only so `turbo run lint` reaches it (#306). Root `scripts/` and root `*.mjs`
+  are linted by `pnpm run lint:root`. `pnpm run typecheck:root` type-checks
+  `security/` and `scripts/` with `tsc -b` over project references: the tests
+  with Node types, the Workers source they import with Workers types
 - **`data-pipeline/`** — Shell scripts for OSM → Valhalla tiles and PMTiles
   builds
 
@@ -47,8 +53,9 @@ pnpm run lint:actions
 
 # Test the data pipeline's scripts against small fixtures (needs osmium-tool:
 # brew install osmium-tool). CI runs it on PRs touching data-pipeline/
-# Two suites: the fuel extractor, and the region id -> Geofabrik slug lookup
-# that keeps pipeline ids and app ids the same set of things (#241).
+# Suites: the fuel extractor, the destination search index extractor (#208),
+# the region id -> Geofabrik slug lookup that keeps pipeline ids and app ids
+# the same set of things (#241), and the region neighbours.
 pnpm run test:pipeline
 
 # Lint all workspaces / autofix
@@ -61,7 +68,7 @@ pnpm turbo typecheck
 # Typecheck mobile app only
 cd apps/mobile && npx tsc --noEmit
 
-# Run all tests (102 tests, 14 suites)
+# Run all tests (every workspace with a test task: mobile and worker-utils)
 pnpm turbo test
 
 # Start Expo dev server
@@ -84,7 +91,7 @@ pnpm run doctor
 cd apps/mobile
 npx expo prebuild --platform android --no-install
 pnpm run e2e:build   # gradle assembleDebug + assembleAndroidTest
-pnpm run e2e:smoke   # all five specs, against a Pixel_6_API_33 AVD
+pnpm run e2e:smoke   # all nine specs, against a Pixel_6_API_33 AVD
 
 # Run a specific backend worker locally
 cd backend/workers/tile-server && pnpm dev
@@ -151,11 +158,17 @@ bash scripts/bootstrap.sh
 
 - **Offline-first:** App must be fully functional with zero connectivity after
   tile download. Every service has an offline fallback or cached mode.
-- **Evacuation Load Factor (ELF):** Per-road-segment multiplier (1.0–10.0) baked
-  into Valhalla routing tiles at build time. Defined in `packages/elf-model/`.
-  Higher ELF = more congestion expected = route avoids that segment.
-- **Threat avoidance:** Active fire/flood/weather polygons are converted to
-  Valhalla `exclude_polygons` to route around danger zones. Logic in
+- **Evacuation Load Factor (ELF):** Per-road-segment multiplier (1.0–10.0) meant
+  to be baked into Valhalla routing tiles at build time. Defined in
+  `packages/elf-model/`. Higher ELF = more congestion expected = route would
+  avoid that segment. **Not yet applied (#195):** `bake-elf-weights.sh` writes
+  the weight table but copies the tiles unchanged, and nothing reads the table,
+  so every route today is plain fastest-path.
+- **Threat avoidance:** Active fire and flood polygons are converted to Valhalla
+  `exclude_polygons` to route around danger zones. Weather polygons (tornado,
+  hurricane, ice storm, anything NWS reports that is not fire- or flood-worded)
+  are deliberately **not** excluded — they are only warned about in the route
+  preview (pinned by `ThreatAvoidance.test.ts`). Logic in
   `services/routing/ThreatAvoidance.ts`.
 - **Three-tap navigation:** Launch → "Bug Out" FAB → Select destination →
   Confirm route. The primary UX flow must never exceed 3 taps.
@@ -184,6 +197,8 @@ Screens (`app/` directory — Expo Router file-based routing):
 - `app/scenarios/edit.tsx` — Scenario editor (name, destination, fuel/water stop
   preferences)
 - `app/contacts/index.tsx` — Emergency contacts manager (up to 5 contacts)
+- `app/saved-destinations/index.tsx` — Saved destinations set up ahead of time
+  in Settings (up to 10; name + address or pin), listed first in the picker
 - `app/onboarding/index.tsx` — First-launch disclaimer with privacy policy and
   ToS links
 - `app/legal/privacy.tsx` — Bundled privacy policy (accessible offline)
@@ -205,6 +220,9 @@ Key service modules (`services/` directory):
   detour distance
 - `threats/{NWS,FEMA,USFS}Service.ts` — Threat data fetching and caching
 - `threats/ThreatSync.ts` — TTL-based refresh pipeline for all threat sources
+- `threats/ThreatFreshness.ts` — Saves each source's last successful fetch time
+  (SQLite `preferences`); the route preview warns when cached threat data is
+  older than its refresh interval
 - `resources/{NREL,USGS,Shelter}Service.ts` — Resource data fetching with real
   API integration
 - `resources/ResourceSync.ts` — TTL-based resource refresh pipeline
@@ -222,8 +240,8 @@ Database (`db/` directory):
 
 - `database.ts` — SQLite init with WAL mode via expo-sqlite (mock fallback on
   web)
-- `schema.ts` — 8 tables: regions, destinations, threats, resources, scenarios,
-  contacts, preferences, downloads
+- `schema.ts` — 9 tables: regions, destinations, threats, resources, scenarios,
+  saved destinations, contacts, preferences, downloads
 - `queries/` — Type-safe query functions for each table
 - `migrations.ts` — Idempotent data fixes run after the schema on every start
   (the schema is `CREATE TABLE IF NOT EXISTS`, so it never changes old rows)
@@ -275,15 +293,36 @@ breaks a listed feature, and re-check it before every submission.
 ## Data Sources (all free/open for MVP)
 
 OSM + Valhalla (road network), NWS api.weather.gov (weather alerts), FEMA NFHL
-(flood zones), USFS/NIFC (fire perimeters), OSM `amenity=fuel` (fuel stations:
-packaged with each region by `data-pipeline/osm/extract-fuel.sh`, refreshed
-online through Overpass; NREL adds EV/alternative fuels only when a key is set),
-USGS NWIS (water sources), FEMA ESF6-SS open shelters, synced from the Red Cross
-(shelters; source and terms in `services/resources/ShelterService.ts`).
+(flood zones — **not live**: `FEMAService.loadFloodZones` returns `[]` and
+region packages ship an empty flood GeoJSON), USFS/NIFC (fire perimeters, from
+the WFIGS current-perimeters layer (#356) — the older NIFC layer was withdrawn
+and answered 400), OSM `amenity=fuel` (fuel stations: packaged with each region
+by `data-pipeline/osm/extract-fuel.sh`, refreshed online through Overpass; NREL
+adds EV/alternative fuels only when a key is set), USGS NWIS (water sources),
+FEMA ESF6-SS open shelters, synced from the Red Cross (shelters; source and
+terms in `services/resources/ShelterService.ts`).
 
 ## Reviewing PRs
 
 Whenever I ask to review a PR (pull request), use the `pr-review` skill.
+
+## Issues a PR lands only part of
+
+When a PR satisfies some of an issue's acceptance items but not all, it says
+`Part of #n` (never `Closes`, and never "does not close #n" — GitHub auto-closes
+on the negated keyword too). **When it merges, edit the issue's body**, not just
+its comments: add a short "Landed / Still left" section at the top naming the PR
+and listing what remains, and strike or tick the acceptance items it satisfied.
+The original report can stay below it.
+
+A body that still describes fixed behaviour costs more to re-triage than it
+costs to update once. Sweeps that worked from issue bodies alone have nearly
+re-written code that was already correct, and an issue's comment thread is not
+authoritative either — a triage comment on #189 called landed work untouched
+(#250). Before working an open issue, read its comments **and the code**; an
+open issue is not evidence that nothing landed.
+
+`.github/PULL_REQUEST_TEMPLATE.md` carries the checklist item.
 
 ## CI policy: no scheduled GitHub Actions
 

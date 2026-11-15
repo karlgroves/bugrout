@@ -23,8 +23,10 @@ import { BugroutMap } from "@/components/map/BugroutMap";
 import { ThreatOverlay } from "@/components/map/ThreatOverlay";
 import { DirectionsList } from "@/components/navigation/DirectionsList";
 import { RouteViewToggle } from "@/components/navigation/RouteViewToggle";
+import { DroppedStopNotice } from "@/components/routing/DroppedStopNotice";
 import { FuelRangeField } from "@/components/routing/FuelRangeField";
 import { RouteThreatWarnings } from "@/components/routing/RouteThreatWarnings";
+import { UnavoidedThreatNotice } from "@/components/routing/UnavoidedThreatNotice";
 import { DISCLAIMER_SHORT } from "@/constants/legal";
 import { colors, spacing, typography, touchTarget } from "@/constants/theme";
 import { routeIntersectsThreat } from "@/services/routing/ThreatAvoidance";
@@ -160,8 +162,14 @@ function RoutePreviewScreen(): React.JSX.Element | null {
             </View>
           )}
 
+          {/* Resource stops the driver asked for and did not get (#341) */}
+          <DroppedStopNotice />
+
           {/* Threat warnings */}
           <RouteThreatWarnings threats={threatWarnings} />
+
+          {/* Threat areas the route was not planned around (#337) */}
+          <UnavoidedThreatNotice unavoided={activeRoute.unavoidedThreats} />
 
           {/* Fuel range, for the warning during navigation (#203) */}
           <FuelRangeField

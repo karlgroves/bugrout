@@ -5,7 +5,6 @@
  * Handles TTL-based refresh, connectivity-aware fetching, and SQLite persistence.
  * When offline, serves cached data from SQLite.
  */
-/* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (refreshThreats: per-source TTL/connectivity branching) */
 
 import {
   upsertThreatZones,
@@ -17,16 +16,15 @@ import { useConnectivityStore } from "@/stores/useConnectivityStore";
 import { useThreatStore } from "@/stores/useThreatStore";
 
 import { loadFloodZones } from "./FEMAService";
-import { fetchNWSAlerts, CACHE_TTL_MS as NWS_TTL } from "./NWSService";
-import { fetchFirePerimeters, CACHE_TTL_MS as USFS_TTL } from "./USFSService";
+import { fetchNWSAlerts } from "./NWSService";
+import {
+  loadThreatFetchTimes,
+  recordThreatFetch,
+  SOURCE_TTL,
+} from "./ThreatFreshness";
+import { fetchFirePerimeters } from "./USFSService";
 
 import type { ThreatZone, ThreatSource, BBox } from "@bugrout/shared";
-
-const SOURCE_TTL: Record<ThreatSource, number> = {
-  nws: NWS_TTL,
-  usfs: USFS_TTL,
-  fema: Infinity, // Static data, never expires
-};
 
 /**
  * Refresh all threat data sources.
@@ -43,9 +41,10 @@ export async function refreshThreats(
   // Always clean up expired threats first
   await clearExpiredThreats();
 
-  // Load cached threats from SQLite
+  // Load cached threats from SQLite, and how old each source's are (#340)
   const cached = await getCachedThreats();
   store.setThreats(cached);
+  await loadThreatFetchTimes(cached);
 
   if (!isOnline) return;
 
@@ -68,7 +67,7 @@ export async function refreshThreats(
   if (now - usfsLastFetch > SOURCE_TTL.usfs) {
     sourcesToRefresh.push({
       source: "usfs",
-      fetcher: fetchFirePerimeters,
+      fetcher: () => fetchFirePerimeters(bbox),
     });
   }
 
@@ -81,29 +80,60 @@ export async function refreshThreats(
     });
   }
 
-  // Fetch all sources in parallel
-  const results = await Promise.allSettled(
-    sourcesToRefresh.map(async ({ source, fetcher }) => {
-      const threats = await fetcher();
-      return { source, threats };
-    }),
+  // Fetch all sources in parallel; a rejection stays tied to its source.
+  const results = await Promise.all(
+    sourcesToRefresh.map(({ source, fetcher }) =>
+      fetcher().then(
+        (threats) => ({ source, threats }),
+        () => ({ source, threats: null }),
+      ),
+    ),
   );
 
-  for (const result of results) {
-    if (result.status !== "fulfilled") continue;
-
-    const { source, threats } = result.value;
-
-    if (threats.length > 0) {
-      // Update SQLite cache
-      await clearThreatsBySource(source);
-      await upsertThreatZones(threats);
-    }
-
-    // Update store
-    store.addThreats(threats);
-    store.setLastFetched(source, now);
+  for (const { source, threats } of results) {
+    await applyResult(source, threats, now);
   }
+}
+
+/**
+ * Record one source's refresh; `threats` is null when its fetch failed.
+ *
+ * A failed fetch is not an empty one (#288): it leaves the cached threats in
+ * place, marks the source failed so the map and route preview say so, and
+ * does NOT advance the source's TTL, so the next sync retries it rather than
+ * treating "couldn't reach the feed" as "fetched just now, no threats".
+ */
+async function applyResult(
+  source: ThreatSource,
+  threats: ThreatZone[] | null,
+  now: number,
+): Promise<void> {
+  const store = useThreatStore.getState();
+  if (threats === null) {
+    store.setSourceFailed(source, true);
+    return;
+  }
+
+  // The fresh set replaces the source's old one, in SQLite and in the store
+  // alike: ids are per feature (#291), so a feed reload can re-key a
+  // perimeter, and merging by id alone would show it twice.
+  //
+  // An EMPTY successful fetch is a result, not a non-event (#338): the source
+  // says there is nothing active, so its old threats go. They used to survive
+  // an empty refresh, and USFS perimeters carry `expiresAt: null`, so
+  // clearExpiredThreats never reached them either and a finished fire stayed
+  // on the map until the next non-empty fetch. A fetch that FAILED returned
+  // above and still keeps its cache.
+  await clearThreatsBySource(source);
+  if (threats.length > 0) await upsertThreatZones(threats);
+  store.setThreats([
+    ...useThreatStore.getState().threatZones.filter((t) => t.source !== source),
+    ...threats,
+  ]);
+  store.setLastFetched(source, now);
+  store.setSourceFailed(source, false);
+  // Last: the fetch is applied either way, and this only feeds the notice.
+  await recordThreatFetch(source, now);
 }
 
 /**
@@ -113,4 +143,5 @@ export async function refreshThreats(
 export async function loadCachedThreats(): Promise<void> {
   const cached = await getCachedThreats();
   useThreatStore.getState().setThreats(cached);
+  await loadThreatFetchTimes(cached);
 }

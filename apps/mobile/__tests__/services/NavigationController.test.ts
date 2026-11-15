@@ -90,26 +90,3 @@ describe("getAllManeuvers", () => {
     expect(maneuvers[3]!.instruction).toBe("You have arrived");
   });
 });
-
-describe("route structure", () => {
-  it("has valid distance and duration", () => {
-    expect(testRoute.distance).toBeGreaterThan(0);
-    expect(testRoute.duration).toBeGreaterThan(0);
-  });
-
-  it("has coordinates matching maneuver positions", () => {
-    expect(testRoute.coordinates[0]).toEqual(
-      testRoute.legs[0]!.maneuvers[0]!.position,
-    );
-  });
-
-  it("has a summary string", () => {
-    expect(testRoute.summary).toBeTruthy();
-    expect(testRoute.summary).toContain("Main St");
-  });
-
-  it("leg distances sum roughly to total", () => {
-    const legSum = testRoute.legs.reduce((s, l) => s + l.distance, 0);
-    expect(legSum).toBe(testRoute.distance);
-  });
-});

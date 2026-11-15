@@ -29,9 +29,39 @@ describe("hasDeviated", () => {
     expect(hasDeviated(position, [position])).toBe(false);
   });
 
-  it("handles empty route", () => {
+  it("does not latch a route with no geometry as deviated", () => {
     const position = { lat: 37.0, lng: -122.0 };
-    // With empty route, minDist is Infinity, so deviation is true
-    expect(hasDeviated(position, [])).toBe(true);
+    // No geometry is "unknown", not "off route" (#298)
+    expect(hasDeviated(position, [])).toBe(false);
+  });
+
+  // #298: distance was measured to the nearest vertex, so a driver exactly on
+  // a long segment read as off route half-way along it.
+  describe("on a long straight segment", () => {
+    // ~2 km east-west at 39.30 N
+    const longSegment = [
+      { lat: 39.3, lng: -76.8 },
+      { lat: 39.3, lng: -76.8232 },
+    ];
+
+    it("is on route at the midpoint (~1 km from either vertex)", () => {
+      expect(hasDeviated({ lat: 39.3, lng: -76.8116 }, longSegment)).toBe(
+        false,
+      );
+    });
+
+    it("is on route 300 m off the midpoint", () => {
+      // 0.0027 deg latitude is ~300 m
+      expect(hasDeviated({ lat: 39.3027, lng: -76.8116 }, longSegment)).toBe(
+        false,
+      );
+    });
+
+    it("is off route 700 m off the midpoint", () => {
+      // 0.0063 deg latitude is ~700 m
+      expect(hasDeviated({ lat: 39.3063, lng: -76.8116 }, longSegment)).toBe(
+        true,
+      );
+    });
   });
 });

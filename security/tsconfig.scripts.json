@@ -1,0 +1,23 @@
+{
+  // The JS scanner wrappers in security/scripts/ and the root scripts/ (#306),
+  // checked with Node types via checkJs. `strict` and its siblings from the
+  // base config are off: in plain JS they report every unannotated parameter
+  // as an implicit any, while API misuse (wrong argument types, misspelt
+  // members, missing modules) is still an error.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "verbatimModuleSyntax": false,
+    "allowJs": true,
+    "checkJs": true,
+    "types": ["node"],
+    "noEmit": true,
+    "tsBuildInfoFile": "./.tsbuild/scripts.tsbuildinfo",
+    "strict": false,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["scripts/**/*", "../scripts/**/*.js", "../scripts/**/*.mjs"]
+}

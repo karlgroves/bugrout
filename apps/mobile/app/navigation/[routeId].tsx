@@ -6,7 +6,7 @@
  */
 
 /* eslint-disable max-lines-per-function -- pre-existing oversized navigation screen orchestrating events, reroute, and emergency SMS; tracked in docs/tech-debt.md (decompose navigation screen) */
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { StyleSheet, View, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -40,25 +40,57 @@ import { composeEmergencyMessage, sendEmergencySMS } from "@/utils/sms";
 import type { NavigationEvent } from "@/services/navigation/NavigationController";
 import type { LatLng } from "@bugrout/shared";
 
+/**
+ * Tell the driver turn-by-turn guidance has stopped because location is
+ * unavailable, and where to turn instead.
+ *
+ * @param onDismiss - Called when the alert is dismissed.
+ */
+function alertLocationUnavailable(onDismiss: () => void): void {
+  Alert.alert(
+    "Location unavailable",
+    "BugRout cannot track your location, so navigation has stopped. Turn on location services and start again, and follow official evacuation routes.",
+    [{ text: "OK", onPress: onDismiss }],
+  );
+}
+
 /** Active turn-by-turn navigation view driven by the NavigationController. */
 function NavigationScreen(): React.JSX.Element {
   const router = useRouter();
-  const {
-    activeRoute,
-    hasDeviated,
-    clearRoute,
-    setStatus,
-    routeView,
-    setRouteView,
-  } = useRouteStore();
+  const { routeId } = useLocalSearchParams<{ routeId?: string }>();
+  /*
+   * Selectors, not `useRouteStore()` / `useSettingsStore()`.
+   *
+   * Calling the hook with no selector subscribes to the whole store, so this
+   * screen re-rendered whenever *any* field changed — including
+   * `currentManeuverIndex`, which NavigationController writes on every GPS
+   * tick and which this screen never reads (it keeps its own `maneuverIndex`
+   * in local state). #189 reports the navigation screen as slow to respond,
+   * with taps lagging just after navigation starts, and asks for exactly this:
+   * "profile the navigation screen's render and JS load, and fix whatever
+   * keeps the JS thread busy."
+   *
+   * Field by field, so a write to a field this screen does not display costs
+   * it nothing. The setters are stable references in Zustand, so selecting
+   * them adds no subscription churn of its own.
+   */
+  const activeRoute = useRouteStore((s) => s.activeRoute);
+  const status = useRouteStore((s) => s.status);
+  const hasDeviated = useRouteStore((s) => s.hasDeviated);
+  const clearRoute = useRouteStore((s) => s.clearRoute);
+  const setStatus = useRouteStore((s) => s.setStatus);
+  const routeView = useRouteStore((s) => s.routeView);
+  const setRouteView = useRouteStore((s) => s.setRouteView);
   const battery = useBattery();
-  const { units } = useSettingsStore();
+  const units = useSettingsStore((s) => s.units);
 
   const [position, setPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState(0);
   const [maneuverIndex, setManeuverIndex] = useState(0);
   const [remaining, setRemaining] = useState({ distance: 0, duration: 0 });
   const deviationAlertShown = useRef(false);
+  /** The route id the controller was last given, by start or by a reroute. */
+  const syncedRouteId = useRef<string | null>(null);
   const [addedStopId, setAddedStopId] = useState<string | null>(null);
 
   const fuel = useFuelRange(activeRoute, position);
@@ -103,23 +135,43 @@ function NavigationScreen(): React.JSX.Element {
           ]);
           break;
 
+        case "tracking_lost":
+          alertLocationUnavailable(() => {
+            router.back();
+          });
+          break;
+
         case "voice":
           // Voice prompts are spoken by NavigationController; no view update needed.
           break;
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleStop is declared after this callback and is stable; including it would create a declaration-order cycle, and it is only invoked from a one-shot arrival alert
-    [activeRoute],
+    [activeRoute, router],
   );
 
   // Start navigation when screen mounts
   useEffect(() => {
-    if (!activeRoute) {
+    // Drive only the trip the user started with Go, addressed by its own id.
+    // A link to /navigation/<anything> must not start or restart guidance, and
+    // a previewed route has not been started yet (#294).
+    const started = status === "active" || status === "rerouting";
+    if (!activeRoute || activeRoute.id !== routeId || !started) {
       router.back();
       return;
     }
 
-    void NavController.start(activeRoute, handleNavEvent);
+    syncedRouteId.current = activeRoute.id;
+    let unmounted = false;
+    NavController.start(activeRoute, handleNavEvent).catch(() => {
+      // No GPS: the controller has released keep-awake. Do not show guidance
+      // for a trip that is not being tracked (#300). If the screen is already
+      // gone, going back would pop whatever screen replaced it.
+      if (unmounted) return;
+      alertLocationUnavailable(() => {
+        router.back();
+      });
+    });
 
     // Initialize remaining from full route
     setRemaining({
@@ -128,14 +180,28 @@ function NavigationScreen(): React.JSX.Element {
     });
 
     return () => {
-      void NavController.stop();
+      unmounted = true;
+      // Let go of the trip rather than stop it: another instance of this
+      // screen may still be showing it, and stopping here left that one with
+      // no guidance (#345). The controller ends the trip with its last screen.
+      void NavController.release(handleNavEvent);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation must start exactly once on mount; re-running on activeRoute/handleNavEvent/router changes would restart GPS and voice. Route updates are handled by the separate activeRoute.id effect below.
   }, []);
 
-  // Update controller if route changes (after reroute)
+  // Update controller if route changes (after reroute). This is the only
+  // place a changed route reaches the controller: each updateRoute speaks
+  // "Route updated", so a second call from the code that calculated the route
+  // says it twice (#344).
   useEffect(() => {
+    // An instance that refused to start (a link to some other route id) must
+    // not drive the trip another instance is running.
+    if (syncedRouteId.current === null) return;
+    // Skip the route the mount effect just started: on a remount (Resume) this
+    // would announce "Route updated" and reset guidance to the first maneuver.
+    if (activeRoute?.id === syncedRouteId.current) return;
     if (activeRoute && NavController.isActive()) {
+      syncedRouteId.current = activeRoute.id;
       NavController.updateRoute(activeRoute);
       setManeuverIndex(0);
     }
@@ -159,8 +225,8 @@ function NavigationScreen(): React.JSX.Element {
     setStatus("rerouting");
     try {
       const newRoute = await calculateSmartRoute(position, dest);
+      // The route-id effect above hands the new route to the controller.
       useRouteStore.getState().setRoute(newRoute);
-      NavController.updateRoute(newRoute);
       deviationAlertShown.current = false;
     } catch (err) {
       // The current route stays; say why a new one isn't available (#190).
@@ -191,8 +257,8 @@ function NavigationScreen(): React.JSX.Element {
       const newRoute = await calculateSmartRoute(position, dest, undefined, {
         waypoints: [{ lat: stop.resource.lat, lng: stop.resource.lng }],
       });
+      // The route-id effect above hands the new route to the controller.
       useRouteStore.getState().setRoute(newRoute);
-      NavController.updateRoute(newRoute);
       setAddedStopId(stop.resource.id);
     } catch (err) {
       // The trip continues on the route it is on; say why the stop could not
@@ -281,23 +347,22 @@ function NavigationScreen(): React.JSX.Element {
         />
       ) : null}
 
-      {/* Low battery warning; renders nothing unless the level is known and low */}
-      {!hasDeviated ? <BatteryWarning battery={battery} /> : null}
+      {/* Low battery warning; renders nothing unless the level is known and
+          low. Shown off route too: a low battery matters more there (#298). */}
+      <BatteryWarning battery={battery} />
 
       {/* Fuel range; renders nothing unless a range was given and is running
           short of the next station on the route (#203) */}
-      {!hasDeviated ? (
-        <FuelRangeWarning
-          stop={fuel.stop}
-          rangeRemaining={fuel.rangeRemaining}
-          warn={fuel.warn}
-          stopAdded={fuelStopAdded}
-          units={units}
-          onAddFuelStop={() => {
-            void handleAddFuelStop();
-          }}
-        />
-      ) : null}
+      <FuelRangeWarning
+        stop={fuel.stop}
+        rangeRemaining={fuel.rangeRemaining}
+        warn={fuel.warn}
+        stopAdded={fuelStopAdded}
+        units={units}
+        onAddFuelStop={() => {
+          void handleAddFuelStop();
+        }}
+      />
 
       {/* The essentials stay outside the switch: the advisory badge and
           status above, the ETA and Stop below (#192, #189). */}

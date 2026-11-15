@@ -214,6 +214,18 @@ export function thinVertices(vertices: Vertex[]): Vertex[] {
 }
 
 /**
+ * Thin a closed ring with `thinVertices`, keeping it closed.
+ *
+ * @param ring - Closed ring of `[lng, lat]` pairs.
+ * @returns The thinned closed ring, or `[]` when fewer than three vertices
+ *   survive (no area left to avoid).
+ */
+export function thinRing(ring: number[][]): number[][] {
+  const vertices = thinVertices(openRing(toVertices(ring)));
+  return vertices.length >= 3 ? fromVertices(closeRing(vertices)) : [];
+}
+
+/**
  * Index of the point farthest from `origin`.
  *
  * @param points - Projected points.

@@ -39,7 +39,6 @@ code gets no exemptions. Remove the disable when the item is resolved.
 | `apps/mobile/services/alerts/AlertParser.ts`              | Geometric intersection tests               |
 | `apps/mobile/services/resources/USGSService.ts`           | RDB (tab-delimited) parser                 |
 | `apps/mobile/services/routing/RouteEngine.ts`             | Two-pass smart routing                     |
-| `apps/mobile/services/threats/ThreatSync.ts`              | Per-source TTL/connectivity branching      |
 | `apps/mobile/__tests__/packages/elf-model.test.ts`        | Inlined weight-table scoring               |
 
 ## Other
@@ -102,14 +101,12 @@ code gets no exemptions. Remove the disable when the item is resolved.
 - `security/detect-object-injection`: ~40 **warnings** (rule is warn-level by
   design, per issue #1). Mostly validated dynamic-key access. Review
   case-by-case; consider `Map`s where keys are user-influenced.
-- Detox is not a declared devDependency; `e2e/` lint disables
-  `import-x/no-unresolved`. Decide whether to vendor detox in `apps/mobile`
-  devDependencies or keep it runner-provided.
+- Detox is now a declared devDependency of `apps/mobile`, but the `e2e/` block
+  in `eslint.config.mjs` still turns `import-x/no-unresolved` off with a comment
+  saying detox is runner-provided. Re-enable the rule there and drop the stale
+  comment.
 - `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess` are fully on — no
   ratchet was needed.
-- `osv-scanner.toml` ignores GHSA-w5hq-g745-h8pq (uuid@7 inside `xcode@3.0.1`,
-  Expo prebuild tooling, dev-time only). Drop the ignore when
-  `@expo/config-plugins` updates its `xcode` dependency.
 - pnpm `overrides` pin patched `@xmldom/xmldom`, `fast-uri`, and `ws` over
   Expo's transitive ranges — remove each override once the upstream range
   includes the patched version.

@@ -8,7 +8,7 @@ export /**
  */
 const PRIVACY_POLICY = `
 BugRout Privacy Policy
-Last Updated: October 2026
+Last Updated: November 2026
 
 1. INFORMATION WE COLLECT
 
@@ -19,7 +19,7 @@ Read section 1(c) even if you read nothing else. Some data leaves your device wi
 a) Data Processed On-Device Only
 - Your GPS location while you navigate, for following the route, speaking the next turn, and noticing that you have left it. Your live position leaves your device only in the two cases described in sections 1(b) and 1(c).
 - Downloaded map tiles (stored locally on your device)
-- Saved plans, emergency contacts, and preferences (stored locally in SQLite)
+- Saved plans, saved destinations, emergency contacts, and preferences (stored locally in SQLite)
 - Drawing the map, voice guidance, deviation detection, and checking your route against cached threat areas
 
 b) Data Transmitted to Us
@@ -37,9 +37,9 @@ c) Data Transmitted to Third Parties Without an Opt-In
 
 Some features work by asking someone else's server a question. When they do, that server sees the question and your device's IP address. This happens without a separate opt-in, and it is not something BugRout can do on your behalf privately.
 
-- Destination search. When you type in the destination search box, what you typed is sent to Nominatim, the OpenStreetMap Foundation's geocoding service, to be turned into coordinates. Nominatim receives your search text and your IP address. Searches are sent only after you have accepted the disclaimer on first launch, only while you are online, and only after you pause typing.
-- Saving a plan by address. When you save a plan with an address, that address is sent to Nominatim at the moment you save, to turn it into coordinates. This happens once, while you are setting the plan up — not when you use it. Using a saved plan sends nothing: its coordinates are already on your device, which is what lets a plan work with no connection.
-- Dropping a pin instead. You can set a plan's destination by tapping a point on the map. Nothing is sent when you do, and no address is needed. If you would rather not use Nominatim at all, this is the way to reach any destination.
+- Destination search. When you search in the destination search box, what you typed is sent to Nominatim, the OpenStreetMap Foundation's geocoding service, to be turned into coordinates. Nominatim receives your search text and your IP address. Searches are sent only after you have accepted the disclaimer on first launch, only while you are online, and only when you submit a search — typing alone sends nothing.
+- Saving a plan or a saved destination by address. When you save a plan, or a destination in Settings, with an address, that address is sent to Nominatim at the moment you save, to turn it into coordinates. This happens once, while you are setting it up — not when you use it. Using a saved plan or destination sends nothing: its coordinates are already on your device, which is what lets it work with no connection.
+- Dropping a pin instead. You can set a plan's or a saved destination's location by tapping a point on the map. Nothing is sent when you do, and no address is needed. If you would rather not use Nominatim at all, this is the way to reach any destination.
 - Weather alerts. To find which state you are in, BugRout sends the centre point of your downloaded map region to the National Weather Service. This is the centre of a region you chose to download, not your live GPS position, but it is still an approximate indication of where you are.
 - Water sources and fuel stations. BugRout sends the bounding box of your downloaded map region to the OpenStreetMap Overpass API.
 - Shelters. BugRout sends the bounding box of your downloaded map region to FEMA's open-shelters service.
@@ -64,7 +64,7 @@ Your destination does leave your device, in two ways rather than none. It goes t
 
 3. DATA STORAGE AND SECURITY
 
-- All personal data (plans, contacts, routes) is stored locally on your device
+- All personal data (plans, saved destinations, contacts, routes) is stored locally on your device
 - Crowd Signal data is transmitted over HTTPS and stored in encrypted servers
 - We use Cloudflare Workers for edge processing with no persistent logging
 
@@ -92,7 +92,7 @@ None of these services receives your name, email, phone number, contacts, or any
 - You can disable Crowd Signal at any time in Settings
 - You can disable Crash Reports at any time in Settings
 - You can force-rotate your anonymous device token in Settings
-- You can avoid Nominatim entirely by dropping a pin on the map, or by using a plan or recent destination you have already saved
+- You can avoid Nominatim entirely by dropping a pin on the map, or by using a plan, saved destination or recent destination you have already saved
 - No account exists to delete — we don't have your information
 
 6. CHILDREN'S PRIVACY
@@ -113,7 +113,7 @@ export /**
  */
 const TERMS_OF_SERVICE = `
 BugRout Terms of Service
-Last Updated: April 2026
+Last Updated: November 2026
 
 1. ACCEPTANCE OF TERMS
 
@@ -121,7 +121,7 @@ By downloading, installing, or using BugRout, you agree to these Terms of Servic
 
 2. IMPORTANT SAFETY DISCLAIMER
 
-BugRout provides ADVISORY ROUTING ONLY. Route suggestions are based on statistical models and cached data that may not reflect real-time conditions.
+BugRout provides ADVISORY ROUTING ONLY. Route suggestions are based on map data and cached threat information that may not reflect real-time conditions.
 
 YOU MUST NOT rely solely on this app for life-safety decisions. Always:
 - Follow official evacuation orders from local authorities
@@ -129,24 +129,25 @@ YOU MUST NOT rely solely on this app for life-safety decisions. Always:
 - Monitor official emergency channels (radio, TV, IPAWS alerts)
 - Have backup navigation methods (paper maps, compass)
 
-BugRout's predictive congestion model is statistical. It CANNOT account for:
+BugRout's routes come from map data and cached threat information. They do not predict congestion, and they CANNOT account for:
 - Roads that have just been closed or damaged
-- Real-time traffic conditions (when offline)
+- Real-time traffic conditions, which BugRout does not receive from any source
 - Bridges, tunnels, or roads destroyed by the event
 - Local conditions only visible to on-the-ground observers
 
 3. DESCRIPTION OF SERVICE
 
 BugRout is a mobile navigation application that provides:
-- Offline routing using pre-downloaded map data
+- Routing, which requires a data connection: every route is calculated by BugRout's routing service
+- Offline map display from pre-downloaded map tiles
 - Threat zone overlays (fire, flood, weather) from government data sources
 - Resource location markers (fuel, water, shelter)
-- Predictive congestion routing using statistical models
 
 4. OFFLINE FUNCTIONALITY
 
-BugRout is designed to work without internet connectivity. However:
-- Map tiles must be downloaded before going offline
+Parts of BugRout work without internet connectivity, but routing does not:
+- Routing requires a data connection. Every route is calculated by BugRout's routing service over the network, so no new route can be calculated while offline
+- Map display works offline, but map tiles must be downloaded before going offline
 - Threat data is cached and may become stale
 - Resource locations are cached and may be outdated
 - Crowd Signal features require connectivity
@@ -175,6 +176,17 @@ These terms are governed by the laws of the United States. Any disputes shall be
 
 For questions about these terms: legal@bugrout.app
 `;
+
+export /**
+ * Attribution for geocoder results, shown beside the results themselves.
+ *
+ * Nominatim's usage policy requires the data to be attributed "as suitable for
+ * your medium". The policy and terms in this file name the ODbL, but small
+ * print on a legal screen is not the result list the user is looking at, so
+ * every screen that displays geocoder results renders this line with them
+ * (#208).
+ */
+const GEOCODER_ATTRIBUTION = "Search results © OpenStreetMap contributors";
 
 export /**
  *

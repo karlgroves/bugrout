@@ -2,23 +2,32 @@
  * Route Engine
  *
  * High-level routing service that wraps Valhalla and adds:
- * - Threat avoidance (exclude polygons for fire/flood/weather zones)
- * - ELF-weighted routing (baked into tiles at build time)
+ * - Threat avoidance (exclude polygons for fire and flood zones; weather zones
+ *   are warned about in the preview, not routed around)
+ * - (not yet) ELF congestion weighting: the pipeline writes a weight table
+ *   but applies it to no route, so routes here are plain fastest-path (#195)
  * - Waypoint insertion for resource stops
  * - Deviation detection and automatic rerouting
  */
 /* eslint-disable complexity -- pre-existing; tracked in docs/tech-debt.md (calculateSmartRoute: two-pass threat-avoidance + waypoint routing) */
 
+import { useRouteStore } from "@/stores/useRouteStore";
 import { useThreatStore } from "@/stores/useThreatStore";
-import { haversineDistance } from "@/utils/geo";
+import { haversineDistance, projectOntoPolyline } from "@/utils/geo";
 
 import * as Valhalla from "../valhalla/ValhallaModule";
 
-import { threatsToAvoidancePolygons } from "./ThreatAvoidance";
+import {
+  countUnreadableThreats,
+  threatsToAvoidancePolygons,
+  withUnavoidedThreats,
+} from "./ThreatAvoidance";
 import { getResourceWaypoints } from "./WaypointInsertion";
 
 import type {
+  DroppedStop,
   LatLng,
+  ResourcePoint,
   Route,
   RouteOptions,
   ResourceStopPreference,
@@ -29,6 +38,15 @@ const DEVIATION_THRESHOLD_METERS = 500;
 /**
  * Calculate a route with automatic threat avoidance and resource waypoints.
  * This is the high-level "smart route" that incorporates all BugRout features.
+ *
+ * Any resource stop the caller asked for and did not get is recorded on the
+ * route store for the preview to show (#341). The list is replaced on every
+ * calculation, so a reroute never carries the previous route's drops.
+ *
+ * Threat areas the route was not planned around travel on the route itself,
+ * as `unavoidedThreats` (#337): the ones the routing engine's limit left out
+ * (counted by AvoidanceFit as the request is built, and put on the route by
+ * ValhallaModule) plus any zone whose geometry is unreadable.
  */
 export async function calculateSmartRoute(
   origin: LatLng,
@@ -42,6 +60,9 @@ export async function calculateSmartRoute(
   const avoidPolygons = avoidanceEnabled
     ? threatsToAvoidancePolygons(threatZones)
     : [];
+  // Zones threatsToAvoidancePolygons had to leave out. Nothing is "unavoided"
+  // when the driver turned avoidance off: that was their choice.
+  const unreadable = avoidanceEnabled ? countUnreadableThreats(threatZones) : 0;
 
   // First pass: calculate base route (no waypoints) to get a corridor
   const baseRoute = await Valhalla.calculateRoute(origin, destination, {
@@ -51,40 +72,90 @@ export async function calculateSmartRoute(
 
   // Find resource waypoints along the base route corridor
   let waypoints: LatLng[] = extraOptions?.waypoints ?? [];
+  let resourceWaypoints: LatLng[] = [];
+  let chosenStops: ResourcePoint[] = [];
+  let dropped: DroppedStop[] = [];
 
   if (resourcePreferences?.some((p) => p.enabled)) {
-    const resourceWaypoints = await getResourceWaypoints(
+    const plan = await getResourceWaypoints(
       baseRoute.coordinates,
       resourcePreferences,
+      threatZones,
     );
+    resourceWaypoints = plan.waypoints;
+    chosenStops = plan.chosen;
+    dropped = plan.dropped;
     waypoints = [...waypoints, ...resourceWaypoints];
   }
 
   // If we have waypoints, recalculate with them
   if (waypoints.length > 0) {
-    return Valhalla.calculateRoute(origin, destination, {
-      ...extraOptions,
-      avoidPolygons: [...(extraOptions?.avoidPolygons ?? []), ...avoidPolygons],
-      waypoints,
-    });
+    try {
+      const withStops = await Valhalla.calculateRoute(origin, destination, {
+        ...extraOptions,
+        avoidPolygons: [
+          ...(extraOptions?.avoidPolygons ?? []),
+          ...avoidPolygons,
+        ],
+        waypoints,
+      });
+      reportDroppedStops(dropped);
+      return withUnavoidedThreats(withStops, unreadable);
+    } catch (err) {
+      // An optional resource stop must never cost the user the route they
+      // already have (#295). The base route carries the caller's own
+      // waypoints, so only the resource stops are lost.
+      if (resourceWaypoints.length === 0) {
+        reportDroppedStops(dropped);
+        throw err;
+      }
+      console.warn(
+        "[BugRout] routing with resource stops failed; using the route without them:",
+        err,
+      );
+      reportDroppedStops([
+        ...dropped,
+        ...chosenStops.map((stop): DroppedStop => ({
+          type: stop.type,
+          reason: "routing-failed",
+          name: stop.name,
+          detourMeters: null,
+        })),
+      ]);
+      return withUnavoidedThreats(baseRoute, unreadable);
+    }
   }
 
-  return baseRoute;
+  reportDroppedStops(dropped);
+  return withUnavoidedThreats(baseRoute, unreadable);
+}
+
+/**
+ * Hand the preview the stops this route does not include (#341).
+ *
+ * Always called, with an empty list when nothing was dropped, so the notice
+ * never outlives the route it described.
+ */
+function reportDroppedStops(dropped: DroppedStop[]): void {
+  useRouteStore.getState().setDroppedStops(dropped);
 }
 
 /**
  * Check if the user has deviated from the active route.
- * Returns true if current position is more than 500m from the route polyline.
+ *
+ * Returns true if the current position is more than 500m from the route
+ * polyline — measured to the nearest point on the line, not the nearest
+ * vertex, so a driver mid-way along a long straight segment is on route
+ * (#298). A route with no geometry has nothing to deviate from, so it
+ * returns false rather than latching the driver as off route.
  */
 export function hasDeviated(
   currentPosition: LatLng,
   routeCoordinates: LatLng[],
 ): boolean {
-  const minDistance = getMinDistanceToPolyline(
-    currentPosition,
-    routeCoordinates,
-  );
-  return minDistance > DEVIATION_THRESHOLD_METERS;
+  const projection = projectOntoPolyline(currentPosition, routeCoordinates);
+  if (!projection) return false;
+  return projection.offMeters > DEVIATION_THRESHOLD_METERS;
 }
 
 /**
@@ -138,36 +209,4 @@ export function estimateRemaining(
     distance: remainingDistance,
     duration: remainingDuration,
   };
-}
-
-/**
- * Calculate minimum distance from a point to a polyline in meters.
- */
-function getMinDistanceToPolyline(point: LatLng, polyline: LatLng[]): number {
-  if (polyline.length === 0) return Infinity;
-  const first = polyline[0];
-  if (polyline.length === 1 && first) return haversineDistance(point, first);
-
-  let minDist = Infinity;
-
-  for (let i = 0; i < polyline.length - 1; i++) {
-    const a = polyline[i];
-    const b = polyline[i + 1];
-    if (!a || !b) continue;
-    const dist = pointToSegmentDistance(point, a, b);
-    if (dist < minDist) {
-      minDist = dist;
-    }
-  }
-
-  return minDist;
-}
-
-/**
- * Approximate the distance (meters) from point p to the segment a→b.
- */
-function pointToSegmentDistance(p: LatLng, a: LatLng, b: LatLng): number {
-  const dA = haversineDistance(p, a);
-  const dB = haversineDistance(p, b);
-  return Math.min(dA, dB);
 }

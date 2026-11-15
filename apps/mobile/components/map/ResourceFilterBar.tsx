@@ -9,6 +9,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StyleSheet, View, Pressable, Text } from "react-native";
 
 import { LayerStatusNotice } from "@/components/map/LayerStatusNotice";
+import { ThreatStatusNotice } from "@/components/map/ThreatStatusNotice";
 import { colors, spacing } from "@/constants/theme";
 import { useResourceStore } from "@/stores/useResourceStore";
 
@@ -76,6 +77,7 @@ export function ResourceFilterBar(): React.JSX.Element {
         })}
       </View>
       <LayerStatusNotice />
+      <ThreatStatusNotice context="map" />
     </View>
   );
 }

@@ -75,7 +75,9 @@ jobs:
       - name: Setup EAS
         uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # 8.2.1
         with:
-          eas-version: latest
+          # Pinned: `latest` ran whatever was published most recently with
+          # EXPO_TOKEN. Satisfies eas.json's `cli.version` (>= 15.0.0).
+          eas-version: 27.2.0
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build

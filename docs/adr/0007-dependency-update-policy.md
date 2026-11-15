@@ -1,6 +1,10 @@
 # ADR 0007: Dependency update policy for the Expo/React Native stack
 
-- Status: Accepted
+- Status: Accepted; decisions 1 and 3 superseded — they configure
+  `.github/dependabot.yml`, which was removed under the no-scheduled-Actions
+  policy in `CLAUDE.md` and must not be recreated. Their knowledge lives on in
+  [`docs/dependency-upgrade-policy.md`](../dependency-upgrade-policy.md).
+  Decisions 2, 4 and 5 stand.
 - Date: 2026-07-19
 - Context: Issue #1 (tooling baseline); Dependabot PRs #19, #20, #22, #25
 

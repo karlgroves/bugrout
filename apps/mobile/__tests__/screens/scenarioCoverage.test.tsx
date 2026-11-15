@@ -32,8 +32,9 @@ jest.mock("@/db/queries/scenarios", () => ({
 }));
 
 const mockBack = jest.fn();
+const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ back: mockBack, push: jest.fn() }),
+  useRouter: () => ({ back: mockBack, push: mockPush }),
   useLocalSearchParams: () => ({}),
 }));
 
@@ -91,6 +92,7 @@ describe("saving a scenario", () => {
     mockGetDownloadedRegions.mockReset().mockResolvedValue([MARYLAND]);
     mockUpsertScenario.mockClear();
     mockBack.mockClear();
+    mockPush.mockClear();
     mockLookupAddress.mockReset();
     useScenarioStore.setState({ scenarios: [] });
   });
@@ -157,6 +159,7 @@ describe("saving a scenario", () => {
     await pressing;
     expect(mockUpsertScenario).toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("goes back to editing when the user chooses to change it", async () => {
@@ -170,11 +173,27 @@ describe("saving a scenario", () => {
     await pressing;
     expect(mockUpsertScenario).not.toHaveBeenCalled();
     expect(mockBack).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("offers the download, keeping the plan unsaved to finish later", async () => {
+    // #196: the warning is the moment there's still signal to get the maps.
+    const { pressing } = await save(LOUISVILLE);
+    await waitFor(() => {
+      expect(alert).toHaveBeenCalled();
+    });
+    lastAlertButtons(alert)
+      .find((b) => b.text === "Download maps")
+      ?.onPress?.();
+    await pressing;
+    expect(mockPush).toHaveBeenCalledWith("/downloads");
+    expect(mockUpsertScenario).not.toHaveBeenCalled();
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it("still saves when the downloaded regions can't be read", async () => {
     mockGetDownloadedRegions.mockRejectedValue(new Error("database locked"));
-    await expect(confirmCoverage(LOUISVILLE)).resolves.toBe(true);
+    await expect(confirmCoverage(LOUISVILLE)).resolves.toBe("save");
     expect(alert).not.toHaveBeenCalled();
   });
 
@@ -186,6 +205,6 @@ describe("saving a scenario", () => {
     const call = alert.mock.calls.at(-1) as unknown[] | undefined;
     const options = call?.[3] as { onDismiss?: () => void };
     options.onDismiss?.();
-    await expect(pending).resolves.toBe(false);
+    await expect(pending).resolves.toBe("change");
   });
 });

@@ -29,6 +29,9 @@ describe("platform/fileSystem on a native build", () => {
   const makeDirectoryAsync = jest.fn(() =>
     Promise.reject(new Error("permission denied")),
   );
+  const getInfoAsync = jest.fn(() =>
+    Promise.resolve({ exists: true, size: 4, md5: "abcd" }),
+  );
 
   beforeEach(() => {
     jest.resetModules();
@@ -36,6 +39,7 @@ describe("platform/fileSystem on a native build", () => {
       documentDirectory:
         "file:///data/Containers/Data/Application/APP-ID/Documents/",
       makeDirectoryAsync,
+      getInfoAsync,
     }));
   });
 
@@ -47,6 +51,13 @@ describe("platform/fileSystem on a native build", () => {
     expect(loadFileSystem().documentDirectory).toBe(
       "file:///data/Containers/Data/Application/APP-ID/Documents/",
     );
+  });
+
+  it("passes the md5 option through, so large files are hashed natively (#292)", async () => {
+    await expect(
+      loadFileSystem().getInfoAsync("/x.pmtiles.part", { md5: true }),
+    ).resolves.toEqual({ exists: true, size: 4, md5: "abcd" });
+    expect(getInfoAsync).toHaveBeenCalledWith("/x.pmtiles.part", { md5: true });
   });
 
   it("surfaces native errors instead of swallowing them", async () => {

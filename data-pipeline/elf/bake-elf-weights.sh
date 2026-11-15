@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bake ELF (Evacuation Load Factor) weights into Valhalla routing tiles.
+# Package ELF (Evacuation Load Factor) weights alongside Valhalla routing tiles.
 #
-# This modifies edge speeds in the Valhalla tiles so that roads predicted
-# to be congested during evacuations are penalized. The routing engine
-# then naturally avoids these roads without any runtime custom costing.
+# NOT YET APPLIED (#195): this script writes the weight table and then copies
+# the Valhalla tiles UNCHANGED. Nothing modifies edge speeds, and no code reads
+# elf-weights.json at query time, so every route is plain fastest-path. Item 3
+# of the pipeline list below is unimplemented; where ELF is applied (rebuilt
+# tiles or query-time costing) is still an open design decision on #195.
 #
 # Pipeline:
 # 1. Extract road segment features from OSM PBF
 # 2. Compute ELF multipliers using the lookup table
-# 3. Modify Valhalla tile edge speeds: effective_speed = base_speed / elf_multiplier
-# 4. Output ELF-weighted Valhalla tiles
+# 3. (not implemented) Modify Valhalla tile edge speeds:
+#    effective_speed = base_speed / elf_multiplier
+# 4. Output the weight table and an unmodified copy of the tiles
 #
 # Prerequisites:
 # - Node.js 20+
@@ -100,27 +103,32 @@ cat > "${WEIGHT_TABLE}" << 'JSONEOF'
 }
 JSONEOF
 
-# Replace placeholders
-if [[ "$(uname)" == "Darwin" ]]; then
-  sed -i '' "s/REGION_ID/${REGION_ID}/g" "$WEIGHT_TABLE"
-  sed -i '' "s/TIMESTAMP/$(date +%s)000/g" "$WEIGHT_TABLE"
-else
-  sed -i "s/REGION_ID/${REGION_ID}/g" "$WEIGHT_TABLE"
-  sed -i "s/TIMESTAMP/$(date +%s)000/g" "$WEIGHT_TABLE"
-fi
+# Replace placeholders. The values go in as argv and the region id is written
+# as a JSON string, rather than spliced into a `sed s///` replacement where a
+# `/`, `&` or GNU sed's `e` flag in the value would change the command.
+python3 -c '
+import json, sys
+path, region_id, timestamp = sys.argv[1:4]
+with open(path) as f:
+    text = f.read()
+text = text.replace("\"REGION_ID\"", json.dumps(region_id))
+text = text.replace("TIMESTAMP", str(int(timestamp)))
+with open(path, "w") as f:
+    f.write(text)
+' "$WEIGHT_TABLE" "$REGION_ID" "$(date +%s)000"
 
 echo "  Weight table written to: ${WEIGHT_TABLE}"
 
-# Step 2: Modify Valhalla tiles
+# Step 2: Copy Valhalla tiles (unmodified; ELF is not applied, #195)
 echo ""
-echo "Step 2: Baking weights into Valhalla tiles..."
-echo "  (In production, this modifies edge speeds in the tile binary format)"
-echo "  (For MVP, the weight table is bundled alongside tiles and applied at query time)"
+echo "Step 2: Copying Valhalla tiles (ELF weights are NOT applied, #195)..."
+echo "  The tiles are copied unchanged and nothing reads the weight table yet,"
+echo "  so routes built from this output are not congestion-weighted."
 
-# Copy tiles to ELF output directory
+# Copy tiles to ELF output directory, unmodified
 cp -r "${VALHALLA_TILES}" "${ELF_OUTPUT}/valhalla-tiles"
 
-echo "  ELF-weighted tiles: ${ELF_OUTPUT}/valhalla-tiles"
+echo "  Unmodified tiles: ${ELF_OUTPUT}/valhalla-tiles"
 
 # Step 3: Package for app distribution
 echo ""
@@ -146,7 +154,7 @@ echo ""
 echo "Step 4: Validation..."
 
 # Verify weight table is valid JSON
-if python3 -c "import json; json.load(open('${WEIGHT_TABLE}'))" 2>/dev/null; then
+if python3 -c 'import json, sys; json.load(open(sys.argv[1]))' "$WEIGHT_TABLE" 2>/dev/null; then
   echo "  Weight table: valid JSON ✓"
 else
   echo "  Weight table: INVALID JSON ✗"

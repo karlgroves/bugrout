@@ -368,9 +368,13 @@ description and review scrutiny. Factor into approval timeline.
   scenario sync across devices.
 - **Crowd signal telemetry is anonymous by design.** Device ID is rotated every
   24 hours. No persistent identifier is transmitted.
-- **Location data is processed on-device only.** Never transmitted to BugRout
-  servers except as anonymized speed/heading telemetry, and only when the user
-  has opted in.
+- **Location data leaves the device only where routing or an opt-in needs it.**
+  Every route request sends the trip's start point and destination to BugRout's
+  routing service, because route calculation does not yet run on the device
+  (#193); the routing service keeps no database of routes. Beyond that, location
+  is transmitted only as anonymized, coarsened crowd-signal telemetry, and only
+  when the user has opted in. `constants/legal.ts` and `docs/store-listing.md`
+  are the authoritative wording.
 - **No advertising SDK.** No third-party analytics that transmit PII.
 
 ---

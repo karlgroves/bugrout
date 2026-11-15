@@ -1,29 +1,14 @@
 /* eslint-disable max-lines-per-function -- pre-existing oversized settings screen; tracked in docs/tech-debt.md (decompose settings screen) */
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
-import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  Switch,
-} from "react-native";
+import { StyleSheet, Text, ScrollView } from "react-native";
 
 import { withScreenTitle } from "@/components/common/ScreenTitle";
-import {
-  colors,
-  spacing,
-  switchColors,
-  typography,
-  touchTarget,
-} from "@/constants/theme";
+import { NavRow, ToggleRow } from "@/components/settings/SettingsRows";
+import { colors, spacing, typography } from "@/constants/theme";
 import { useRouteStore } from "@/stores/useRouteStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
-/** Settings menu for offline maps, contacts, voice, battery, and legal info. */
+/** Settings menu for offline maps, contacts, saved destinations, voice, battery, and legal info. */
 function SettingsScreen(): React.JSX.Element {
-  const router = useRouter();
   const {
     units,
     voiceEnabled,
@@ -52,18 +37,21 @@ function SettingsScreen(): React.JSX.Element {
         icon="download"
         label="Offline Maps"
         hint="Opens the offline map download manager"
-        onPress={() => {
-          router.push("/downloads");
-        }}
+        href="/downloads"
       />
       <NavRow
         id="emergency-contacts"
         icon="phone"
         label="Emergency Contacts"
         hint="Opens the emergency contacts manager"
-        onPress={() => {
-          router.push("/contacts");
-        }}
+        href="/contacts"
+      />
+      <NavRow
+        id="saved-destinations"
+        icon="map-marker"
+        label="Saved Destinations"
+        hint="Opens the list of places you have set up ahead of time"
+        href="/saved-destinations"
       />
 
       {/* Toggle rows */}
@@ -167,9 +155,7 @@ function SettingsScreen(): React.JSX.Element {
         icon="file-text-o"
         label="Legal & Disclaimers"
         hint="Opens the legal disclaimers, privacy policy, and terms of service"
-        onPress={() => {
-          router.push("/onboarding");
-        }}
+        href="/onboarding"
       />
 
       <Text style={styles.version}>BugRout v1.0.0</Text>
@@ -178,115 +164,6 @@ function SettingsScreen(): React.JSX.Element {
         decisions.
       </Text>
     </ScrollView>
-  );
-}
-
-function NavRow({
-  id,
-  icon,
-  label,
-  hint,
-  onPress,
-}: {
-  /**
-   * Stable identifier for the test id.
-   *
-   * Explicit rather than derived from `label`, because a derived id inherits
-   * every problem the display text has. "Crowd Signal (Anonymous)" produced a
-   * trailing dash from the closing paren, and "Units: Miles" produced an id
-   * that changed when the setting changed — so the Units row had no stable
-   * handle at all.
-   *
-   * A test id built from user-facing copy also breaks whenever that copy is
-   * reworded, which is a change nobody expects to break a test. #105
-   * demonstrated exactly that while this was in review: it relabelled the
-   * Units row to "Distance units", which under derivation would have silently
-   * moved its id from `settings-toggle-units-miles` to
-   * `settings-toggle-distance-units`.
-   */
-  id: string;
-  icon: React.ComponentProps<typeof FontAwesome>["name"];
-  label: string;
-  hint: string;
-  onPress: () => void;
-}): React.JSX.Element {
-  return (
-    <Pressable
-      testID={`settings-row-${id}`}
-      style={styles.row}
-      onPress={onPress}
-      accessibilityLabel={label}
-      accessibilityHint={hint}
-      accessibilityRole="button"
-    >
-      <FontAwesome
-        name={icon}
-        size={20}
-        color={colors.textSecondary}
-        style={styles.rowIcon}
-      />
-      <Text style={styles.rowLabel}>{label}</Text>
-      <FontAwesome name="chevron-right" size={14} color={colors.textMuted} />
-    </Pressable>
-  );
-}
-
-function ToggleRow({
-  id,
-  icon,
-  label,
-  subtitle,
-  hint,
-  value,
-  onToggle,
-  disabled = false,
-}: {
-  /** Stable identifier for the test id. See {@link NavRow}. */
-  id: string;
-  icon: React.ComponentProps<typeof FontAwesome>["name"];
-  label: string;
-  subtitle?: string;
-  /**
-   * What the toggle does, announced after its name.
-   *
-   * Required rather than optional: `subtitle` is decorative text that only
-   * some rows have, and a control that states its name but not its effect
-   * leaves a screen reader user to guess what "Battery Optimization, switch,
-   * on" is going to do to their route.
-   */
-  hint: string;
-  value: boolean;
-  onToggle: (value: boolean) => void;
-  /** Shown but not operable; the subtitle should say why. */
-  disabled?: boolean;
-}): React.JSX.Element {
-  return (
-    <View testID={`settings-toggle-${id}`} style={styles.row}>
-      <FontAwesome
-        name={icon}
-        size={20}
-        color={colors.textSecondary}
-        style={styles.rowIcon}
-      />
-      <View style={styles.rowContent}>
-        <Text style={styles.toggleLabel}>{label}</Text>
-        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        disabled={disabled}
-        accessibilityState={{ disabled }}
-        // The visible label lives in a sibling View and is never associated
-        // with this control, so without an explicit label the switch has no
-        // accessible name at all — four of them announced only as "switch,
-        // on". Matches how NavRow above already labels itself.
-        accessibilityLabel={label}
-        accessibilityHint={hint}
-        trackColor={switchColors.trackColor}
-        thumbColor={switchColors.thumbColor}
-      />
-    </View>
   );
 }
 
@@ -303,36 +180,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    minHeight: touchTarget.minHeight + 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rowIcon: {
-    width: 28,
-    textAlign: "center",
-  },
-  rowLabel: {
-    ...typography.body,
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  rowContent: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  toggleLabel: {
-    ...typography.body,
-  },
-  rowSubtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
   },
   version: {
     ...typography.caption,

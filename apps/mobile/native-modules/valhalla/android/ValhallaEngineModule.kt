@@ -26,6 +26,14 @@ class ValhallaEngineModule(reactContext: ReactApplicationContext) :
 
   override fun getName(): String = "ValhallaEngine"
 
+  // A reload builds a new module with its own executor. Stop this one's thread
+  // instead of leaking it; calls already queued still finish, so ValhallaCore's
+  // mutex stays the backstop for any overlap with the new module.
+  override fun invalidate() {
+    executor.shutdown()
+    super.invalidate()
+  }
+
   @ReactMethod
   fun init(tileDir: String, promise: Promise) {
     executor.execute {

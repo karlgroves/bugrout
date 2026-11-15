@@ -17,10 +17,24 @@ const FILE_SYSTEM_MODULE = "expo-file-system/legacy";
 /** Path used where there is no real file system (web, Expo Go). */
 const MOCK_DOCUMENT_DIRECTORY = "/mock-documents/";
 
+/** Options for {@link getInfoAsync}. */
+interface InfoOptions {
+  /** Also compute the file's MD5, returned as lowercase hex in `md5`. */
+  md5?: boolean;
+}
+
+/** What {@link getInfoAsync} reports about a path. */
+interface FileInfo {
+  exists: boolean;
+  size?: number;
+  /** The file's MD5 as lowercase hex; present only when asked for. */
+  md5?: string;
+}
+
 /** The subset of `expo-file-system/legacy` this wrapper uses. */
 interface ExpoFileSystem {
   documentDirectory: string | null;
-  getInfoAsync(path: string): Promise<{ exists: boolean; size?: number }>;
+  getInfoAsync(path: string, options?: InfoOptions): Promise<FileInfo>;
   makeDirectoryAsync(
     path: string,
     options?: { intermediates?: boolean },
@@ -81,13 +95,15 @@ const documentDirectory: string =
 
 /**
  * Returns information about a file or directory; reports "does not exist"
- * where there is no file system.
+ * where there is no file system. With `{ md5: true }` the native module hashes
+ * the file itself, so a multi-hundred-MB download is never read into JS.
  */
 export async function getInfoAsync(
   path: string,
-): Promise<{ exists: boolean; size?: number }> {
+  options?: InfoOptions,
+): Promise<FileInfo> {
   if (!nativeFileSystem) return { exists: false };
-  return nativeFileSystem.getInfoAsync(path);
+  return nativeFileSystem.getInfoAsync(path, options);
 }
 
 /**

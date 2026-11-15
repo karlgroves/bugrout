@@ -54,6 +54,7 @@ const REQUIRED_HEADERS = [
 /** Headers §15 recommends. */
 const RECOMMENDED_HEADERS = [
   "content-security-policy",
+  "x-frame-options",
   "cross-origin-opener-policy",
   "cross-origin-resource-policy",
 ];

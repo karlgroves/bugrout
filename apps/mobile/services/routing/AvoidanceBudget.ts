@@ -19,7 +19,7 @@
  * 3. **Prioritise.** If the polygons still do not fit, the ones nearest the trip
  *    are kept and the furthest are dropped. A dropped threat is not ignored: the
  *    route preview tests the final route against every active threat and warns
- *    when it passes through one.
+ *    when it passes through one, and says how many were dropped (#337).
  */
 
 import { expandBBox, pointInPolygon } from "../../utils/geo";
@@ -31,6 +31,7 @@ import {
   projector,
   rankVertices,
   ringPerimeterMeters,
+  thinRing,
   toVertices,
 } from "./ringGeometry";
 
@@ -40,8 +41,9 @@ export /**
  * Total exclude-polygon perimeter the routing engine accepts, in meters.
  *
  * Must match `--service-limits-max-exclude-polygons-length` in
- * `backend/services/valhalla/Dockerfile`; `ExcludePolygonLimitSync.test.ts`
- * fails when they differ. Valhalla's own default is 10 000 m.
+ * `backend/services/valhalla/build-graph.sh`, which writes it into the graph
+ * artifact's valhalla.json; `ExcludePolygonLimitSync.test.ts` fails when they
+ * differ. Valhalla's own default is 10 000 m.
  */
 const MAX_EXCLUDE_POLYGONS_PERIMETER_M = 250_000;
 
@@ -79,14 +81,21 @@ export function boundAvoidancePolygons(
   budgetMeters: number = MAX_EXCLUDE_POLYGONS_PERIMETER_M,
 ): BoundedAvoidance {
   const corridor = tripCorridor(tripPoints);
-  const clipped = polygons
+  // Rank each ring's vertices once; every tolerance is then a linear filter.
+  // A ring too small to rank once thinned is replaced by its thinned form, so
+  // a dense cluster of near-identical points cannot carry its full vertex
+  // count into the perimeter sum, the distance pass and the request (#305).
+  const ranked = polygons
     .map((p) => p.coordinates[0] ?? [])
     .map((ring) => (corridor ? clipRingToBBox(ring, corridor) : ring))
-    .filter((ring) => ring.length >= 4);
+    .filter((ring) => ring.length >= 4)
+    .map((ring) => {
+      const ranks = rankVertices(ring);
+      return { ring: ranks ? ring : thinRing(ring), ranks };
+    })
+    .filter(({ ring }) => ring.length >= 4);
 
-  // Rank each ring's vertices once; every tolerance is then a linear filter.
-  const ranked = clipped.map((ring) => ({ ring, ranks: rankVertices(ring) }));
-  let rings = clipped;
+  let rings = ranked.map(({ ring }) => ring);
   for (const tolerance of SIMPLIFY_TOLERANCES_M) {
     rings = ranked.map(({ ring, ranks }) =>
       tolerance > 0 && ranks ? filterBySignificance(ranks, tolerance) : ring,

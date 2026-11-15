@@ -89,7 +89,7 @@ describe("privacy policy — third-party disclosure", () => {
   it("promises no retention property the code does not establish (#206)", () => {
     // Caught reviewing the first pass of this change, which replaced the old
     // false claim with a new unverifiable one. backend/services/valhalla's
-    // Dockerfile runs valhalla_build_config with only --mjolnir-* and
+    // build-graph.sh runs valhalla_build_config with only --mjolnir-* and
     // --service-limits-* flags, so Valhalla's default top-level logging block
     // applies — {"type": "std_out"} — and fly.toml configures no logging, so
     // request logging goes to stdout and Fly retains it. "Keeps no history of
@@ -124,8 +124,10 @@ describe("privacy policy — third-party disclosure", () => {
   });
 
   it("does not assert cryptographic unlinkability of the device token", () => {
-    // Pending #85: the token can be minted from Math.random() on some paths,
-    // so a flat "cannot be linked" guarantee is not one the code provides.
+    // #85 has landed: platform/crypto.ts now throws rather than falling back
+    // to Math.random(), so the code may now support a stronger claim. Whether
+    // the policy should make one is a copy decision; until then it keeps the
+    // flat "cannot be linked" guarantee out.
     expect(PRIVACY_POLICY).not.toContain(
       "Cannot be linked to your identity, device, or account",
     );
@@ -139,9 +141,16 @@ describe("privacy policy — third-party disclosure", () => {
   });
 
   it("has been re-dated", () => {
-    // October 2026: shelters moved from Red Cross/Open211 to FEMA ESF6-SS (#201).
-    expect(PRIVACY_POLICY).not.toContain("Last Updated: August 2026");
-    expect(PRIVACY_POLICY).toContain("Last Updated: October 2026");
+    // November 2026: saved destinations in Settings (#187).
+    expect(PRIVACY_POLICY).not.toContain("Last Updated: October 2026");
+    expect(PRIVACY_POLICY).toContain("Last Updated: November 2026");
+  });
+
+  it("says saved destinations stay on the device", () => {
+    // #187: a relative's house is more sensitive than an ad-hoc search.
+    expect(PRIVACY_POLICY).toMatch(
+      /On-Device Only[\s\S]*?saved destinations[\s\S]*?stored locally/,
+    );
   });
 });
 

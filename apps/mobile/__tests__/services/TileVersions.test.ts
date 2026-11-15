@@ -6,6 +6,7 @@
  * ago was flagged even when nothing newer existed.
  */
 import {
+  INCOMPLETE_VERSION,
   isRegionStale,
   publishedVersionsFrom,
 } from "@/services/tiles/TileVersions";
@@ -65,6 +66,12 @@ describe("isRegionStale", () => {
         false,
       );
     });
+  });
+
+  it("is stale when its routing archive failed, online or off (#292)", () => {
+    const incomplete = downloaded(INCOMPLETE_VERSION, 0);
+    expect(isRegionStale(incomplete, PUBLISHED, NOW)).toBe(true);
+    expect(isRegionStale(incomplete, null, NOW)).toBe(true);
   });
 
   it("falls back to download age when the manifest no longer lists the region", () => {

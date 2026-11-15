@@ -4,6 +4,9 @@ node_modules/
 # Turborepo
 .turbo/
 
+# tsc -b state and declaration output for `pnpm run typecheck:root`
+security/.tsbuild/
+
 # Expo
 .expo/
 dist/
@@ -20,37 +23,28 @@ android/
 *.ipa
 *.apk
 *.aab
-
-# ...but NOT the hand-written native module bindings. The two patterns above
-# are unanchored, so they match every directory called ios/ or android/ at any
-# depth — which silently excluded the whole platform layer of the in-process
-# Valhalla module (the Objective-C++ binding, its podspec, the Kotlin module
-# and the JNI C++). That is source, not generated output: a fresh clone built
-# libvalhalla with nothing to bind it to. A directory must be un-ignored
-# before files inside it can be, hence both lines per platform.
-!apps/mobile/native-modules/**/ios/
-!apps/mobile/native-modules/**/ios/**
-!apps/mobile/native-modules/**/android/
-!apps/mobile/native-modules/**/android/**
-
-# Valhalla cross-compile working directories: fetched sources (~1.2 GB),
-# object trees and the built xcframework. All reproducible from
-# build-scripts/fetch-deps.sh and build-ios.sh.
+# ...but not the Valhalla native module's own ios/ and android/ binding
+# sources, which are hand-written and must be committed (#145). Its fetched
+# dependencies and built libraries are outputs of build-scripts/.
+!apps/mobile/native-modules/valhalla/ios/
+!apps/mobile/native-modules/valhalla/android/
 apps/mobile/native-modules/valhalla/deps/
-apps/mobile/native-modules/valhalla/build/
 apps/mobile/native-modules/valhalla/bin/
 
+# The cross-compile's object tree, alongside deps/ and bin/ above.
+apps/mobile/native-modules/valhalla/build/
+
 # Data-pipeline output: downloaded OSM extracts, built PMTiles and Valhalla
-# routing tiles, and the generated valhalla.json. All produced by the scripts
-# in data-pipeline/, several GB, and none of it belongs in the repo. It was
-# untracked but not ignored, so `prettier --check` scanned the generated JSON
-# and failed the gate.
+# routing tiles, and the generated valhalla.json. Produced by the scripts in
+# data-pipeline/, several GB. It was untracked but not ignored, so
+# `prettier --check` scanned the generated JSON and failed the gate.
 data-pipeline/osm/output/
 
-# Environment
+# Environment. Expo also reads .env.production, .env.development and
+# .env.preview, so every variant is ignored, not just the *.local ones (#307).
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # IDE
 .idea/
@@ -95,3 +89,6 @@ reports/
 .usecase-dist/
 e2e/generated/
 screenshots/
+
+# Claude Code session worktrees (machine-local; sibling sessions check out here)
+.claude/

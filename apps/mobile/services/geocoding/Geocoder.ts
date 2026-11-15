@@ -18,19 +18,39 @@ import { appUserAgent } from "@/utils/userAgent";
 
 import type { LatLng } from "@bugrout/shared";
 
+/**
+ * Base URL of the Nominatim-compatible geocoder.
+ *
+ * The usage policy requires that an app "can switch the service at our request
+ * at any time", so the host is configuration rather than a constant, as every
+ * other service URL in this app already is. Note what this does and does not
+ * buy: an `EXPO_PUBLIC_` value is baked in at build time, so the endpoint
+ * becomes switchable *in a build*, not switchable *without* one, which is what
+ * the policy asks for. Closing that gap needs a config the app reads at
+ * runtime, which is part of the hosting decision still open on #208.
+ */
+const GEOCODER_BASE_URL = (
+  process.env.EXPO_PUBLIC_GEOCODER_URL ?? "https://nominatim.openstreetmap.org"
+).replace(/\/+$/, "");
+
 /** Nominatim search endpoint. US results only, capped at 8. */
-const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
+const NOMINATIM_SEARCH = `${GEOCODER_BASE_URL}/search`;
 
 /** Nominatim reverse endpoint: coordinates to an address. */
-const NOMINATIM_REVERSE = "https://nominatim.openstreetmap.org/reverse";
+const NOMINATIM_REVERSE = `${GEOCODER_BASE_URL}/reverse`;
 
 /** Abort a geocoding request that has not answered in this many ms. */
 const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
- * Minimum gap between two requests from this device. The OSM Foundation's
- * Nominatim usage policy allows at most one request per second (#208); the
- * picker's 400 ms debounce alone doesn't hold a steady typist to that.
+ * Minimum gap between two requests from this device.
+ *
+ * The OSM Foundation's Nominatim usage policy sets "an absolute maximum of 1
+ * request per second", and it is explicit that the limit is per application,
+ * not per user: "the sum of traffic by all your users should not exceed the
+ * limits". So this is a floor on one device's behaviour, not compliance — no
+ * client-side limiter can bound the fleet. The aggregate cap is why #208 stays
+ * open on a hosting decision.
  */
 const MIN_REQUEST_INTERVAL_MS = 1_000;
 

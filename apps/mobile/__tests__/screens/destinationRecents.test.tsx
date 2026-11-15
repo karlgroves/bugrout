@@ -42,6 +42,17 @@ jest.mock("@/db/queries/preferences", () => ({
   addRecentDestination: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockGetSavedDestinations = jest.fn<Promise<unknown[]>, []>();
+
+jest.mock("@/db/queries/savedDestinations", () => ({
+  MAX_SAVED_DESTINATIONS: 10,
+  getSavedDestinations: () => mockGetSavedDestinations(),
+}));
+
+beforeEach(() => {
+  mockGetSavedDestinations.mockResolvedValue([]);
+});
+
 jest.mock("@/stores/useScenarioStore", () => ({
   useScenarioStore: () => ({
     scenarios: [
@@ -146,5 +157,56 @@ describe("destination picker — recents", () => {
     expect(
       screen.queryByLabelText("Use recent destination: Map pin"),
     ).toBeNull();
+  });
+
+  it("lists saved destinations ahead of recents, and not again as recents (#187)", async () => {
+    mockGetSavedDestinations.mockResolvedValue([
+      {
+        id: "d1",
+        name: "Rally point",
+        point: { lat: 38.9784, lng: -76.4922 },
+        address: null,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+    mockGetRecentDestinations.mockResolvedValue([
+      {
+        id: "38.9784,-76.4922",
+        label: "Annapolis",
+        lat: 38.9784,
+        lng: -76.4922,
+        usedAt: 2,
+      },
+      {
+        id: "39.4,-76.6",
+        label: "Towson",
+        lat: 39.4,
+        lng: -76.6,
+        usedAt: 1,
+      },
+    ]);
+
+    const screen = await render(<DestinationScreen />);
+
+    expect(
+      await screen.findByLabelText("Use saved destination: Rally point"),
+    ).toBeTruthy();
+    expect(
+      await screen.findByLabelText("Use recent destination: Towson"),
+    ).toBeTruthy();
+    expect(
+      screen.queryByLabelText("Use recent destination: Annapolis"),
+    ).toBeNull();
+
+    const headings = screen
+      .getAllByRole("header")
+      .map((h) => h.props.children as string);
+    expect(headings.indexOf("Saved Destinations")).toBeLessThan(
+      headings.indexOf("Recent Destinations"),
+    );
+    expect(headings.indexOf("Saved Plans")).toBeLessThan(
+      headings.indexOf("Saved Destinations"),
+    );
   });
 });

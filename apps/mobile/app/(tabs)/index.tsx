@@ -38,8 +38,21 @@ function MapScreen(): React.JSX.Element {
   const router = useRouter();
   const { position } = useLocation(true);
   useDataSync(); // Background threat/resource refresh
-  const { activeRoute, status, clearRoute } = useRouteStore();
-  const { tilesLoaded, activeRegion, publishedVersions } = useMapStore();
+  /*
+   * Selectors, not `useRouteStore()`. This screen stays mounted under the tab
+   * navigator while the navigation screen is open, so with a whole-store
+   * subscription every GPS tick re-rendered the map, its overlays and its
+   * markers in the background — NavigationController writes
+   * `currentManeuverIndex` once per position update, and nothing here reads
+   * it. #189 reports taps lagging "elsewhere" just after navigation starts;
+   * this is the "elsewhere".
+   */
+  const activeRoute = useRouteStore((s) => s.activeRoute);
+  const status = useRouteStore((s) => s.status);
+  const clearRoute = useRouteStore((s) => s.clearRoute);
+  const tilesLoaded = useMapStore((s) => s.tilesLoaded);
+  const activeRegion = useMapStore((s) => s.activeRegion);
+  const publishedVersions = useMapStore((s) => s.publishedVersions);
   const tileStale = activeRegion
     ? isRegionStale(activeRegion, publishedVersions)
     : false;

@@ -10,7 +10,13 @@
 
 import { upsertThreatZones } from "@/db/queries/threats";
 import { timeoutSignal } from "@/utils/abort";
-import { extractRingCoordinates } from "@/utils/geo";
+import {
+  boundedFeatures,
+  capText,
+  MAX_HEADLINE_CHARS,
+  readJsonBounded,
+} from "@/utils/feedBounds";
+import { extractRingCoordinates, sanitizeThreatGeometry } from "@/utils/geo";
 
 import type { ThreatZone, BBox } from "@bugrout/shared";
 
@@ -43,80 +49,87 @@ interface NWSAlertResponse {
 }
 
 /**
- * Fetch active NWS alerts for a geographic area.
- * Uses area (state code) for broad queries, or point for localized queries.
+ * Fetch the active NWS alerts that fall in a geographic area.
+ *
+ * NWS is asked for the whole state at the area's centre, and the answer is
+ * narrowed to the area. Resolves to `[]` when the state has alerts but none
+ * reaches the area: handing back the state's full list instead (#359) stored
+ * and drew out-of-area alerts as this area's, and only when no alert was
+ * in-area, so one nearby alert was enough to make the others disappear.
  */
 export async function fetchNWSAlerts(bbox: BBox): Promise<ThreatZone[]> {
   // NWS API works best with area (state) queries.
-  // For bbox, we use the center point to find the forecast zone.
+  // For bbox, we use the center point to find the state.
   const centerLat = (bbox.south + bbox.north) / 2;
   const centerLng = (bbox.west + bbox.east) / 2;
 
-  // Try area-based query first (more reliable)
   const stateAlerts = await fetchByArea(centerLat, centerLng);
-  if (stateAlerts.length > 0) {
-    // Filter to bbox
-    const filtered = stateAlerts.filter((a) => alertIntersectsBBox(a, bbox));
-    if (filtered.length > 0) {
-      await upsertThreatZones(filtered);
-      return filtered;
-    }
-    return stateAlerts;
-  }
-
-  return [];
+  const inArea = stateAlerts.filter((a) => alertIntersectsBBox(a, bbox));
+  if (inArea.length > 0) await upsertThreatZones(inArea);
+  return inArea;
 }
 
 /**
  * Fetch alerts by finding the state for a given lat/lng.
+ *
+ * Throws when either request fails or times out, or when the points response
+ * names no state: a failure must not read as "no active alerts" (#288). The
+ * caller keeps the cached alerts and retries.
  */
 async function fetchByArea(lat: number, lng: number): Promise<ThreatZone[]> {
   // First, get the state from the NWS points API
-  try {
-    const pointResp = await fetch(
-      `${NWS_BASE}/points/${lat.toFixed(4)},${lng.toFixed(4)}`,
-      {
-        headers: {
-          "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
-          Accept: "application/geo+json",
-        },
-        signal: timeoutSignal(10000),
+  const pointResp = await fetch(
+    `${NWS_BASE}/points/${lat.toFixed(4)},${lng.toFixed(4)}`,
+    {
+      headers: {
+        "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
+        Accept: "application/geo+json",
       },
-    );
+      signal: timeoutSignal(10000),
+    },
+  );
 
-    if (!pointResp.ok) return [];
+  if (!pointResp.ok) throw new Error(`NWS points: HTTP ${pointResp.status}`);
 
-    const pointData = (await pointResp.json()) as NWSPointResponse;
+  const pointData = (await pointResp.json()) as NWSPointResponse;
 
-    const state = pointData.properties?.relativeLocation?.properties?.state;
-    if (!state) return [];
-
-    // Fetch alerts for the state
-    const alertResp = await fetch(
-      `${NWS_BASE}/alerts/active?area=${state}&status=actual&message_type=alert`,
-      {
-        headers: {
-          "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
-          Accept: "application/geo+json",
-        },
-        signal: timeoutSignal(15000),
-      },
-    );
-
-    if (!alertResp.ok) return [];
-
-    return parseNWSResponse((await alertResp.json()) as NWSAlertResponse);
-  } catch {
-    return [];
+  const state = pointData.properties?.relativeLocation?.properties?.state;
+  // No state means the alerts query was never made, so this is a failed
+  // fetch, not "no active alerts" (#288). Resolving to [] here used only to
+  // hide the notice; now that an empty result CLEARS the source (#338) it
+  // would also drop the cached alerts.
+  if (!state) {
+    throw new Error("NWS points: no state in the points response");
   }
+
+  // Fetch alerts for the state
+  const alertResp = await fetch(
+    `${NWS_BASE}/alerts/active?area=${state}&status=actual&message_type=alert`,
+    {
+      headers: {
+        "User-Agent": "BugRout/1.0 (contact@bugrout.app)",
+        Accept: "application/geo+json",
+      },
+      signal: timeoutSignal(15000),
+    },
+  );
+
+  if (!alertResp.ok) {
+    throw new Error(`NWS alerts: HTTP ${alertResp.status}`);
+  }
+
+  return parseNWSResponse(await readJsonBounded<NWSAlertResponse>(alertResp));
 }
 
 /**
  * Parse NWS GeoJSON response into ThreatZone array.
+ *
+ * Throws when the response holds more alerts than `MAX_FEED_FEATURES` (#305).
  */
-function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
-  return data.features.flatMap((f) => {
-    const geometry = f.geometry;
+export function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
+  return boundedFeatures(data.features, "NWS alerts").flatMap((f) => {
+    // Zone-based alerts have no geometry; malformed ones are dropped too (#287).
+    const geometry = sanitizeThreatGeometry(f.geometry);
     if (geometry === null) return [];
     return [
       {
@@ -124,7 +137,10 @@ function parseNWSResponse(data: NWSAlertResponse): ThreatZone[] {
         type: classifyNWSEvent(f.properties.event),
         severity: mapSeverity(f.properties.severity),
         geometry,
-        headline: f.properties.headline ?? f.properties.event,
+        headline: capText(
+          f.properties.headline ?? f.properties.event,
+          MAX_HEADLINE_CHARS,
+        ),
         description: truncateDescription(f.properties.description ?? ""),
         source: "nws" as const,
         fetchedAt: Date.now(),
@@ -184,22 +200,31 @@ function mapSeverity(nwsSeverity: string | undefined): ThreatZone["severity"] {
 }
 
 /**
- * Check if a threat zone's geometry roughly intersects a bbox.
- * Simplified: checks if any part of the threat geometry overlaps the bbox.
+ * Whether a threat zone may reach a bbox: its own extent overlaps the bbox.
+ *
+ * Deliberately errs towards keeping an alert. Testing for a vertex inside the
+ * bbox missed a polygon that covers the area, or crosses a corner of it, with
+ * every vertex outside (#359); this can only keep a near miss, never drop an
+ * alert that does reach the area. A geometry with no coordinates is dropped.
  */
 function alertIntersectsBBox(threat: ThreatZone, bbox: BBox): boolean {
-  // Extract all coordinates from the geometry
-  const coords = extractRingCoordinates(threat.geometry);
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (const [lng, lat] of extractRingCoordinates(threat.geometry)) {
+    if (lng === undefined || lat === undefined) continue;
+    west = Math.min(west, lng);
+    east = Math.max(east, lng);
+    south = Math.min(south, lat);
+    north = Math.max(north, lat);
+  }
 
-  // Check if any coordinate falls within the bbox
-  return coords.some(
-    ([lng, lat]) =>
-      lng !== undefined &&
-      lat !== undefined &&
-      lat >= bbox.south &&
-      lat <= bbox.north &&
-      lng >= bbox.west &&
-      lng <= bbox.east,
+  return (
+    west <= bbox.east &&
+    east >= bbox.west &&
+    south <= bbox.north &&
+    north >= bbox.south
   );
 }
 

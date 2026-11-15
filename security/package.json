@@ -1,0 +1,12 @@
+{
+  "name": "@bugrout/security",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261004.1",
+    "@types/node": "^22.19.17"
+  }
+}

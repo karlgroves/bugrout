@@ -346,4 +346,20 @@ describe("pointFromStrings", () => {
   it("accepts zero, which is a real coordinate", () => {
     expect(pointFromStrings("0", "0")).toEqual({ lat: 0, lng: 0 });
   });
+
+  it("refuses a point off the globe", () => {
+    // Out of range, haversineDistance returns NaN and it sticks in distance,
+    // ETA and the fuel-range tracker for the whole trip (#307).
+    expect(pointFromStrings("91", "-76.6")).toBe(null);
+    expect(pointFromStrings("-91", "-76.6")).toBe(null);
+    expect(pointFromStrings("39.3", "181")).toBe(null);
+    expect(pointFromStrings("39.3", "-181")).toBe(null);
+    expect(pointFromStrings("1e9", "-76.6")).toBe(null);
+    expect(pointFromStrings("1e999", "-76.6")).toBe(null);
+  });
+
+  it("accepts the edges of the range", () => {
+    expect(pointFromStrings("90", "180")).toEqual({ lat: 90, lng: 180 });
+    expect(pointFromStrings("-90", "-180")).toEqual({ lat: -90, lng: -180 });
+  });
 });

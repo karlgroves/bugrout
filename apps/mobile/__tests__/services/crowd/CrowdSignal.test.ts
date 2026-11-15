@@ -211,3 +211,95 @@ describe("CrowdSignal — battery rule", () => {
     },
   );
 });
+
+describe("CrowdSignal — send rate when the endpoint fails (#297)", () => {
+  const TOKEN = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  let clock: number;
+  let nowSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    clock = 1_000_000;
+    nowSpy = jest.spyOn(Date, "now").mockImplementation(() => clock);
+  });
+
+  afterEach(() => {
+    nowSpy.mockRestore();
+  });
+
+  it("a failed send does not reopen the 10 s window", async () => {
+    const { mod, fetchSpy } = load(() => TOKEN);
+    fetchSpy.mockRejectedValue(new Error("timeout"));
+
+    // One call per second, as navigation makes on every GPS fix.
+    for (let i = 0; i < 10; i += 1) {
+      await mod.sendSignal(POSITION, 12, 90);
+      clock += 1000;
+    }
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("backs off exponentially after consecutive failures", async () => {
+    const { mod, fetchSpy } = load(() => TOKEN);
+    fetchSpy.mockRejectedValue(new Error("timeout"));
+
+    await mod.sendSignal(POSITION, 12, 90); // fails: next allowed at +20 s
+    clock += 19_999;
+    await mod.sendSignal(POSITION, 12, 90);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    clock += 1;
+    await mod.sendSignal(POSITION, 12, 90); // fails again: wait 40 s
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    clock += 39_999;
+    await mod.sendSignal(POSITION, 12, 90);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats a 5xx as a failure and resets after a success", async () => {
+    const { mod, fetchSpy } = load(() => TOKEN);
+    fetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    await mod.sendSignal(POSITION, 12, 90);
+    clock += 10_000;
+    await mod.sendSignal(POSITION, 12, 90);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    clock += 10_000; // 20 s after the 503
+    await mod.sendSignal(POSITION, 12, 90); // succeeds
+    clock += 10_000;
+    await mod.sendSignal(POSITION, 12, 90); // fails again
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+
+    // The success reset the count, so this is a first failure again: the
+    // wait is 20 s. Without the reset it would be a second failure, 40 s.
+    clock += 20_000;
+    await mod.sendSignal(POSITION, 12, 90);
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it("never runs two sends at once", async () => {
+    const { mod, fetchSpy } = load(() => TOKEN);
+    let release: (r: Response) => void = () => undefined;
+    fetchSpy.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    const first = mod.sendSignal(POSITION, 12, 90);
+    // Let the first call get through its battery and token awaits to the POST.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    clock += 30_000; // well past the window, but the first is still pending
+    await mod.sendSignal(POSITION, 12, 90);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    release(new Response(null, { status: 204 }));
+    await first;
+  });
+});

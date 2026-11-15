@@ -413,9 +413,15 @@ describe("WCAG 2.5.3 — every accessible name contains its visible label", () =
     // Delete button beside it. Text went to 4 when the onboarding download
     // button (#228) and the Map/Directions tabs (#229) landed together: each
     // renders `{label}` and takes `accessibilityLabel={label}` from the same
-    // variable, so the name always equals the visible text.
-    expect(result.unreadableNames).toBeLessThanOrEqual(11);
-    expect(result.unreadableText).toBeLessThanOrEqual(4);
+    // variable, so the name always equals the visible text. Names went to 12
+    // with Saved Destinations (#187): its rows are named `Edit ${item.name}`
+    // and `Remove ${item.name}` from a name the user typed, as Emergency
+    // Contacts' Remove is. The picker's recent row, now shared with saved
+    // ones, became readable ("Use saved|recent destination: …"), which offsets
+    // one of the two — and moves it to text, 5: the walk now reaches that
+    // row's visible `{item.label}`, the place's own name.
+    expect(result.unreadableNames).toBeLessThanOrEqual(12);
+    expect(result.unreadableText).toBeLessThanOrEqual(5);
   });
 
   it("has no by.label matcher the emulator would find ambiguous", () => {

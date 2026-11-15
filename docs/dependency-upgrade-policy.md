@@ -129,7 +129,7 @@ evidence that a resolved version is the intended one.
 The lesson is narrower than "add a bound": an unbounded override is invisible
 once it drifts, because the resolved version only appears in the lockfile. Diff
 the resolved versions, not just the manifest, whenever an override changes. The
-sweep that bounded every one of them was #126; there are 35 now, and all 35 are
+sweep that bounded every one of them was #126; there are 40 now, and all 40 are
 bounded.
 
 **Bounding an override is half the check. The other half is the consumer.** A
@@ -186,21 +186,22 @@ GHSA-4qv8-2p9j-2685 and GHSA-f72v-6w45-q472. `zod` is a new entry,
 copies `eslint-plugin-react-hooks` and `knip` pull in. All three fixed versions
 had matured: undici 6.29.1 and 7.30.1 on 2026-10-15, zod 4.6.6 on 2026-10-11.
 
-**`fast-uri` is the one left open, and deliberately.** Four advisories
+`fast-uri` was held back until it matured, deliberately. Four advisories
 (GHSA-333x-w4r6-6crp, GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr,
-GHSA-xhq7-xmqj-769h — two Low, two Moderate) stand against 4.2.1 and are fixed
-in 4.2.3, but 4.2.3 was published 2026-10-19 and the quarantine refuses it:
+GHSA-xhq7-xmqj-769h — two Low, two Moderate) stood against 4.2.1 and are fixed
+in 4.2.3, but 4.2.3 was published 2026-10-19 and the quarantine refused it:
 
 ```text
 ERR_PNPM_NO_MATURE_MATCHING_VERSION  Version 4.2.3 (released 4 days ago) of
 fast-uri does not meet the minimumReleaseAge constraint
 ```
 
-`--minimum-release-age 0` would take it today. It is not worth it here: the
-package is reached only through `detox`, so it never ships, and trading a
-supply-chain control for two Low and two Moderate findings in a test-only path
-is the wrong side of that bargain when waiting costs two days. It matures on
-**2026-10-26**; bump `fast-uri@<4.1.4` to `<4.2.3` → `>=4.2.3 <5` then.
+`--minimum-release-age 0` would have taken it at once. It was not worth it: the
+only consumer is `ajv@8`, reached through `detox`, `@commitlint/cli` and
+`expo-dev-client` (development builds only), so trading a supply-chain control
+for two Low and two Moderate findings was the wrong side of that bargain when
+waiting cost two days. It matured on 2026-10-26, and the override then moved
+from `fast-uri@<4.1.4` to `fast-uri@<4.2.3` → `>=4.2.3 <5`, closing all four.
 
 All five were exercised rather than argued. `sharp` is a native package, so the
 check is that it loads through the live resolution path — `wrangler` →
@@ -251,11 +252,67 @@ leave two overlapping rules for one package; which of them wins has not been
 tested here, and an override whose effect nobody has established is the thing
 this whole section is about.
 
+**One entry crosses a major on purpose: `glob`.** GHSA-3g3m-2fjr-6pw4 (an
+aborted walk keeps reading directories) covers glob 9.0.0 through 14.0.1 with no
+backport — `glob@13.0.7`, the `v13-legacy` release, is still reported affected —
+so `glob@>=9 <14.0.2` → `>=14.0.2 <15` moves every 13.x copy onto 14.x, outside
+the `^13.0.0` that `@expo/cli`, `@expo/config`, `@expo/config-plugins`,
+`@expo/fingerprint` and `@expo/metro-config` all declare, at their latest
+releases too. That is the first of two deliberate exceptions to "same major as
+its replacement" above, and to ADR 0007's current-major bound, made in #302. It
+is still bounded on both sides, so it cannot drift on to 15.
+
+It was exercised, not argued, because glob 14 changed its API (minimatch 11
+matchers in place of RegExps, `walk()` returning arrays). All five consumers
+resolve 14.0.3 through their own links; `pnpm run doctor` passes 18/18;
+`pnpm run bundle:check` exports iOS and Android; and `@expo/fingerprint`'s
+`createFingerprintAsync` on `apps/mobile` returns the **same hash over the same
+70 sources** under glob 13.0.6 and 14.0.3, which is the check that the
+file-walking these packages do still finds the same files. Retire the entry when
+an Expo SDK declares glob 14 itself.
+
+**A second entry crosses a major on purpose: `minimatch`.** GHSA-g3hv-75wg-m249
+(globparts amplification) covers minimatch 7.0.0 up to the fix in 11.0.1 with no
+9.x or 10.x backport, so `minimatch@>=7 <11.0.1` → `>=11.0.1 <12` moves every
+9.x and 10.x copy onto 11.x. That is outside the range four consumers declare:
+`@typescript-eslint/typescript-estree` (`^10.2.2`), `eslint-plugin-sonarjs`
+(`^10.2.6`), `@expo/fingerprint` on SDK 54 (`^10.2.2`) and `@expo/cli` on SDK 54
+(`^9.0.0`). The repository owner approved it on 2026-11-14 (#350) as the second
+exception to ADR 0007's current-major bound. It is bounded on both sides, so it
+cannot drift on to 12.
+
+It waited for `eslint-plugin-import-x`. Until 4.18.0 the same override took
+ESLint down in every workspace, because minimatch 11 removed `makeRe()` and
+import-x 4.17.1 imported it by name at load; the advisory sat in
+`osv-scanner.toml` as an ignore instead. 4.18.0 declares `^11.0.1` and cleared
+the release-age quarantine on 2026-11-13, so the bump and the override landed
+together and the ignore was deleted.
+
+It was exercised, not argued. Every consumer resolves 11.0.3 through its own
+links and no 9.x or 10.x is left in the lockfile; ESLint over the whole
+repository gives identical output before and after (364 files, the same 78
+messages), which covers typescript-estree, sonarjs and import-x;
+`@expo/fingerprint`'s `createFingerprintAsync` on `apps/mobile` returns the
+**same hash over the same 70 sources** under minimatch 10.2.6 and 11.0.3;
+`@expo/cli` declares minimatch but its build never loads it; and
+`pnpm run doctor` and `pnpm run bundle:check` pass. Retire the entry when
+typescript-estree, eslint-plugin-sonarjs and the Expo SDK packages declare
+minimatch 11 (typescript-estree's 8.72.3-alpha canary already does).
+
+**A dead override says nothing either.** An entry whose package has left the
+tree, or moved to a release line its selector does not cover, matches nothing
+and stays in the diff looking like protection. `markdown-it@>=14 <14.3.1` was
+one: no markdown-it 14.x was installed, only 15.0.3, which its sibling entry
+covers. pnpm does not report this, so `pnpm run check` runs
+`security/scripts/check-overrides.mjs`, which fails when an entry has no
+installed version inside either its selector or its replacement.
+
 ## What runs in CI instead
 
 | Check                                  | Where          | Gating                |
 | -------------------------------------- | -------------- | --------------------- |
 | `pnpm audit --prod --audit-level=high` | `ci.yml`       | yes                   |
+| Dead `pnpm.overrides` entries          | `ci.yml`       | yes                   |
 | `expo-doctor` (SDK alignment)          | `ci.yml`       | yes                   |
 | `bundle:check` (Metro, iOS + Android)  | `ci.yml`       | yes                   |
 | Semgrep (OWASP Top 10)                 | `security.yml` | yes — now runs on PRs |
@@ -272,8 +329,8 @@ failure class above, and both are already gating.
 
 ## GitHub Actions are pinned to commit SHAs
 
-Every `uses:` across the seven workflows is pinned to a full 40-character commit
-SHA, with the human-readable version in a trailing comment:
+Every `uses:` across the eleven workflows is pinned to a full 40-character
+commit SHA, with the human-readable version in a trailing comment:
 
 ```yaml
 - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -322,7 +379,30 @@ internally consistent.
 SHA-256 before running it. A pinned URL on its own still trusts whatever bytes
 the CDN returns; the checksum is what makes the pin mean something.
 
-Two values have to move together when bumping it:
+Every other release download in the workflows follows the same pattern, with a
+`<TOOL>_VERSION` and `<TOOL>_SHA256` pair in the step's `env:`: OSV-Scanner,
+Trivy and Hadolint in `security.yml`, Trivy again in `backend-deploy.yml`,
+actionlint in `workflow-lint.yml`, and Planetiler in `data-pipeline.yml`. Tools
+installed through a package manager are pinned to an exact version instead,
+since pipx and a global npm install have no checksum mode here: Semgrep and
+Checkov (`pipx install <tool>==<version>`), wrangler in `data-pipeline.yml`
+(`npm install -g wrangler@<version>`, kept equal to what `pnpm-lock.yaml`
+resolves), and the EAS CLI (`eas-version`). A setup action that installs a
+release names the version through its own input: `setup-flyctl` in
+`backend-deploy.yml` passes an exact `version:`, because with no `version:` the
+action resolves `latest` from the Fly releases API and installs whatever comes
+back, inside the one job that holds `FLY_API_TOKEN`. It downloads and extracts
+the release in its own JavaScript with no hash check, so the `<TOOL>_SHA256`
+half of the pattern cannot be applied to it without replacing the action.
+`pnpm run security:tests` fails on a `releases/latest` URL, a
+`/releases/download/` URL with no `sha256sum` check in its step, an unpinned
+`pipx install` or `npm install -g`, `eas-version: latest`, or a `setup-flyctl`
+step that does not name an exact `version:`. It does not recognise other install
+forms (`pip install`, `npm install --global`, a download from outside GitHub
+releases, another setup action with no version), so review a new tool's install
+step against this pattern.
+
+Two values have to move together when bumping trufflehog:
 
 ```yaml
 TRUFFLEHOG_VERSION: 3.97.4
@@ -480,9 +560,12 @@ The entries are version-pinned, so bumping the Expo SDK invalidates five of them
 and introduces five replacements — and nothing will tell you. Every other
 suppression in this repository is self-policing: `osv-scanner.toml` entries have
 `ignoreUntil` dates _and_ osv-scanner reports an ignore as unused once the
-advisory leaves the tree, and `patchedDependencies` fails the install outright
-with `ERR_PNPM_UNUSED_PATCH`. `trustPolicyExclude` does neither — verified, an
-entry naming a package absent from the tree installs silently.
+advisory leaves the tree, `patchedDependencies` fails the install outright with
+`ERR_PNPM_UNUSED_PATCH`, and `pnpm.overrides` is policed by
+`security/scripts/check-overrides.mjs` in `pnpm run check`, because pnpm itself
+is silent about an override that matches nothing. `trustPolicyExclude` has none
+of these — verified, an entry naming a package absent from the tree installs
+silently.
 
 So: **re-run the scan above after any upgrade that moves these packages**, and
 delete the entries that no longer match. The block carries an advisory
@@ -542,14 +625,18 @@ That is two distinct situations, and the entry has to say which one it is,
 because they retire on different signals:
 
 1. **No fixed version is published.** Retires when upstream ships a fix.
-   `braces` (GHSA-vfj7-8cjw-p6xm) and `node-forge` (GHSA-86w9-cpqp-85rv) are in
-   this case: both advisories name the latest release as affected, and both are
-   build-time Expo toolchain packages that never reach the app bundle. They are
-   also listed in `pnpm.auditConfig.ignoreGhsas`, because `pnpm audit --prod`
-   counts the Expo toolchain as production. `sprintf-js` (GHSA-hp3w-g68c-fv3c)
-   is in this case too, reached through `argparse` in Jest's coverage config
-   loading; it is moderate, below the `pnpm audit` gate, so it needs no
-   `ignoreGhsas` entry. See
+   `braces` (GHSA-vfj7-8cjw-p6xm) and `node-forge` (GHSA-86w9-cpqp-85rv) were in
+   this case, and both entries have retired: the `braces` advisory was withdrawn
+   upstream, and `node-forge` shipped a fix in 1.4.1 that the
+   `node-forge@<1.4.3` override now reaches inside `@expo/cli`. Their
+   `pnpm.auditConfig.ignoreGhsas` entries went with them, so that list no longer
+   exists; `osv-scanner.toml` records how each one left. `sprintf-js`
+   (GHSA-hp3w-g68c-fv3c) is in this case too, reached through `argparse` in
+   Jest's coverage config loading; it is moderate, below the `pnpm audit` gate,
+   so it needs no `ignoreGhsas` entry. `deepmerge` (GHSA-gcqx-w48m-w2h4) is the
+   one osv-scanner entry in this case: 4.3.1 is the latest release and is
+   affected, and its consumers (`@expo/config`, `jest-config`) merge only this
+   repository's own config files. See
    [`image-size`](#image-size--how-an-unfixed-advisory-retired) below for how an
    entry in this case retires.
 2. **A fixed version exists but is structurally unreachable** — pinning it
@@ -560,11 +647,15 @@ because they retire on different signals:
 **Two packages are in case 2:** `katex`, reached only through markdownlint's
 math syntax extension, whose only consumer declares `^0.16.0` against a fix in
 0.18.2; and `stream-json`, a devDependency of Detox, with the evidence for all
-three grounds recorded in `osv-scanner.toml`. `decode-uri-component` was
-recorded there too, by PR #120, on the grounds that `0.5.0` is ESM-only and its
-only consumer `query-string@7.1.3` is CommonJS. Both of those facts hold. The
-conclusion did not: PR #124 closed the advisory with a two-line `pnpm` patch
-that unwraps the interop, described under
+three grounds recorded in `osv-scanner.toml`. `minimatch` (GHSA-g3hv-75wg-m249)
+was a third until #350, and left the way this case says an entry does — the
+consumer changed: `eslint-plugin-import-x@4.18.0` accepts minimatch 11, so the
+override that used to break ESLint now holds (see
+[Unbounded `pnpm` overrides](#unbounded-pnpm-overrides) above).
+`decode-uri-component` was recorded there too, by PR #120, on the grounds that
+`0.5.0` is ESM-only and its only consumer `query-string@7.1.3` is CommonJS. Both
+of those facts hold. The conclusion did not: PR #124 closed the advisory with a
+two-line `pnpm` patch that unwraps the interop, described under
 [Patched transitive packages](#patched-transitive-packages).
 
 The lesson is in the bar, not the entry. "Structurally unreachable" now requires
@@ -660,6 +751,11 @@ than the function, and `decodeComponent is not a function` is thrown on the
 first deep link. This reproduces under both Node and Metro; the bundle shows
 Metro taking the `.default` branch, so the shim is load-bearing there, not only
 in tests.
+
+The floor has since moved to `0.5.1`. `GHSA-qr28-fpjm-wq7f` found that `0.5.0`
+still replaces runs of percent-encoded sequences in quadratic time, so the
+override now reads `"decode-uri-component@<0.5.1": ">=0.5.1 <0.6"`. `0.5.1` has
+the same ESM-only shape, so the patch carries over unchanged in behaviour.
 
 Nor can the version be lifted out of the problem. `query-string` first depends
 on a patched `decode-uri-component` at `9.5.0`, but `@react-navigation/core`

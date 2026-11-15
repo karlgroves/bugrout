@@ -18,11 +18,8 @@ namespace bugrout {
 
 class ValhallaCore {
  public:
-  // Both are declared here and defined in the .cpp, on purpose. `Impl` is
-  // incomplete in this header, and an inline-defaulted constructor still has
-  // to instantiate the member destructors for its exception-unwind path —
-  // which needs sizeof(Impl) and fails to compile wherever this header is
-  // included without the Valhalla headers (e.g. ios/ValhallaEngine.mm).
+  // Both defined in the .cpp, where Impl is complete: an inline defaulted
+  // constructor would need ~unique_ptr<Impl> in every caller's translation unit.
   ValhallaCore();
   ~ValhallaCore();
 
