@@ -10,13 +10,7 @@
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AccessibilityInfo,
-  FlatList,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing, typography } from "@/constants/theme";
 import {
@@ -25,6 +19,7 @@ import {
   secondsToStep,
 } from "@/services/navigation/directions";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { announcePolitely } from "@/utils/announce";
 import { formatDistance } from "@/utils/geo";
 
 import { ManeuverIcon } from "./ManeuverIcon";
@@ -80,6 +75,9 @@ const NOTICE_MS = 6000;
  * visibly and to screen readers. The on-screen notice clears after
  * {@link NOTICE_MS}; one that stayed for the rest of the trip would come to
  * read as if the route had just changed.
+ *
+ * Queued, because `FuelRangeWarning` announces on this screen too and a reroute
+ * and a fuel-range crossing can land together while driving (#383).
  */
 function useRouteUpdatedNotice(routeId: string): boolean {
   const firstId = useRef(routeId);
@@ -88,7 +86,7 @@ function useRouteUpdatedNotice(routeId: string): boolean {
     if (routeId === firstId.current) return undefined;
     firstId.current = routeId;
     setUpdated(true);
-    AccessibilityInfo.announceForAccessibility("Route updated");
+    announcePolitely("Route updated");
     const timer = setTimeout(() => {
       setUpdated(false);
     }, NOTICE_MS);
