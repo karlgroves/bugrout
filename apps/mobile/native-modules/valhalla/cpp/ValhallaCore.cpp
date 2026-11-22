@@ -88,6 +88,13 @@ boost::property_tree::ptree makeConfig(const std::string& path, bool isExtract) 
   }
   // Bound a single evac route; spec routes are intra-region.
   config.put("service_limits.auto.max_distance", 5000000);  // 5,000 km
+  // Total exclude-polygon perimeter the engine accepts, in metres. Must equal
+  // MAX_EXCLUDE_POLYGONS_PERIMETER_M in services/routing/AvoidanceBudget.ts,
+  // which sizes the threat polygons the app sends; ExcludePolygonLimitSync
+  // reads this line. Valhalla's default (10 000, kept by the embedded config)
+  // rejects the whole request for a single wildfire perimeter, so a driver
+  // fleeing a fire would get no route at all.
+  config.put("service_limits.max_exclude_polygons_length", 250000);
   return config;
 }
 }  // namespace
