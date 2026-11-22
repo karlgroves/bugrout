@@ -1,10 +1,10 @@
 # Sprint 0 Spike — Native Valhalla embedding (Approach A)
 
-**Status:** skeleton + decision doc complete; native cross-compile + on-device
-validation still pending (requires Mac/Xcode/NDK toolchain + a physical device).
-**Recommendation:** commit to **Approach A (in-process, `actor_t`)**. Approach B
-as originally scaffolded (subprocess HTTP server) is **not viable on iOS** — see
-below.
+**Status:** since #385 (for #145), the iOS Simulator (arm64) build links and
+routes in-process. Device (iphoneos) and Android builds, and on-device
+validation, are still pending. **Recommendation:** commit to **Approach A
+(in-process, `actor_t`)**. Approach B as originally scaffolded (subprocess HTTP
+server) is **not viable on iOS** — see below.
 
 ---
 
@@ -32,8 +32,9 @@ thin per-platform native module.
 ## 2. Why Approach B (as scaffolded) is a dead end on iOS
 
 The original `ios/ValhallaServerModule.swift` and
-`android/ValhallaServerModule.kt` launch the `valhalla_service` HTTP daemon as a
-**child process**:
+`android/ValhallaServerModule.kt` (since deleted; they are in git history from
+before PR #385) launched the `valhalla_service` HTTP daemon as a **child
+process**:
 
 ```swift
 let proc = Process()                       // ← Foundation.Process / NSTask
@@ -55,8 +56,8 @@ This cannot ship on iOS:
 
 Android _can_ run `ProcessBuilder`, but it inherits the HTTP/ZMQ overhead and
 the prime_server dependency for no benefit over the in-process call. We
-therefore **deprecate both `ValhallaServerModule.*` files** (kept in-tree,
-marked deprecated, no longer referenced by the config plugin).
+therefore **dropped both `ValhallaServerModule.*` files**: first deprecated and
+unreferenced by the config plugin, then deleted in #385.
 
 ## 3. The in-process API: `valhalla::tyr::actor_t`
 
@@ -113,10 +114,13 @@ With `ENABLE_SERVICES=OFF` and `ENABLE_HTTP=OFF`, the link set is:
 | **libcurl**                           | ❌ removed           | only for HTTP tile fetching                   |
 | **LZ4**                               | ⚠️ optional          | only if tiles built with LZ4; MD tiles aren't |
 
-The `build-ios.sh` / `build-android.sh` scripts in `build-scripts/` have been
-updated to `ENABLE_SERVICES=OFF`, `ENABLE_HTTP=OFF`, build a static
-`libvalhalla.a` (not the `valhalla_service` binary), and bundle the `actor_t`
-headers.
+The `build-ios.sh` / `build-android.sh` scripts in `build-scripts/` build with
+`ENABLE_SERVICES=OFF` and `ENABLE_HTTP=OFF`, producing a static `libvalhalla.a`
+(not the `valhalla_service` binary). `build-ios.sh` merges protobuf, abseil and
+LZ4 into that one archive and stages every header the module compiles against in
+`bin/ios/include`, so the podspec never reads a build tree. It builds the iOS
+Simulator (arm64) slice only; a device slice needs a second pass with
+`CMAKE_OSX_SYSROOT=iphoneos`.
 
 **Estimated added binary size (arm64, release, stripped):** ~12–20 MB for
 `libvalhalla.a` + protobuf + boost-compiled bits, before the routing _tiles_
@@ -175,7 +179,8 @@ framework-agnostic, so the promotion only touches the thin binding layer.
 ```bash
 cd apps/mobile/native-modules/valhalla/build-scripts
 ./fetch-deps.sh                       # clones valhalla 3.5.1 + boost/protobuf/lz4
-./build-ios.sh                        # → ../bin/ios/valhalla.xcframework
+./build-ios.sh                        # → ../bin/ios/{valhalla.xcframework,include}
+                                      #   iOS Simulator arm64 only
 ANDROID_NDK_HOME=… ./build-android.sh # → ../bin/android/jniLibs/<abi>/
 
 # enable the config plugin in app.config.ts:
@@ -186,9 +191,11 @@ npx expo prebuild --clean
 EXPO_PUBLIC_VALHALLA_APPROACH=native npx eas build --profile preview --platform ios
 ```
 
-Then on device: download a region (gets the Valhalla tile tarball), kill the
-app, relaunch with no connectivity, and confirm "Bug Out" returns a real route
-with the Fly URL unset.
+The EAS step needs a device slice, which `build-ios.sh` does not build yet;
+until it does, run the app in the iOS Simulator (`npx expo run:ios`). Then on
+device: download a region (gets the Valhalla tile tarball), kill the app,
+relaunch with no connectivity, and confirm "Bug Out" returns a real route with
+the Fly URL unset.
 
 ## 9. Go / no-go
 

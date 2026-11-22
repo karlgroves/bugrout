@@ -2,7 +2,7 @@
 //
 // Objective-C++ bridge that delegates to the shared C++ core (ValhallaCore),
 // which links libvalhalla and calls actor_t in-process. No subprocess, no HTTP
-// server. Supersedes ValhallaServerModule.swift (see ../SPIKE.md §2).
+// server. Replaces the deleted ValhallaServerModule.swift (see ../SPIKE.md §2).
 //
 // Exposed to JS as NativeModules.ValhallaEngine with:
 //   init(tileDir): Promise<void>
