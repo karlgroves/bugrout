@@ -24,6 +24,22 @@ jest.mock("@/platform/fileSystem", () => ({
   getInfoAsync: (path: string) => mockGetInfoAsync(path),
 }));
 
+/**
+ * What `require("expo-constants")` returns. ValhallaTiles reads it lazily, at
+ * call time, so each test can set it. Empty by default: no app-config opt-in.
+ */
+let mockConstants: Record<string, unknown> = {};
+// Getters, because the module registry keeps the first object the factory
+// returns: reassigning mockConstants later must still be what the code sees.
+jest.mock("expo-constants", () => ({
+  get expoConfig(): unknown {
+    return mockConstants.expoConfig;
+  },
+  get default(): unknown {
+    return mockConstants.default;
+  },
+}));
+
 const ARCHIVE = "file:///docs/tiles/md/md.valhalla.tar.gz";
 const region: DownloadedRegion = {
   id: "md",
@@ -40,6 +56,7 @@ const originalApproach = process.env.EXPO_PUBLIC_VALHALLA_APPROACH;
 
 afterEach(() => {
   mockGetInfoAsync.mockReset();
+  mockConstants = {};
   if (originalApproach === undefined) {
     delete process.env.EXPO_PUBLIC_VALHALLA_APPROACH;
   } else {
@@ -100,4 +117,50 @@ describe("planValhallaInit", () => {
       expect((await planValhallaInit(region)).approach).toBe("http");
     },
   );
+});
+
+/**
+ * The second source: `extra.valhallaApproach`, written into the app config at
+ * prebuild. EXPO_PUBLIC_* is inlined by Metro from the environment of whichever
+ * dev server bundles the app, so a release binary with the native engine linked
+ * in relies on this one to choose it (#385).
+ */
+describe("planValhallaInit — the approach from the app config", () => {
+  /** The archive is present and the env var unset: only the app config decides. */
+  function givenAppConfig(constants: Record<string, unknown>): void {
+    given(undefined, { exists: true, size: 52_000_000 });
+    mockConstants = constants;
+  }
+
+  it("routes natively when extra.valhallaApproach is native", async () => {
+    givenAppConfig({ expoConfig: { extra: { valhallaApproach: "native" } } });
+
+    expect((await planValhallaInit(region)).approach).toBe("native");
+  });
+
+  it("reads it through the default export, as an ES-module interop build sees it", async () => {
+    givenAppConfig({
+      default: { expoConfig: { extra: { valhallaApproach: "native" } } },
+    });
+
+    expect((await planValhallaInit(region)).approach).toBe("native");
+  });
+
+  it.each<[string, Record<string, unknown>]>([
+    ["says http", { expoConfig: { extra: { valhallaApproach: "http" } } }],
+    ["is not a string", { expoConfig: { extra: { valhallaApproach: true } } }],
+    ["is absent", { expoConfig: { extra: {} } }],
+    ["has no expoConfig", { expoConfig: null }],
+  ])("uses HTTP when the app config %s", async (_label, constants) => {
+    givenAppConfig(constants);
+
+    expect((await planValhallaInit(region)).approach).toBe("http");
+  });
+
+  it("still needs the archive: native in the app config, nothing on disk", async () => {
+    given(undefined, { exists: false });
+    mockConstants = { expoConfig: { extra: { valhallaApproach: "native" } } };
+
+    expect((await planValhallaInit(region)).approach).toBe("http");
+  });
 });
