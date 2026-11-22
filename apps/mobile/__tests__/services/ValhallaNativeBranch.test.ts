@@ -20,6 +20,14 @@ import fixture from "./fixtures/valhalla-baltimore-route.json";
 const BALTIMORE = { lat: 39.2904, lng: -76.6122 };
 const DESTINATION = { lat: 39.3138, lng: -76.6021 };
 const ARCHIVE = "file:///docs/tiles/md/md.valhalla.tar.gz";
+/**
+ * What the native engine must actually receive. ValhallaCore opens the archive
+ * with gzopen(), which takes a POSIX path and cannot resolve the file:// URI
+ * that expo-file-system hands out — passing the URI through made init fail
+ * with "cannot open file:///…" on a device that had the tiles and the engine,
+ * and the HTTP fallback then reported routing as offline.
+ */
+const ARCHIVE_PATH = "/docs/tiles/md/md.valhalla.tar.gz";
 
 const modules = NativeModules as { ValhallaEngine?: unknown };
 const originalFetch = global.fetch;
@@ -67,7 +75,7 @@ describe("native approach with the module built in", () => {
     await initValhalla({ tileDir: ARCHIVE, approach: "native" });
     const route = await calculateRoute(BALTIMORE, DESTINATION);
 
-    expect(engine.init).toHaveBeenCalledWith(ARCHIVE);
+    expect(engine.init).toHaveBeenCalledWith(ARCHIVE_PATH);
     expect(engine.route).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(engine.route.mock.calls[0]?.[0])) as {
       locations: { lat: number; lon: number }[];

@@ -2,7 +2,7 @@
  * ValhallaEngine — Android native module (Approach A, in-process).
  *
  * Kotlin bridge that delegates to the shared C++ core (ValhallaCore) over JNI.
- * No subprocess, no HTTP server. Supersedes ValhallaServerModule.kt
+ * No subprocess, no HTTP server. Replaces the deleted ValhallaServerModule.kt
  * (see ../SPIKE.md §2).
  *
  * Exposed to JS as NativeModules.ValhallaEngine with:

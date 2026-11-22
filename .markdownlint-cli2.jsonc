@@ -31,6 +31,9 @@
     // Scanner output, generated per run — a build artifact, not documentation.
     "reports/**",
     "**/.expo/**",
+    // Third-party sources fetched for the Valhalla cross-compile
+    // (build-scripts/fetch-deps.sh). Upstream Markdown we neither own nor fix.
+    "apps/mobile/native-modules/valhalla/deps/**",
     "CHANGELOG.md",
     ".github/PULL_REQUEST_TEMPLATE.md",
   ],

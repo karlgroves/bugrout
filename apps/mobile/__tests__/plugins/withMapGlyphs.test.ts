@@ -50,13 +50,40 @@ describe("materializeGlyphs", () => {
     plugin.materializeGlyphs(SOURCE, target);
 
     const fonts = readdirSync(target);
-    expect(fonts.sort()).toEqual(["Open Sans Bold", "Open Sans Regular"]);
+    expect(fonts.sort()).toEqual([
+      "Open Sans Bold",
+      "Open Sans Regular",
+      "Open Sans Regular,Arial Unicode MS Regular",
+    ]);
     for (const font of fonts) {
       const files = readdirSync(join(target, font));
       expect(files).toHaveLength(256);
       expect(files).toContain("0-255.pbf");
       expect(files).toContain("65280-65535.pbf");
     }
+  });
+
+  it("serves MapLibre's default stack from Open Sans Regular", () => {
+    // MapLibre asks for a font stack as one directory name. Something under
+    // the style requests its own default, "Open Sans Regular,Arial Unicode MS
+    // Regular", on every launch; with no directory of that name the glyph load
+    // fails and the labels using it never draw. The stack is an ordered
+    // fallback, so Open Sans Regular's glyphs are the right answer for it.
+    plugin.materializeGlyphs(SOURCE, target);
+
+    const alias = "Open Sans Regular,Arial Unicode MS Regular";
+    expect(readdirSync(join(target, alias))).toHaveLength(256);
+
+    // A range the font covers is the same bytes under either name.
+    expect(readFileSync(join(target, alias, "0-255.pbf"))).toEqual(
+      readFileSync(join(target, "Open Sans Regular", "0-255.pbf")),
+    );
+
+    // An uncovered range names the stack that was asked for, which is what a
+    // glyph server returns — so it is NOT byte-identical to the base font's.
+    expect(readFileSync(join(target, alias, "1536-1791.pbf"))).toEqual(
+      plugin.emptyRange(alias, "1536-1791"),
+    );
   });
 
   it("copies the real glyph files unchanged", () => {

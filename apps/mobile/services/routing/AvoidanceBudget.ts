@@ -40,13 +40,14 @@ import type { BBox, GeoJSONPolygon, LatLng } from "@bugrout/shared";
 export /**
  * Total exclude-polygon perimeter the routing engine accepts, in meters.
  *
- * Must match `--service-limits-max-exclude-polygons-length` in
- * `backend/services/valhalla/build-graph.sh` in AFixt/bugrout-server, which
- * writes it into the graph artifact's valhalla.json. No test can read across
- * the two repositories, so each pins the figure from its own end:
- * `ExcludePolygonLimitSync.test.ts` here, and the server repository's
- * `valhalla-public-surface.security.test.ts` there. Valhalla's own
- * default is 10 000 m.
+ * Must match both engines' limits. The in-process engine sets it in
+ * `makeConfig` (`native-modules/valhalla/cpp/ValhallaCore.cpp`), which
+ * `ExcludePolygonLimitSync.test.ts` reads and compares directly. The Fly
+ * service is built with `--service-limits-max-exclude-polygons-length` in
+ * `backend/services/valhalla/build-graph.sh` in AFixt/bugrout-server; no test
+ * can read across the two repositories, so each pins that figure from its own
+ * end (the server repository's `valhalla-public-surface.security.test.ts`).
+ * Valhalla's own default is 10 000 m.
  */
 const MAX_EXCLUDE_POLYGONS_PERIMETER_M = 250_000;
 

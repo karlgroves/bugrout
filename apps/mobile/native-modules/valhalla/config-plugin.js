@@ -7,7 +7,7 @@
  *
  * iOS:
  *   - Adds `pod 'ValhallaEngine', :path => ...` to the Podfile. The podspec
- *     (ios/ValhallaEngine.podspec) compiles ValhallaEngine.mm + cpp/ValhallaCore
+ *     (ValhallaEngine.podspec, at the module root) compiles ValhallaEngine.mm + cpp/ValhallaCore
  *     and links bin/ios/valhalla.xcframework.
  * Android:
  *   - Copies the Kotlin module + package into the app source tree.
@@ -39,14 +39,12 @@ function addPodfileEntry(config) {
     "ios",
     (cfg) => {
       const podfile = path.join(cfg.modRequest.platformProjectRoot, "Podfile");
+      // The module root, not ios/ — that is where ValhallaEngine.podspec
+      // lives, because CocoaPods drops source_files resolving outside the
+      // podspec's own directory and the pod needs cpp/ValhallaCore.cpp too.
       const podPath = path.relative(
         cfg.modRequest.platformProjectRoot,
-        path.join(
-          cfg.modRequest.projectRoot,
-          "native-modules",
-          "valhalla",
-          "ios",
-        ),
+        path.join(cfg.modRequest.projectRoot, "native-modules", "valhalla"),
       );
       let contents = fs.readFileSync(podfile, "utf8");
       if (!contents.includes(`pod '${POD_NAME}'`)) {
@@ -104,12 +102,6 @@ function copyAndroidSources(config) {
       }
       console.log("[Valhalla] Copied Kotlin module + package to", destDir);
 
-      const jni = path.join(nativeDir, "bin", "android", "jniLibs");
-      if (!fs.existsSync(jni)) {
-        console.warn(
-          "[Valhalla] No prebuilt libvalhalla.a — run build-scripts/build-android.sh (with ANDROID_NDK_HOME).",
-        );
-      }
       return cfg;
     },
   ]);
@@ -151,15 +143,56 @@ function addAndroidCmake(config) {
   });
 }
 
+/** Where build-scripts/ leaves each platform's prebuilt Valhalla library. */
+const PREBUILT = {
+  ios: path.join(__dirname, "bin", "ios", "valhalla.xcframework"),
+  android: path.join(__dirname, "bin", "android", "jniLibs"),
+};
+
+/**
+ * Wire in only the platforms whose library has actually been built.
+ *
+ * The libraries are build outputs, not committed (they are gigabytes), so a
+ * checkout that has run build-ios.sh but not build-android.sh — or neither —
+ * is the normal case, not an error. Wiring a platform up regardless breaks its
+ * build outright: enabling this plugin with only the iOS library present made
+ * Gradle fail with
+ *
+ *   ninja: error: '…/bin/android/jniLibs/arm64-v8a/libvalhalla.a', needed by
+ *   'libvalhalla_engine.so', missing and no known rule to make it
+ *
+ * and took the Detox job down with it. Skipping is safe: the JS layer already
+ * treats a missing native module as a normal state (`loadNativeModule()`
+ * returns null) and falls back to the HTTP approach.
+ *
+ * @param {import("expo/config-plugins").ExpoConfig} config
+ * @param {{ approach?: string }} options
+ * @returns {import("expo/config-plugins").ExpoConfig}
+ */
 function withValhalla(config, { approach = "native" } = {}) {
   if (approach !== "native") {
     // Remote HTTPS server (Approach B) needs no native wiring.
     return config;
   }
-  config = addPodfileEntry(config);
-  config = copyAndroidSources(config);
-  config = registerAndroidPackage(config);
-  config = addAndroidCmake(config);
+
+  if (fs.existsSync(PREBUILT.ios)) {
+    config = addPodfileEntry(config);
+  } else {
+    console.warn(
+      "[Valhalla] Skipping iOS: no valhalla.xcframework — run build-scripts/build-ios.sh to enable in-process routing.",
+    );
+  }
+
+  if (fs.existsSync(PREBUILT.android)) {
+    config = copyAndroidSources(config);
+    config = registerAndroidPackage(config);
+    config = addAndroidCmake(config);
+  } else {
+    console.warn(
+      "[Valhalla] Skipping Android: no prebuilt libvalhalla.a — run build-scripts/build-android.sh (with ANDROID_NDK_HOME) to enable in-process routing.",
+    );
+  }
+
   return config;
 }
 
