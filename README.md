@@ -23,7 +23,9 @@ product specification and [`CLAUDE.md`](CLAUDE.md) for the architecture map.
 The server side — the Cloudflare Workers, the Fly.io services and their deploy
 workflows — lives in
 [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server). It moved there
-on 2026-11-15. The app is offline-first and needs none of it to route.
+on 2026-11-15. The app is designed to route offline, but until in-process
+routing ships (#385, #146 and #388) shipped builds still route through the Fly
+Valhalla service.
 
 ## Prerequisites
 

@@ -18,9 +18,12 @@ services, `packages/worker-utils`, their deploy workflows and the eight endpoint
 security suites went to
 [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server), with their git
 history. This repository is the app, the shared types, the ELF model, the data
-pipeline and the release tooling. Nothing here serves HTTP. The app is
-offline-first and needs none of it to route. Issue numbers in that repository's
-docs refer back to issues here.
+pipeline and the release tooling. Nothing here serves HTTP. The app is designed
+to route offline, but until in-process routing ships (#385, #146 and #388)
+**shipped builds still route through the Fly Valhalla service**
+(`EXPO_PUBLIC_VALHALLA_URL` in `apps/mobile/eas.json`), which now lives in the
+server repository. Issue numbers in that repository's docs refer back to issues
+here.
 
 pnpm workspaces + Turborepo. Workspace roots:
 
