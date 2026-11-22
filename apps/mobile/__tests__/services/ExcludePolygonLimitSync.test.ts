@@ -14,8 +14,8 @@
  *
  * So the pair is now pinned from both ends, with the number written down in
  * each: this test pins the app constant, and
- * `security/tests/valhalla-exclude-polygon-limit.security.test.ts` in the
- * server repository pins the build flag to the same figure. That is weaker
+ * `security/tests/valhalla-public-surface.security.test.ts` in the server
+ * repository pins the build flag to the same figure. That is weaker
  * than reading both — a change to one repository alone still passes its own
  * gate — so the number appears in this docblock as well, where a reviewer of
  * either change will see it.
@@ -29,7 +29,7 @@ import { MAX_EXCLUDE_POLYGONS_PERIMETER_M } from "@/services/routing/AvoidanceBu
 const GRAPH_MAX_EXCLUDE_POLYGONS_LENGTH_M = 250_000;
 
 describe("exclude-polygon limit", () => {
-  it("matches the limit the Valhalla graph is built with", () => {
+  it("is the 250 000 m the Valhalla graph is built with", () => {
     expect(MAX_EXCLUDE_POLYGONS_PERIMETER_M).toBe(
       GRAPH_MAX_EXCLUDE_POLYGONS_LENGTH_M,
     );

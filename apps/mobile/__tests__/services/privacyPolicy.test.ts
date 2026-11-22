@@ -89,11 +89,12 @@ describe("privacy policy — third-party disclosure", () => {
   it("promises no retention property the code does not establish (#206)", () => {
     // Caught reviewing the first pass of this change, which replaced the old
     // false claim with a new unverifiable one. backend/services/valhalla's
-    // build-graph.sh runs valhalla_build_config with only --mjolnir-* and
-    // --service-limits-* flags, so Valhalla's default top-level logging block
-    // applies — {"type": "std_out"} — and fly.toml configures no logging, so
-    // request logging goes to stdout and Fly retains it. "Keeps no history of
-    // the routes it has calculated" was a promise nothing here backs.
+    // build-graph.sh (now in AFixt/bugrout-server) runs valhalla_build_config
+    // with only --mjolnir-* and --service-limits-* flags, so Valhalla's
+    // default top-level logging block applies — {"type": "std_out"} — and
+    // fly.toml configures no logging, so request logging goes to stdout and
+    // Fly retains it. "Keeps no history of the routes it has calculated" was a
+    // promise nothing here backs.
     expect(PRIVACY_POLICY).not.toMatch(/keeps no history of the routes/);
     expect(PRIVACY_POLICY).not.toMatch(/we store no destination and no route/);
     expect(PRIVACY_POLICY).toContain("operational logs");
