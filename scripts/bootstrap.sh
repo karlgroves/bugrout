@@ -2,7 +2,7 @@
 # Installs the system binaries the local quality gates need.
 #
 # trufflehog / osv-scanner / lychee / semgrep — source and dependency scanning
-# trivy / hadolint / checkov                — container and IaC scanning
+# trivy / checkov                           — filesystem and IaC scanning
 # Node-level deps come from `pnpm install`.
 set -euo pipefail
 
@@ -35,7 +35,6 @@ install_brew_or_hint trufflehog "https://github.com/trufflesecurity/trufflehog/r
 install_brew_or_hint osv-scanner "https://github.com/google/osv-scanner/releases" || status=1
 install_brew_or_hint lychee "https://github.com/lycheeverse/lychee/releases" || status=1
 install_brew_or_hint trivy "https://github.com/aquasecurity/trivy/releases" || status=1
-install_brew_or_hint hadolint "https://github.com/hadolint/hadolint/releases" || status=1
 install_brew_or_hint checkov "https://www.checkov.io/2.Basics/Installing%20Checkov.html" || status=1
 install_brew_or_hint actionlint "https://github.com/rhysd/actionlint/releases" || status=1
 

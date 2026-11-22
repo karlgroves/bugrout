@@ -11,15 +11,21 @@ product specification and [`CLAUDE.md`](CLAUDE.md) for the architecture map.
 
 ## Repository layout
 
-| Path                  | What it is                                                       |
-| --------------------- | ---------------------------------------------------------------- |
-| `apps/mobile/`        | React Native app (Expo SDK 54, Expo Router, MapLibre)            |
-| `packages/shared/`    | Shared TypeScript domain types                                   |
-| `packages/elf-model/` | ELF weight-table training pipeline                               |
-| `backend/workers/`    | Cloudflare Workers (tile-server, alert-aggregator, crowd-signal) |
-| `backend/services/`   | Fly.io services (route-tracker + Redis, Valhalla)                |
-| `data-pipeline/`      | OSM → Valhalla tiles and PMTiles build scripts                   |
-| `docs/`               | ADRs, tech debt, store listing, deployment credentials           |
+| Path                  | What it is                                             |
+| --------------------- | ------------------------------------------------------ |
+| `apps/mobile/`        | React Native app (Expo SDK 54, Expo Router, MapLibre)  |
+| `packages/shared/`    | Shared TypeScript domain types                         |
+| `packages/elf-model/` | ELF weight-table training pipeline                     |
+| `data-pipeline/`      | OSM → Valhalla tiles and PMTiles build scripts         |
+| `security/`           | Security regression tests and scanner wrappers         |
+| `docs/`               | ADRs, tech debt, store listing, deployment credentials |
+
+The server side — the Cloudflare Workers, the Fly.io services and their deploy
+workflows — lives in
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server). It moved there
+on 2026-11-15. The app is designed to route offline, but until in-process
+routing ships (#385, #146 and #388) shipped builds still route through the Fly
+Valhalla service.
 
 ## Prerequisites
 

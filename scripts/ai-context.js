@@ -15,15 +15,7 @@ function readJson(rel) {
 
 const pkg = readJson("package.json");
 
-const workspaceDirs = [
-  "apps/mobile",
-  "packages/shared",
-  "packages/elf-model",
-  "backend/workers/tile-server",
-  "backend/workers/alert-aggregator",
-  "backend/workers/crowd-signal",
-  "backend/services/route-tracker",
-];
+const workspaceDirs = ["apps/mobile", "packages/shared", "packages/elf-model"];
 
 console.log(`# ${pkg.name} — project facts\n`);
 console.log(

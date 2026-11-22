@@ -88,12 +88,14 @@ detection for the compiler in exchange for an early major with no benefit.
 
 ### `@types/node` — no major
 
-Its major tracks the Node major, and Node 22 is pinned in three places:
-`.nvmrc`, `engines` (`>=22.0.0`), and route-tracker's Dockerfile
-(`node:22-slim`). Types ahead of the runtime are **invisible to CI** —
-`@types/node` 26 declares `node:ffi` and `node:quic`, both of which throw
-`ERR_UNKNOWN_BUILTIN_MODULE` on Node 22. Importing one would typecheck, lint,
-pass CI, and crash in production (PR #60).
+Its major tracks the Node major, and Node 22 is pinned in two places here:
+`.nvmrc` and `engines` (`>=22.0.0`). It was three — route-tracker's Dockerfile
+(`node:22-slim`) is the third, and it moved to AFixt/bugrout-server on
+2026-11-15, so the two repositories can now drift apart on the Node major. Types
+ahead of the runtime are **invisible to CI** — `@types/node` 26 declares
+`node:ffi` and `node:quic`, both of which throw `ERR_UNKNOWN_BUILTIN_MODULE` on
+Node 22. Importing one would typecheck, lint, pass CI, and crash in production
+(PR #60).
 
 22.x updates are fine. When the repo moves to a newer Node, `@types/node` moves
 in that same PR, where runtime and types change together.
@@ -320,9 +322,7 @@ installed version inside either its selector or its replacement.
 | License compliance                     | `ci.yml`       | yes                   |
 | Detox smoke (does the app boot?)       | `e2e.yml`      | no — see issue #30    |
 | Trivy filesystem scan                  | `security.yml` | yes                   |
-| Hadolint (both Dockerfiles)            | `security.yml` | yes                   |
 | Checkov + `trivy config` (IaC)         | `security.yml` | yes                   |
-| `trivy image` (route-tracker)          | deploy         | yes — blocks the ship |
 
 `expo-doctor` and `bundle:check` are the two that specifically target the
 failure class above, and both are already gating.
@@ -381,26 +381,33 @@ the CDN returns; the checksum is what makes the pin mean something.
 
 Every other release download in the workflows follows the same pattern, with a
 `<TOOL>_VERSION` and `<TOOL>_SHA256` pair in the step's `env:`: OSV-Scanner,
-Trivy and Hadolint in `security.yml`, Trivy again in `backend-deploy.yml`,
-actionlint in `workflow-lint.yml`, and Planetiler in `data-pipeline.yml`. Tools
-installed through a package manager are pinned to an exact version instead,
-since pipx and a global npm install have no checksum mode here: Semgrep and
-Checkov (`pipx install <tool>==<version>`), wrangler in `data-pipeline.yml`
-(`npm install -g wrangler@<version>`, kept equal to what `pnpm-lock.yaml`
-resolves), and the EAS CLI (`eas-version`). A setup action that installs a
-release names the version through its own input: `setup-flyctl` in
-`backend-deploy.yml` passes an exact `version:`, because with no `version:` the
-action resolves `latest` from the Fly releases API and installs whatever comes
-back, inside the one job that holds `FLY_API_TOKEN`. It downloads and extracts
-the release in its own JavaScript with no hash check, so the `<TOOL>_SHA256`
-half of the pattern cannot be applied to it without replacing the action.
+Trivy in `security.yml`, actionlint in `workflow-lint.yml`, and Planetiler in
+`data-pipeline.yml`. Tools installed through a package manager are pinned to an
+exact version instead, since pipx and a global npm install have no checksum mode
+here: Semgrep and Checkov (`pipx install <tool>==<version>`), wrangler in
+`data-pipeline.yml` (`npm install -g wrangler@<version>`), and the EAS CLI
+(`eas-version`). The wrangler pin used to be kept equal to what `pnpm-lock.yaml`
+resolves; the server split on 2026-11-15 took the only workspaces that depended
+on wrangler, so it is no longer in the lockfile at all and that cross-check is
+gone. The global install in `data-pipeline.yml` is now the only place the
+version is written, and nothing verifies it against a second source. A setup
+action that installs a release names the version through its own input. The
+example was `setup-flyctl` in `backend-deploy.yml`, which passes an exact
+`version:` because with no `version:` the action resolves `latest` from the Fly
+releases API and installs whatever comes back, inside the one job that holds
+`FLY_API_TOKEN`; it downloads and extracts the release in its own JavaScript
+with no hash check, so the `<TOOL>_SHA256` half of the pattern cannot be applied
+to it without replacing the action. That workflow moved to AFixt/bugrout-server
+on 2026-11-15, so no workflow here uses `setup-flyctl` today — the rule stays,
+because the check below still enforces it if one appears.
 `pnpm run security:tests` fails on a `releases/latest` URL, a
 `/releases/download/` URL with no `sha256sum` check in its step, an unpinned
 `pipx install` or `npm install -g`, `eas-version: latest`, or a `setup-flyctl`
-step that does not name an exact `version:`. It does not recognise other install
-forms (`pip install`, `npm install --global`, a download from outside GitHub
-releases, another setup action with no version), so review a new tool's install
-step against this pattern.
+step that does not name an exact `version:`. It reads whatever workflows are in
+this repository, so it keeps enforcing the pattern for anything added later. It
+does not recognise other install forms (`pip install`, `npm install --global`, a
+download from outside GitHub releases, another setup action with no version), so
+review a new tool's install step against this pattern.
 
 Two values have to move together when bumping trufflehog:
 

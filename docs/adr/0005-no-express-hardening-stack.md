@@ -1,5 +1,11 @@
 # ADR 0005: No Express hardening stack (helmet, express-rate-limit, etc.)
 
+> **Where this code lives now.** This ADR is about
+> `backend/services/route-tracker`, which moved to
+> [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on 2026-11-15.
+> The decision stands; the code it governs is in that repository. Nothing below
+> has been rewritten.
+
 - Status: Accepted
 - Date: 2026-06-04
 - Context: Issue #1 (Express backend specifics)
