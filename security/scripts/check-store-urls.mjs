@@ -14,8 +14,9 @@
  * browser to a lander that has none either.
  *
  * **200 is why nothing caught it.** Every check this repository already had
- * reads a status code: `lychee` in `docs.yml` resolves links, `check-headers.js`
- * asserts response headers. Both pass on that body. The one check that reads
+ * reads a status code: `lychee` in `docs.yml` resolves links, and the header
+ * check (now in AFixt/bugrout-server) asserts response headers. Both pass on
+ * that body. The one check that reads
  * the policy's *content* — `apps/mobile/__tests__/docs/privacyLabelDrift.test.ts`
  * — cross-checks the bundled policy and both store labels against the source,
  * and says so in its own header: "not caught — whether the *hosted* policy at
@@ -39,7 +40,8 @@
  * A URL or file named on the command line is judged as a privacy policy;
  * `--no-policy` asks only for readable content, as the support URL does.
  *
- * Exit codes, matching check-headers.js:
+ * Exit codes, matching the check-headers.js convention this repository used
+ * before that script moved to AFixt/bugrout-server:
  *   0  every submitted URL serves real content
  *   1  at least one serves no readable content, or no policy
  *   2  at least one could not be reached

@@ -55,6 +55,12 @@ does after a merge, and `backend-deploy.yml` used to fire on any push to `main`
 with no dependency on `ci.yml` at all — so a red pull request that got merged
 would deploy three Cloudflare Workers and a Fly service.
 
+**That workflow is not in this repository any more.** It moved to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on 2026-11-15,
+and nothing here deploys a service. The reasoning below is kept because it is
+why that workflow is shaped the way it is, and because it applies to any deploy
+workflow added here later.
+
 That workflow now triggers on `workflow_run` of CI completing, refuses to
 proceed unless CI concluded `success`, waits for the Security workflow to finish
 for the same commit and requires that too, and checks out the exact SHA the

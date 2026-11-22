@@ -84,8 +84,6 @@ export default tseslint.config(
           project: [
             "apps/mobile/tsconfig.json",
             "packages/*/tsconfig.json",
-            "backend/workers/*/tsconfig.json",
-            "backend/services/route-tracker/tsconfig.json",
             "security/tsconfig.json",
           ],
         }),
@@ -202,9 +200,11 @@ export default tseslint.config(
       "security/detect-eval-with-expression": "error",
       "security/detect-no-csrf-before-method-override": "error",
       // error, not warn: no lint script passes --max-warnings, so a warn-level
-      // rule can never fail a gate, and this one guards ADR 0005's claim that
-      // route-tracker compares its bearer token in constant time. It has zero
-      // findings, so promoting it is a pure ratchet (#307).
+      // rule can never fail a gate. It was promoted in #307 to guard ADR
+      // 0005's claim that route-tracker compares its bearer token in constant
+      // time; route-tracker now lives in AFixt/bugrout-server, and the rule
+      // stays at error here because it has zero findings — a ratchet, not a
+      // control that moved with the code.
       "security/detect-possible-timing-attacks": "error",
       "security/detect-pseudoRandomBytes": "error",
 
@@ -352,18 +352,6 @@ export default tseslint.config(
     },
   },
 
-  // ── Cloudflare Workers: service-worker runtime, not Node ──────────────
-  {
-    files: ["backend/workers/**/*.ts"],
-    languageOptions: {
-      globals: { ...globals.serviceworker },
-    },
-    rules: {
-      // Workers module syntax requires `export default { fetch }`
-      "import-x/no-default-export": "off",
-    },
-  },
-
   // ── Platform wrappers: conditional require() of native modules with
   //    mock fallbacks for web/Expo Go is the documented pattern here ─────
   {
@@ -378,12 +366,9 @@ export default tseslint.config(
     },
   },
 
-  // ── Node surfaces: Fly.io service + elf-model CLI scripts ─────────────
+  // ── Node surfaces: the elf-model CLI scripts ──────────────────────────
   {
-    files: [
-      "backend/services/route-tracker/**/*.ts",
-      "packages/elf-model/src/**/*.ts",
-    ],
+    files: ["packages/elf-model/src/**/*.ts"],
     plugins: { n },
     languageOptions: {
       globals: { ...globals.node },

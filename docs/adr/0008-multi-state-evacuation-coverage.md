@@ -1,5 +1,12 @@
 # ADR 0008: Covering evacuations that cross state lines
 
+> **Where this code lives now.** The server side of this ADR —
+> `backend/services/valhalla`, the Fly routing service and its graph build —
+> moved to [AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) on
+> 2026-11-15, and that service is being retired (`docs/retirement-valhalla.md`
+> there). The app, the manifest and the region packaging stay here. Nothing
+> below has been rewritten.
+
 - Status: **Accepted** — decided by the product owner 2026-10-28
 - Date: 2026-10-05
 - Context: Issue #190 (fake route to Louisville); related #151 (tile freshness),

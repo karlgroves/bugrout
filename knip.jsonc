@@ -10,13 +10,15 @@
 
   // Binaries this repository calls but deliberately does not vendor. All of
   // these are scanners installed outside the package manager: `bash
-  // scripts/bootstrap.sh` puts the first eight on PATH, and CI installs
+  // scripts/bootstrap.sh` puts the first seven on PATH, and CI installs
   // trufflehog itself from a checksum-verified release (ci.yml). Adding them as
   // npm dependencies would mean a second, divergent copy of each.
+  //
+  // `hadolint` left on 2026-11-15 with the two Dockerfiles, which moved to
+  // AFixt/bugrout-server. Nothing here builds an image.
   "ignoreBinaries": [
     "actionlint",
     "checkov",
-    "hadolint",
     "lychee",
     "osv-scanner",
     "semgrep",

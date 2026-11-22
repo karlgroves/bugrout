@@ -6,83 +6,37 @@ and `gh variable list` are both **empty**, so nothing here is set today.
 
 Each row names what becomes verifiable once the credential exists — a command
 whose output changes — so "configured" is a checkable claim rather than a
-belief. Issues: #157, #143, #149, #150, #142.
+belief. Issues: #143, #149, #150, #142.
+
+**The service credentials left on 2026-11-15.** `FLY_API_TOKEN`, the R2 S3
+credentials for the Valhalla graph (#266), and the Workers scope of
+`CLOUDFLARE_API_TOKEN` went to
+[AFixt/bugrout-server](https://github.com/AFixt/bugrout-server) with the
+services they deploy. Its `docs/deployment-credentials.md` is the live copy for
+those. Nothing in this repository deploys a service.
 
 ## 1. `CLOUDFLARE_API_TOKEN` — GitHub repository secret
 
-Blocks **two** workflows, and this is the single highest-leverage credential in
-the repository.
+|              |                                                                                                                                                                |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where        | GitHub repository secret. `data-pipeline.yml` reads `secrets.CLOUDFLARE_API_TOKEN`; the job declares no `environment:`, so it must be set at repository level. |
+| Set it       | `gh secret set CLOUDFLARE_API_TOKEN --repo karlgroves/bugrout`                                                                                                 |
+| Scope needed | **`R2 Storage: Edit`** on the account owning the `bugrout-tiles` bucket. Workers scope is not needed here any more.                                            |
 
-|              |                                                                                                                                                                                                 |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Where        | GitHub repository secret. `backend-deploy.yml` and `data-pipeline.yml` both read `secrets.CLOUDFLARE_API_TOKEN`; neither job declares an `environment:`, so it must be set at repository level. |
-| Set it       | `gh secret set CLOUDFLARE_API_TOKEN --repo karlgroves/bugrout`                                                                                                                                  |
-| Scope needed | **Both** `Workers Scripts: Edit` **and** `R2 Storage: Edit`, on the account owning `bugrout-tile-server` and the `bugrout-tiles` bucket.                                                        |
+**This used to need two scopes.** `backend-deploy.yml` wanted
+`Workers Scripts: Edit` and `data-pipeline.yml` wants `R2 Storage: Edit`, and
+one token carried both. The deploy workflow moved to the server repository with
+its own secret, so this one needs R2 write only. Cloudflare's "Edit Cloudflare
+Workers" template does not include R2 write — do not use it for this.
 
-**The scope matters.** Cloudflare's "Edit Cloudflare Workers" template does not
-include R2 write. `backend-deploy.yml` needs Workers; `data-pipeline.yml` runs
-`wrangler r2 object put "bugrout-tiles/<region>/<file>"` and
-`build-manifest.sh --upload`, which need R2. A token from the template alone
-deploys the workers and then fails the publish.
-
-Verifiable once set:
-
-```bash
-# today: 6 warnings for missing security headers on the live worker
-node security/scripts/check-headers.js --production \
-  https://bugrout-tile-server.karlgroves.workers.dev/health
-```
-
-Run **Backend Deploy** on `main` (`workflow_dispatch`), then re-run the above:
-it should report **0 warnings**. `packages/worker-utils/src/http.ts` sets five
-headers that the deployed worker does not send at all, and a
-`Strict-Transport-Security` with `includeSubDomains` where the live one omits
-it. Those six warnings are the measure of how far behind the live worker is
-(#157).
-
-Then unblocked: the first credentialed pipeline run against `md`, which is the
+What it unblocks: the first credentialed pipeline run against `md`, which is the
 sole remaining item on **#241**, **#146** (`valhallaSize` is `0` in the live
 manifest — no routing graph has ever been published) and **#203** (the published
 package carries no `fuelSize`), and which **#147** needs for any further region.
-Expect `alert-aggregator` and `crowd-signal` to keep failing until **#144**
-supplies real KV namespace ids; `fail-fast: false` means they no longer cancel
-`tile-server`.
 
-## 2. `FLY_API_TOKEN` — GitHub repository secret
-
-|              |                                                                                                                                                                 |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Where        | GitHub repository secret, read by `backend-deploy.yml`.                                                                                                         |
-| Set it       | `flyctl tokens create deploy -a bugrout-route-tracker` then `gh secret set FLY_API_TOKEN --repo karlgroves/bugrout`                                             |
-| Scope needed | Deploy on `bugrout-route-tracker`, the only Fly app Backend Deploy deploys. A deploy token covers one app; `bugrout-valhalla` is not deployed by this workflow. |
-
-Verifiable once set: Backend Deploy's `deploy-services` job (_Deploy Fly.io
-Services_) reaches `flyctl deploy` instead of exiting on _"no access token
-available"_. `bugrout-route-tracker` has never been deployed (#144).
-
-## 2b. R2 S3 credentials — the routing graph (#266)
-
-The Valhalla service's graph lives in R2 under
-`bugrout-tiles/server/<extract>/<build-date>/` and is read and written through
-R2's S3 API, not wrangler (`wrangler r2 object put` refuses objects over 300
-MiB). Create two R2 API tokens on the account owning `bugrout-tiles`, both
-scoped to that bucket only. `R2_ENDPOINT` is
-`https://<account-id>.r2.cloudflarestorage.com`.
-
-| Where                                      | Names                                                     | Token permission    |
-| ------------------------------------------ | --------------------------------------------------------- | ------------------- |
-| Fly secrets on `bugrout-valhalla`          | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Object Read only    |
-| GitHub repository secrets (Valhalla Graph) | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Object Read & Write |
-
-```bash
-flyctl secrets set -a bugrout-valhalla R2_ENDPOINT=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
-gh secret set R2_ENDPOINT --repo karlgroves/bugrout   # and the other two
-```
-
-Verifiable once set: **Valhalla Graph** with `upload` ticked publishes a
-version, and after setting `GRAPH_VERSION` to it,
-`flyctl logs -a bugrout-valhalla` shows `graph: fetching <version>` then the
-service starting, instead of `the Fly secret R2_ENDPOINT is not set`.
+Verifiable once set: **Build Region Package** with `upload` ticked completes its
+`wrangler r2 object put` steps instead of exiting on an authentication error,
+and the published `manifest.json` for `md` carries non-zero sizes.
 
 ## 3. App keys — EAS environment variables, not `eas.json`
 
@@ -150,9 +104,9 @@ Needs a Google Cloud service account with the **Google Play Android Developer
 API** enabled, invited to the Play Console with release permission on the app.
 
 **#150's first checkbox is answered: no, Firebase is not needed.** Nothing in
-`apps/mobile`, `packages` or `backend` references Firebase,
-`google-services.json` or `GoogleService-Info.plist`. No `google-services.json`
-has to be generated.
+`apps/mobile` or `packages` references Firebase, `google-services.json` or
+`GoogleService-Info.plist`, and nothing in the server code did either when it
+was here. No `google-services.json` has to be generated.
 
 Verifiable once in place: `eas submit --platform android --profile production`
 uploads to the `internal` track.

@@ -18,6 +18,13 @@ exclude = [
   # Example/stub endpoints
   "example\\.com",
   "sentry\\.io/your-project",
+  # AFixt/bugrout-server is PRIVATE. The server code moved there on 2026-11-15
+  # and the docs here point at it in sixteen places. GitHub answers 404, not
+  # 401 or 403, for a private repository to an unauthenticated client, so
+  # neither the `accept` list above nor a token-free retry can tell it from a
+  # dead link. Checked by hand instead: `gh repo view AFixt/bugrout-server`
+  # resolves. Delete this line if the repository is ever made public.
+  "github\\.com/AFixt/bugrout-server",
 ]
 
 # `.claude` holds Claude Code session worktrees: full checkouts of this repo
