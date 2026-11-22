@@ -33,9 +33,12 @@
  * delegate implementing `scene(_:willConnectTo:options:)`.
  *
  * Deep links and universal links arrive on the scene once scenes are adopted,
- * so the scene delegate forwards them to `RCTLinkingManager`; the `AppDelegate`
- * methods for both are left alone, since they are harmless and keep the
- * pre-scene path working if the manifest is ever removed.
+ * so the scene delegate hands them to the app delegate's own `open` and
+ * `continue` methods. Those already call `RCTLinkingManager` and, through
+ * `super`, every `ExpoAppDelegate` subscriber; calling `RCTLinkingManager`
+ * directly would have skipped the subscribers (expo-dev-client's deep links
+ * among them). The `AppDelegate` methods themselves are unchanged, so the
+ * pre-scene path still works if the manifest is ever removed.
  */
 
 const { withAppDelegate, withInfoPlist } = require("expo/config-plugins");
@@ -82,24 +85,33 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     // A cold start opened by a link delivers it here, not to the app delegate.
     if let urlContext = connectionOptions.urlContexts.first {
-      RCTLinkingManager.application(
-        UIApplication.shared, open: urlContext.url, options: [:])
+      openURL(urlContext.url)
     }
     if let userActivity = connectionOptions.userActivities.first {
-      RCTLinkingManager.application(
-        UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
+      continueActivity(userActivity)
     }
   }
 
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
     for context in URLContexts {
-      RCTLinkingManager.application(
-        UIApplication.shared, open: context.url, options: [:])
+      openURL(context.url)
     }
   }
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-    RCTLinkingManager.application(
+    continueActivity(userActivity)
+  }
+
+  // Through the app delegate, so ExpoAppDelegate's subscribers see the link
+  // as well as RCTLinkingManager.
+  private func openURL(_ url: URL) {
+    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+    _ = appDelegate.application(UIApplication.shared, open: url, options: [:])
+  }
+
+  private func continueActivity(_ userActivity: NSUserActivity) {
+    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+    _ = appDelegate.application(
       UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
   }
 }
@@ -107,64 +119,71 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 
 /**
- * Declare the scene and its delegate in Info.plist.
+ * The scene manifest for Info.plist.
  *
- * @param {import("expo/config-plugins").ExpoConfig} config
- * @returns {import("expo/config-plugins").ExpoConfig}
+ * @returns {Record<string, unknown>}
  */
-function withSceneManifest(config) {
-  return withInfoPlist(config, (cfg) => {
-    cfg.modResults.UIApplicationSceneManifest = {
-      UIApplicationSupportsMultipleScenes: false,
-      UISceneConfigurations: {
-        UIWindowSceneSessionRoleApplication: [
-          {
-            UISceneConfigurationName: SCENE_CONFIG_NAME,
-            // Resolved against the app's own module, which is the product name.
-            UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).SceneDelegate",
-          },
-        ],
-      },
-    };
-    return cfg;
-  });
+function sceneManifest() {
+  return {
+    UIApplicationSupportsMultipleScenes: false,
+    UISceneConfigurations: {
+      UIWindowSceneSessionRoleApplication: [
+        {
+          UISceneConfigurationName: SCENE_CONFIG_NAME,
+          // Resolved against the app's own module, which is the product name.
+          UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).SceneDelegate",
+        },
+      ],
+    },
+  };
 }
 
 /**
- * Move window creation into a scene delegate in AppDelegate.swift.
+ * Add a scene delegate to AppDelegate.swift that adopts the app delegate's
+ * window. Idempotent: a file that already carries the marker is returned as is.
  *
- * @param {import("expo/config-plugins").ExpoConfig} config
- * @returns {import("expo/config-plugins").ExpoConfig}
+ * @param {{ language: string, contents: string }} appDelegate - The generated
+ *   app delegate, as `withAppDelegate` hands it over.
+ * @returns {string} The new contents.
  */
-function withSceneDelegate(config) {
-  return withAppDelegate(config, (cfg) => {
-    if (cfg.modResults.language !== "swift") {
-      throw new Error(
-        `withUISceneLifecycle: expected a Swift AppDelegate, got ${cfg.modResults.language}.`,
-      );
-    }
+function addSceneDelegate(appDelegate) {
+  if (appDelegate.language !== "swift") {
+    throw new Error(
+      `withUISceneLifecycle: expected a Swift AppDelegate, got ${appDelegate.language}.`,
+    );
+  }
 
-    const source = cfg.modResults.contents;
-    if (source.includes(MARKER)) {
-      return cfg;
-    }
-    if (!source.includes(WINDOW_BLOCK)) {
-      throw new Error(
-        "withUISceneLifecycle: could not find the template's window setup in " +
-          "AppDelegate.swift. The Expo template changed — re-check this plugin " +
-          "against it, or drop the plugin if the template now adopts UIScene.",
-      );
-    }
+  const source = appDelegate.contents;
+  if (source.includes(MARKER)) {
+    return source;
+  }
+  if (!source.includes(WINDOW_BLOCK)) {
+    throw new Error(
+      "withUISceneLifecycle: could not find the template's window setup in " +
+        "AppDelegate.swift. The Expo template changed — re-check this plugin " +
+        "against it, or drop the plugin if the template now adopts UIScene.",
+    );
+  }
 
-    cfg.modResults.contents = source + sceneDelegateSource();
-    return cfg;
-  });
+  return source + sceneDelegateSource();
 }
 
 /**
  * @param {import("expo/config-plugins").ExpoConfig} config
  * @returns {import("expo/config-plugins").ExpoConfig}
  */
-module.exports = function withUISceneLifecycle(config) {
-  return withSceneDelegate(withSceneManifest(config));
-};
+function withUISceneLifecycle(config) {
+  const withManifest = withInfoPlist(config, (cfg) => {
+    cfg.modResults.UIApplicationSceneManifest = sceneManifest();
+    return cfg;
+  });
+  return withAppDelegate(withManifest, (cfg) => {
+    cfg.modResults.contents = addSceneDelegate(cfg.modResults);
+    return cfg;
+  });
+}
+
+module.exports = withUISceneLifecycle;
+module.exports.sceneManifest = sceneManifest;
+module.exports.addSceneDelegate = addSceneDelegate;
+module.exports.MARKER = MARKER;
