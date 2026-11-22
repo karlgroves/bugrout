@@ -18,6 +18,9 @@ DEPS_DIR="${1:-${SCRIPT_DIR}/../deps}"
 
 VALHALLA_VERSION="3.5.1"
 BOOST_VERSION="1_84_0"
+# Published by Boost beside the tarball (boost_1_84_0.tar.gz.json). Change it
+# with BOOST_VERSION: the download is compiled into the app, so it is verified.
+BOOST_SHA256="a5800f405508f5df8114558ca9855d2640a2de8f0445f051fa1c7c3383045724"
 PROTOBUF_VERSION="25.3"
 LZ4_VERSION="1.9.4"
 
@@ -50,6 +53,11 @@ if [[ ! -d "boost" ]]; then
   echo "Downloading Boost ${BOOST_VERSION}..."
   # --fail so an error page is an error here, not a corrupt archive later.
   curl --fail -L -o "$BOOST_FILE" "$BOOST_URL"
+  if ! echo "${BOOST_SHA256}  ${BOOST_FILE}" | shasum -a 256 -c -; then
+    rm -f "$BOOST_FILE"
+    echo "Error: ${BOOST_FILE} does not match its published SHA-256." >&2
+    exit 1
+  fi
   # Extract to a temp dir and move it into place only on success, so a failed
   # run never leaves a boost/ that the guard above reads as "already present".
   rm -rf boost.tmp
