@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   s.version      = '0.1.0'
   s.summary      = 'In-process Valhalla routing (BugRout Approach A)'
   s.homepage     = 'https://github.com/karlgroves/bugrout'
-  s.license      = { :type => 'MIT' }
+  s.license      = { :type => 'Proprietary' }
   s.author       = 'BugRout'
   s.platforms    = { :ios => '15.0' }
   s.source       = { :path => '.' }
@@ -25,9 +25,9 @@ Pod::Spec.new do |s|
   # Objective-C++ binding + shared C++ core, both inside the pod root.
   s.source_files = 'ios/ValhallaEngine.mm', 'cpp/*.{h,cpp}'
 
-  # Prebuilt Valhalla static lib produced by build-scripts/build-ios.sh. The
-  # archive inside it already has protobuf and abseil merged in, so there is
-  # nothing else to link.
+  # Prebuilt Valhalla static lib produced by build-scripts/build-ios.sh (iOS
+  # Simulator, arm64, only). The archive already has protobuf, abseil and LZ4
+  # merged in, so there is nothing else to link.
   s.vendored_frameworks = 'bin/ios/valhalla.xcframework'
 
   s.pod_target_xcconfig = {
@@ -44,12 +44,11 @@ Pod::Spec.new do |s|
       '"$(PODS_TARGET_SRCROOT)/deps/valhalla/third_party/date/include"',
       '"$(PODS_TARGET_SRCROOT)/deps/valhalla/third_party/rapidjson/include"',
       '"$(PODS_TARGET_SRCROOT)/deps/valhalla/third_party/robin-hood-hashing/src/include"',
-      # Headers generated during the Valhalla build (valhalla/config.h and the
-      # protobuf-generated valhalla/proto/*.pb.h, which protoc writes under
-      # src/), plus protobuf's own headers.
-      '"$(PODS_TARGET_SRCROOT)/build/ios/sim"',
-      '"$(PODS_TARGET_SRCROOT)/build/ios/sim/src"',
-      '"$(PODS_TARGET_SRCROOT)/build/protobuf/ios-sim-install/include"',
+      # Build outputs, staged by build-scripts/build-ios.sh: Valhalla's own
+      # headers with the config.h and protobuf-generated *.pb.h its build
+      # writes, plus protobuf's headers. Never a build tree: build/ is
+      # scratch, and the podspec must only read what the script promises.
+      '"$(PODS_TARGET_SRCROOT)/bin/ios/include"',
     ].join(' '),
   }
 
