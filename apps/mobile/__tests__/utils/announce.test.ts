@@ -1,9 +1,9 @@
 /**
  * The announcement rule lives in one place so it can be held there (#383).
  *
- * Every imperative screen-reader announcement in the app goes through
- * `announcePolitely`, so these cases are what stops a second unqueued
- * `announceForAccessibility` creeping back in: on iOS a plain announcement
+ * These cases pin what `announcePolitely` does; `announceCallSites.test.ts`
+ * pins that components use it, which is what stops a second unqueued
+ * `announceForAccessibility` creeping back in. On iOS a plain announcement
  * interrupts speech in progress, and the navigation screen has two components
  * that announce while the vehicle is moving.
  */

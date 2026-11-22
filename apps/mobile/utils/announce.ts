@@ -15,11 +15,13 @@
  * `queue` is iOS-only and ignored on Android, where `accessibilityLiveRegion`
  * already queues. `react-native-web` has no `announceForAccessibilityWithOptions`
  * at all, and calling it there throws and takes the web preview down, so web
- * keeps the plain call — a no-op in practice, since the `alert` role does the
- * announcing in a browser.
+ * keeps the plain call — a no-op in practice, since the components' live
+ * regions (`aria-live` on react-native-web) do the announcing in a browser.
  *
- * Every imperative announcement in the app goes through here, so the rule lives
- * in one place and `__tests__/utils/announce.test.ts` can hold it there.
+ * The rule lives in one place so it can be held there: `announce.test.ts` pins
+ * what this does, and `announceCallSites.test.ts` fails on any new direct
+ * `AccessibilityInfo` announcement elsewhere. Three older components still
+ * call it directly and are listed there by name until they move (#383).
  */
 
 import { AccessibilityInfo, Platform } from "react-native";
