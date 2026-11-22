@@ -7,7 +7,7 @@
  *
  * iOS:
  *   - Adds `pod 'ValhallaEngine', :path => ...` to the Podfile. The podspec
- *     (ios/ValhallaEngine.podspec) compiles ValhallaEngine.mm + cpp/ValhallaCore
+ *     (ValhallaEngine.podspec, at the module root) compiles ValhallaEngine.mm + cpp/ValhallaCore
  *     and links bin/ios/valhalla.xcframework.
  * Android:
  *   - Copies the Kotlin module + package into the app source tree.
